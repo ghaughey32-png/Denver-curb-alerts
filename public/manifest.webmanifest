@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Denver Curb Alerts",
+  "short_name": "Curb Alerts",
+  "description": "Street sweeping reminders with curb-side selections, saved alert sets, and push-ready notification jobs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f0e7",
+  "theme_color": "#c95d2a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
