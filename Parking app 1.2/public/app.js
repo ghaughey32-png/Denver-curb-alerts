@@ -1635,6 +1635,20 @@ function isSecureHost() {
   return window.isSecureContext || window.location.protocol === "https:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
+function isAppleMobileDevice() {
+  const userAgent = navigator.userAgent || "";
+  const touchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return /iPhone|iPad|iPod/i.test(userAgent) || touchMac;
+}
+
+function isStandaloneDisplay() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function requiresHomeScreenInstallForPush() {
+  return isAppleMobileDevice();
+}
+
 function hasRemotePushReady() {
   return Boolean(canUseWebPush() && isSecureHost() && state.pushConfig.enabled && state.pushSubscription);
 }
@@ -2305,6 +2319,14 @@ function renderNotificationStatus() {
     return;
   }
 
+  if (requiresHomeScreenInstallForPush() && !isStandaloneDisplay()) {
+    notificationStatus.textContent =
+      "On iPhone and iPad, push only works after you add this app to your Home Screen and open it from that icon.";
+    enableNotificationsButton.disabled = true;
+    sendTestButton.disabled = true;
+    return;
+  }
+
   if (state.pushConfigError) {
     notificationStatus.textContent = `Push setup hit a snag: ${state.pushConfigError}`;
     enableNotificationsButton.disabled = false;
@@ -2348,6 +2370,11 @@ function renderNotificationStatus() {
 
 async function requestBrowserNotifications() {
   if (!canUseBrowserNotifications()) {
+    renderNotificationStatus();
+    return;
+  }
+
+  if (requiresHomeScreenInstallForPush() && !isStandaloneDisplay()) {
     renderNotificationStatus();
     return;
   }
