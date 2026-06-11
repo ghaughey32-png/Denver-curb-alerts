@@ -1540,6 +1540,7 @@ const state = {
   reminderPlanSyncPending: false,
   reminderPlanSyncQueued: false,
   lastSyncedReminderPlanHash: "",
+  scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
   map: null,
@@ -1572,6 +1573,7 @@ const jobItemTemplate = document.querySelector("#job-item-template");
 const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
 const sendTestButton = document.querySelector("#send-test-button");
+const scheduleTestButton = document.querySelector("#schedule-test-button");
 
 function canUseBrowserStorage() {
   try {
@@ -2419,7 +2421,7 @@ function scheduleBrowserNotifications() {
 }
 
 function renderNotificationStatus() {
-  if (!notificationStatus || !enableNotificationsButton || !sendTestButton) {
+  if (!notificationStatus || !enableNotificationsButton || !sendTestButton || !scheduleTestButton) {
     return;
   }
 
@@ -2427,6 +2429,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This browser does not support notifications for this prototype.";
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = true;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2434,6 +2437,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This file preview can show local test alerts, but iPhone push needs the app hosted on https:// and opened from the Home Screen.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2441,6 +2445,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This browser can show alerts, but it does not support full web push on this device.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2449,6 +2454,7 @@ function renderNotificationStatus() {
       "On iPhone and iPad, push only works after you add this app to your Home Screen and open it from that icon.";
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = true;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2456,6 +2462,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = `Push setup hit a snag: ${state.pushConfigError}`;
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2463,21 +2470,24 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This app is hosted securely, but server-side push keys are not configured yet. Local preview alerts can still be tested.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
   const permission = window.Notification.permission;
   if (state.pushSubscription && permission === "granted") {
+    const scheduledTestNote = state.scheduledTestMessage ? ` ${state.scheduledTestMessage}` : "";
     if (state.reminderPlanSyncPending) {
       notificationStatus.textContent = "Push is connected for this device. Updating your upcoming reminder schedule on the server now.";
     } else if (state.reminderPlanSyncError) {
       notificationStatus.textContent = `Push is connected, but the automatic reminder schedule has not synced yet: ${state.reminderPlanSyncError}`;
     } else {
       notificationStatus.textContent =
-        "Push is connected for this device. Upcoming reminder times are synced to the hosted app so they can be delivered automatically.";
+        `Push is connected for this device. Upcoming reminder times are synced to the hosted app so they can be delivered automatically.${scheduledTestNote}`;
     }
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = false;
     return;
   }
 
@@ -2485,6 +2495,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "Notification permission is on. Tap the button once to connect this device to the app's push service.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2492,12 +2503,14 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "Notifications are blocked for this app in the browser settings on this device.";
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = true;
+    scheduleTestButton.disabled = true;
     return;
   }
 
   notificationStatus.textContent = "This app is ready to request push permission for this device.";
   enableNotificationsButton.disabled = false;
   sendTestButton.disabled = false;
+  scheduleTestButton.disabled = true;
 }
 
 async function requestBrowserNotifications() {
@@ -2643,6 +2656,50 @@ async function sendImmediateTestNotification(job = null) {
   new window.Notification("Street sweeping reminder test", {
     body: "Test alert: this is how your move-your-car reminder will look."
   });
+}
+
+async function scheduleHostedTestNotification() {
+  if (!state.pushSubscription) {
+    await requestBrowserNotifications();
+  }
+
+  if (!hasRemotePushReady()) {
+    renderNotificationStatus();
+    return;
+  }
+
+  state.scheduledTestMessage = "";
+  renderNotificationStatus();
+
+  try {
+    const response = await fetch("/api/push/schedule-test", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        endpoint: state.pushSubscription.endpoint,
+        delayMinutes: 2
+      })
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(details || "Unable to schedule the hosted test.");
+    }
+
+    const result = await response.json();
+    const scheduledDate = new Date(result.scheduledAt);
+    state.scheduledTestMessage = `A live hosted test is scheduled for ${scheduledDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit"
+    })}.`;
+  } catch (error) {
+    state.scheduledTestMessage = "";
+    state.reminderPlanSyncError = error.message || "Unable to schedule the hosted test.";
+  }
+
+  renderNotificationStatus();
 }
 
 function buildJobTitle(job) {
@@ -2822,6 +2879,7 @@ function registerEvents() {
   saveSetButton.addEventListener("click", saveCurrentAsSet);
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
+  scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
   setNameInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();

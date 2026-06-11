@@ -169,6 +169,27 @@ function isDeliverableJob(job) {
   return Boolean(job.id && job.scheduledAt && !Number.isNaN(new Date(job.scheduledAt).getTime()));
 }
 
+function mergeReminderJobs(existingJobs, nextJobs) {
+  const existingJobsById = new Map((existingJobs || []).map((job) => [job.id, job]));
+  return nextJobs.map((job) => {
+    const previous = existingJobsById.get(job.id);
+    return previous ? { ...job, sentAt: previous.sentAt || null } : { ...job, sentAt: null };
+  });
+}
+
+function buildReminderPlanRecord(existingPlan, subscriptionRecord, endpoint, savedSets, jobs) {
+  const now = new Date().toISOString();
+  return {
+    id: existingPlan?.id || `plan_${Date.now()}`,
+    endpoint,
+    subscriptionId: subscriptionRecord.id,
+    deviceLabel: subscriptionRecord.deviceLabel || "",
+    updatedAt: now,
+    savedSets,
+    jobs: mergeReminderJobs(existingPlan?.jobs || [], jobs)
+  };
+}
+
 function buildDenverSweepUrl(address) {
   const url = new URL("Streets/Sweeping", DENVER_API_BASE);
   url.searchParams.set("address", address);
@@ -442,21 +463,7 @@ async function handleReminderPlans(request, response, url) {
 
       const plans = await readReminderPlans();
       const existing = plans.find((item) => item.endpoint === endpoint);
-      const existingJobsById = new Map((existing?.jobs || []).map((job) => [job.id, job]));
-      const mergedJobs = jobs.map((job) => {
-        const previous = existingJobsById.get(job.id);
-        return previous ? { ...job, sentAt: previous.sentAt || null } : { ...job, sentAt: null };
-      });
-      const now = new Date().toISOString();
-      const nextPlan = {
-        id: existing?.id || `plan_${Date.now()}`,
-        endpoint,
-        subscriptionId: subscriptionRecord.id,
-        deviceLabel: subscriptionRecord.deviceLabel || "",
-        updatedAt: now,
-        savedSets,
-        jobs: mergedJobs
-      };
+      const nextPlan = buildReminderPlanRecord(existing, subscriptionRecord, endpoint, savedSets, jobs);
       const nextPlans = existing
         ? plans.map((item) => (item.endpoint === endpoint ? nextPlan : item))
         : [nextPlan, ...plans];
@@ -465,7 +472,7 @@ async function handleReminderPlans(request, response, url) {
       sendJson(response, 200, {
         ok: true,
         planId: nextPlan.id,
-        queuedJobCount: mergedJobs.filter((job) => !job.sentAt).length
+        queuedJobCount: nextPlan.jobs.filter((job) => !job.sentAt).length
       });
     } catch (error) {
       sendJson(response, 400, {
@@ -491,6 +498,78 @@ async function handleReminderPlans(request, response, url) {
   }
 
   sendJson(response, 405, { error: "Method not allowed." });
+}
+
+async function handleScheduledPushTest(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const config = getPushConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, {
+      error: "Web push is not configured yet.",
+      details: "Set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT, then install the web-push package."
+    });
+    return;
+  }
+
+  try {
+    const body = JSON.parse(await readRequestBody(request));
+    const endpoint = String(body.endpoint || "");
+    const requestedDelay = Number(body.delayMinutes || 2);
+    const delayMinutes = Number.isFinite(requestedDelay) ? Math.min(Math.max(Math.round(requestedDelay), 1), 15) : 2;
+
+    if (!endpoint) {
+      sendJson(response, 400, { error: "A push subscription endpoint is required." });
+      return;
+    }
+
+    const subscriptions = await readPushSubscriptions();
+    const subscriptionRecord = subscriptions.find((item) => item.endpoint === endpoint);
+    if (!subscriptionRecord) {
+      sendJson(response, 404, { error: "Push subscription not found for that device." });
+      return;
+    }
+
+    const plans = await readReminderPlans();
+    const existing = plans.find((item) => item.endpoint === endpoint);
+    const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000);
+    const testJob = normalizeReminderJob({
+      id: `job-scheduled-test-${Date.now()}`,
+      title: "Denver Curb Alerts scheduled test",
+      body: `This is a live ${delayMinutes}-minute test of your automatic reminder delivery.`,
+      scheduledAt: scheduledAt.toISOString(),
+      setName: "Scheduled test",
+      url: "/",
+      segmentLabels: ["Hosted push test"],
+      triggerLabels: [`${delayMinutes}-minute automatic test`]
+    });
+    const nextPlan = buildReminderPlanRecord(
+      existing,
+      subscriptionRecord,
+      endpoint,
+      existing?.savedSets || [],
+      [...(existing?.jobs || []), testJob]
+    );
+    const nextPlans = existing
+      ? plans.map((item) => (item.endpoint === endpoint ? nextPlan : item))
+      : [nextPlan, ...plans];
+
+    await writeReminderPlans(nextPlans);
+    sendJson(response, 200, {
+      ok: true,
+      jobId: testJob.id,
+      scheduledAt: testJob.scheduledAt,
+      delayMinutes
+    });
+  } catch (error) {
+    sendJson(response, 400, {
+      error: "Unable to schedule the hosted push test.",
+      details: error.message
+    });
+  }
 }
 
 async function handlePushTest(request, response) {
@@ -660,6 +739,11 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/reminder-plans") {
     await handleReminderPlans(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/push/schedule-test") {
+    await handleScheduledPushTest(request, response);
     return;
   }
 
