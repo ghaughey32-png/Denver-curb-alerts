@@ -1,40 +1,84 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sloan's Lake Curb Map</title>
-    <meta
-      name="description"
-      content="Clickable curb-side selection map for the Sloan's Lake pilot area between Lowell and Hooker, and Colfax to 18th."
-    />
-    <meta name="theme-color" content="#c95d2a" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Sloan's Lake pilot</p>
-          <h1>Pick curb sides straight from the map.</h1>
-          <p class="hero-text">
-            This version is focused only on the area you named: from <strong>Lowell to Hooker</strong> and from
-            <strong>Colfax to 18th</strong>. The map below uses a real neighborhood basemap so people can orient
-            themselves with Sloan's Lake, schools, and surrounding landmarks before selecting curb sides.
-          </p>
-        </div>
-        <div class="hero-summary">
-          <div class="summary-card">
+SLOAN'S LAKE PILOT
+
+Pick curb sides straight from the map.
+This version is focused only on the area you named: from Lowell to Hooker and from Colfax to 18th. The map below uses a real neighborhood basemap so people can orient themselves with Sloan's Lake, schools, and surrounding landmarks before selecting curb sides.
+Streets mapped
+10
+Clickable curb segments
+52
+Selected now
+1
+INTERACTIVE MAP
+
+Sloan's Lake neighborhood map
+Clear all selections
+North curb of east-west streets
+South curb of east-west streets
+East curb of north-south streets
+West curb of north-south streets
++
+−
+ Leaflet | © OpenStreetMap contributors
+Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it.
+NOTIFICATION DRAFT
+
+Selected curb sides
+Area
+Lowell to Hooker, Colfax to 18th
+Geometry
+Real street lines
+Selection memory
+Saved in this browser
+Current selection
+1 selected
+West curb
+Remove
+King Street
+West curb of King Street | Next sweep: Tue, Jun 16, 2026 | West side: The 3rd Tuesday of the month.
+Device alerts
+Push setup hit a snag: serviceWorker.register() must be called with a script URL whose protocol is either HTTP or HTTPS
+When we host this on `https://` and install it on your Home Screen, this is where you turn on iPhone-ready push for the device.
+
+Turn on push for this device
+Send test now
+2-minute hosted test
+Save notification set
+Set name
+Save current selection
+Saved notification sets
+1 saved
+curb sweep 1 test
+1 curb sides | Earliest: Tue, Jun 16, 2026 | saved 6/10/2026, 4:20:41 PM
+Reminder timing
+Scheduled day before at 6:00 PM and day of at 7:00 AM.
+Day before
+Send a heads-up the evening before sweeping.
+
+Day of
+Choose up to three move-your-car reminders on sweep day.
+Reminder 1
+
+Reminder 2
+
+Reminder 3
+
+Load set
+Delete
+Upcoming notification jobs
+2 queued
+These are the real alert jobs this pilot would hand to push delivery for the next sweep dates.
+Mon, Jun 15 at 6:00 PM
+curb sweep 1 test | Day before | 1 curb sides
+Push-ready
+Day before. King Street - West curb
+Scheduled push payload: King Street - West curb
+Send this now
+Tue, Jun 16 at 7:00 AM
+curb sweep 1 test | Day of reminder 1 | 1 curb sides
+Push-ready
+Day of reminder 1. King Street - West curb
+Scheduled push payload: King Street - West curb
+Send this now          <div class="summary-card">
             <span class="summary-label">Streets mapped</span>
             <strong id="street-count">12</strong>
           </div>
