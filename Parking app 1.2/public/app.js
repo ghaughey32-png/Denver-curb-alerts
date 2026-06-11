@@ -1836,7 +1836,18 @@ function initializeMap() {
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
+function renderMapFailure(message) {
+  const frame = document.querySelector(".map-frame");
+  if (frame) {
+    frame.innerHTML = `<div class="empty-state"><p>Map failed to load.</p><p class="empty-subtext">${message}</p></div>`;
+  }
+}
+
 function renderContext() {
+  if (!state.contextLayerGroup) {
+    return;
+  }
+
   state.contextLayerGroup.clearLayers();
 
   contextMarkers.forEach((marker) => {
@@ -1860,6 +1871,10 @@ function renderContext() {
 }
 
 function renderStreetBases() {
+  if (!state.baseLayerGroup) {
+    return;
+  }
+
   state.baseLayerGroup.clearLayers();
 
   state.streetWays.forEach((way) => {
@@ -1891,6 +1906,10 @@ function getSegmentById(segmentId) {
 }
 
 function renderSegments() {
+  if (!state.segmentLayerGroup) {
+    return;
+  }
+
   state.segmentLayerGroup.clearLayers();
 
   state.curbSegments.forEach((segment) => {
@@ -2660,22 +2679,26 @@ function registerEvents() {
   });
 }
 
-try {
-  if (storageMode) {
-    storageMode.textContent = hasBrowserStorage ? "Saved in this browser" : "Temporary for this tab";
-  }
-
-  buildStreetData();
-  initializeMap();
-  registerEvents();
-  renderAll();
-  initializePushFeatures();
-} catch (error) {
-  const frame = document.querySelector(".map-frame");
-  if (frame) {
-    frame.innerHTML = `<div class="empty-state"><p>Map failed to load.</p><p class="empty-subtext">${error.message}</p></div>`;
-  }
+if (storageMode) {
+  storageMode.textContent = hasBrowserStorage ? "Saved in this browser" : "Temporary for this tab";
 }
+
+try {
+  buildStreetData();
+} catch (error) {
+  renderMapFailure(error.message);
+}
+
+registerEvents();
+
+try {
+  initializeMap();
+} catch (error) {
+  renderMapFailure(error.message);
+}
+
+renderAll();
+initializePushFeatures();
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
