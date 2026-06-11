@@ -11,7 +11,9 @@ const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
 const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const PUSH_SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "push-subscriptions.json");
+const REMINDER_PLANS_FILE = path.join(DATA_DIR, "reminder-plans.json");
 const DENVER_API_BASE = "https://www.denvergov.org/api/";
+const REMINDER_DISPATCH_INTERVAL_MS = 60 * 1000;
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -42,7 +44,7 @@ async function ensureJsonFile(filePath) {
 }
 
 async function ensureDataFiles() {
-  await Promise.all([ensureJsonFile(SUBSCRIPTIONS_FILE), ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE)]);
+  await Promise.all([ensureJsonFile(SUBSCRIPTIONS_FILE), ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE), ensureJsonFile(REMINDER_PLANS_FILE)]);
 }
 
 function fetchJson(url) {
@@ -108,6 +110,16 @@ async function writePushSubscriptions(subscriptions) {
   await fs.writeFile(PUSH_SUBSCRIPTIONS_FILE, `${JSON.stringify(subscriptions, null, 2)}\n`, "utf8");
 }
 
+async function readReminderPlans() {
+  await ensureJsonFile(REMINDER_PLANS_FILE);
+  const raw = await fs.readFile(REMINDER_PLANS_FILE, "utf8");
+  return JSON.parse(raw);
+}
+
+async function writeReminderPlans(plans) {
+  await fs.writeFile(REMINDER_PLANS_FILE, `${JSON.stringify(plans, null, 2)}\n`, "utf8");
+}
+
 function getWebPushLibrary() {
   try {
     return require("web-push");
@@ -137,6 +149,24 @@ function getPushConfig() {
     hasKeys,
     webPush
   };
+}
+
+function normalizeReminderJob(job) {
+  return {
+    id: String(job.id || ""),
+    title: String(job.title || "Denver Curb Alerts"),
+    body: String(job.body || "Street sweeping reminder"),
+    scheduledAt: String(job.scheduledAt || ""),
+    setName: String(job.setName || ""),
+    url: String(job.url || "/"),
+    segmentLabels: Array.isArray(job.segmentLabels) ? job.segmentLabels.map((label) => String(label)) : [],
+    triggerLabels: Array.isArray(job.triggerLabels) ? job.triggerLabels.map((label) => String(label)) : [],
+    sentAt: job.sentAt ? String(job.sentAt) : null
+  };
+}
+
+function isDeliverableJob(job) {
+  return Boolean(job.id && job.scheduledAt && !Number.isNaN(new Date(job.scheduledAt).getTime()));
 }
 
 function buildDenverSweepUrl(address) {
@@ -364,6 +394,105 @@ async function handlePushSubscriptions(request, response, url) {
   sendJson(response, 405, { error: "Method not allowed." });
 }
 
+async function handleReminderPlans(request, response, url) {
+  if (request.method === "GET") {
+    const endpoint = url.searchParams.get("endpoint");
+    const plans = await readReminderPlans();
+
+    if (!endpoint) {
+      sendJson(response, 200, {
+        count: plans.length,
+        plans
+      });
+      return;
+    }
+
+    const plan = plans.find((item) => item.endpoint === endpoint);
+    sendJson(response, 200, {
+      plan: plan || null
+    });
+    return;
+  }
+
+  if (request.method === "POST") {
+    try {
+      const body = JSON.parse(await readRequestBody(request));
+      const endpoint = String(body.endpoint || "");
+      const jobs = Array.isArray(body.jobs) ? body.jobs.map(normalizeReminderJob).filter(isDeliverableJob) : [];
+      const savedSets = Array.isArray(body.savedSets)
+        ? body.savedSets.map((set) => ({
+            id: String(set.id || ""),
+            name: String(set.name || ""),
+            segmentIds: Array.isArray(set.segmentIds) ? set.segmentIds.map((segmentId) => String(segmentId)) : [],
+            createdAt: String(set.createdAt || "")
+          }))
+        : [];
+
+      if (!endpoint) {
+        sendJson(response, 400, { error: "A push subscription endpoint is required." });
+        return;
+      }
+
+      const subscriptions = await readPushSubscriptions();
+      const subscriptionRecord = subscriptions.find((item) => item.endpoint === endpoint);
+      if (!subscriptionRecord) {
+        sendJson(response, 404, { error: "Push subscription not found for that device." });
+        return;
+      }
+
+      const plans = await readReminderPlans();
+      const existing = plans.find((item) => item.endpoint === endpoint);
+      const existingJobsById = new Map((existing?.jobs || []).map((job) => [job.id, job]));
+      const mergedJobs = jobs.map((job) => {
+        const previous = existingJobsById.get(job.id);
+        return previous ? { ...job, sentAt: previous.sentAt || null } : { ...job, sentAt: null };
+      });
+      const now = new Date().toISOString();
+      const nextPlan = {
+        id: existing?.id || `plan_${Date.now()}`,
+        endpoint,
+        subscriptionId: subscriptionRecord.id,
+        deviceLabel: subscriptionRecord.deviceLabel || "",
+        updatedAt: now,
+        savedSets,
+        jobs: mergedJobs
+      };
+      const nextPlans = existing
+        ? plans.map((item) => (item.endpoint === endpoint ? nextPlan : item))
+        : [nextPlan, ...plans];
+
+      await writeReminderPlans(nextPlans);
+      sendJson(response, 200, {
+        ok: true,
+        planId: nextPlan.id,
+        queuedJobCount: mergedJobs.filter((job) => !job.sentAt).length
+      });
+    } catch (error) {
+      sendJson(response, 400, {
+        error: "Invalid reminder plan payload.",
+        details: error.message
+      });
+    }
+    return;
+  }
+
+  if (request.method === "DELETE") {
+    const endpoint = url.searchParams.get("endpoint");
+    if (!endpoint) {
+      sendJson(response, 400, { error: "An endpoint query parameter is required." });
+      return;
+    }
+
+    const plans = await readReminderPlans();
+    const nextPlans = plans.filter((item) => item.endpoint !== endpoint);
+    await writeReminderPlans(nextPlans);
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed." });
+}
+
 async function handlePushTest(request, response) {
   if (request.method !== "POST") {
     sendJson(response, 405, { error: "Method not allowed." });
@@ -411,6 +540,69 @@ async function handlePushTest(request, response) {
       error: "Unable to send the test push right now.",
       details: error.message
     });
+  }
+}
+
+async function dispatchDueReminderPlans() {
+  const config = getPushConfig();
+  if (!config.enabled) {
+    return;
+  }
+
+  const [plans, subscriptions] = await Promise.all([readReminderPlans(), readPushSubscriptions()]);
+  const subscriptionsByEndpoint = new Map(subscriptions.map((subscription) => [subscription.endpoint, subscription]));
+  const now = Date.now();
+  let changed = false;
+
+  for (const plan of plans) {
+    const subscription = subscriptionsByEndpoint.get(plan.endpoint);
+    if (!subscription) {
+      continue;
+    }
+
+    for (const job of plan.jobs || []) {
+      if (job.sentAt) {
+        continue;
+      }
+
+      const scheduledTime = new Date(job.scheduledAt).getTime();
+      if (Number.isNaN(scheduledTime) || scheduledTime > now) {
+        continue;
+      }
+
+      try {
+        await config.webPush.sendNotification(
+          {
+            endpoint: subscription.endpoint,
+            keys: subscription.keys
+          },
+          JSON.stringify({
+            title: job.title,
+            body: job.body,
+            url: job.url || "/",
+            tag: job.id
+          })
+        );
+        job.sentAt = new Date().toISOString();
+        changed = true;
+      } catch (error) {
+        console.error(`Unable to deliver reminder job ${job.id}: ${error.message}`);
+      }
+    }
+
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const originalLength = plan.jobs.length;
+    plan.jobs = (plan.jobs || []).filter((job) => {
+      const scheduledTime = new Date(job.scheduledAt).getTime();
+      return !job.sentAt || Number.isNaN(scheduledTime) || scheduledTime >= thirtyDaysAgo;
+    });
+    if (plan.jobs.length !== originalLength) {
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await writeReminderPlans(plans);
   }
 }
 
@@ -466,6 +658,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (url.pathname === "/api/reminder-plans") {
+    await handleReminderPlans(request, response, url);
+    return;
+  }
+
   if (url.pathname === "/api/push/test") {
     await handlePushTest(request, response);
     return;
@@ -477,4 +674,12 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, HOST, async () => {
   await ensureDataFiles();
   console.log(`Denver Curb Alerts running at http://${HOST}:${PORT}`);
+  dispatchDueReminderPlans().catch((error) => {
+    console.error(`Reminder dispatch failed during startup: ${error.message}`);
+  });
+  setInterval(() => {
+    dispatchDueReminderPlans().catch((error) => {
+      console.error(`Reminder dispatch failed: ${error.message}`);
+    });
+  }, REMINDER_DISPATCH_INTERVAL_MS);
 });
