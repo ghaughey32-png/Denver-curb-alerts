@@ -1536,6 +1536,11 @@ const state = {
   },
   pushSubscription: null,
   pushConfigError: "",
+  reminderPlanSyncError: "",
+  reminderPlanSyncPending: false,
+  reminderPlanSyncQueued: false,
+  lastSyncedReminderPlanHash: "",
+  scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
   map: null,
@@ -1568,6 +1573,7 @@ const jobItemTemplate = document.querySelector("#job-item-template");
 const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
 const sendTestButton = document.querySelector("#send-test-button");
+const scheduleTestButton = document.querySelector("#schedule-test-button");
 
 function canUseBrowserStorage() {
   try {
@@ -1633,6 +1639,20 @@ function canUseWebPush() {
 
 function isSecureHost() {
   return window.isSecureContext || window.location.protocol === "https:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function isAppleMobileDevice() {
+  const userAgent = navigator.userAgent || "";
+  const touchMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return /iPhone|iPad|iPod/i.test(userAgent) || touchMac;
+}
+
+function isStandaloneDisplay() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function requiresHomeScreenInstallForPush() {
+  return isAppleMobileDevice();
 }
 
 function hasRemotePushReady() {
@@ -1836,7 +1856,18 @@ function initializeMap() {
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
+function renderMapFailure(message) {
+  const frame = document.querySelector(".map-frame");
+  if (frame) {
+    frame.innerHTML = `<div class="empty-state"><p>Map failed to load.</p><p class="empty-subtext">${message}</p></div>`;
+  }
+}
+
 function renderContext() {
+  if (!state.contextLayerGroup) {
+    return;
+  }
+
   state.contextLayerGroup.clearLayers();
 
   contextMarkers.forEach((marker) => {
@@ -1860,6 +1891,10 @@ function renderContext() {
 }
 
 function renderStreetBases() {
+  if (!state.baseLayerGroup) {
+    return;
+  }
+
   state.baseLayerGroup.clearLayers();
 
   state.streetWays.forEach((way) => {
@@ -1891,6 +1926,10 @@ function getSegmentById(segmentId) {
 }
 
 function renderSegments() {
+  if (!state.segmentLayerGroup) {
+    return;
+  }
+
   state.segmentLayerGroup.clearLayers();
 
   state.curbSegments.forEach((segment) => {
@@ -2194,6 +2233,122 @@ function buildNotificationJobs() {
   saveJson(NOTIFICATION_JOBS_KEY, state.notificationJobs);
 }
 
+function buildReminderPlanPayload() {
+  if (!state.pushSubscription?.endpoint) {
+    return null;
+  }
+
+  return {
+    endpoint: state.pushSubscription.endpoint,
+    savedSets: state.savedSets.map((set) => ({
+      id: set.id,
+      name: set.name,
+      segmentIds: Array.isArray(set.segmentIds) ? [...set.segmentIds] : [],
+      createdAt: set.createdAt
+    })),
+    jobs: state.notificationJobs.map((job) => ({
+      id: job.id,
+      title: job.title,
+      body: job.body,
+      scheduledAt: job.scheduledAt,
+      setName: job.setName,
+      url: "/",
+      segmentLabels: Array.isArray(job.segmentLabels) ? [...job.segmentLabels] : [],
+      triggerLabels: Array.isArray(job.triggerLabels) ? [...job.triggerLabels] : []
+    }))
+  };
+}
+
+async function registerPushSubscriptionWithServer(subscription) {
+  const response = await fetch("/api/push/subscriptions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+      userAgent: navigator.userAgent,
+      deviceLabel: navigator.platform || "unknown device"
+    })
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(details || "Unable to save this device for hosted reminders.");
+  }
+}
+
+async function syncReminderPlanToServer(options = {}) {
+  if (!window.fetch || !isSecureHost() || !canUseWebPush() || !state.pushConfig.enabled || !state.pushSubscription?.endpoint) {
+    state.reminderPlanSyncPending = false;
+    state.reminderPlanSyncError = "";
+    return;
+  }
+
+  const payload = buildReminderPlanPayload();
+  if (!payload) {
+    state.reminderPlanSyncPending = false;
+    state.reminderPlanSyncError = "";
+    return;
+  }
+
+  const payloadHash = JSON.stringify(payload);
+  if (!options.force && payloadHash === state.lastSyncedReminderPlanHash) {
+    return;
+  }
+
+  state.reminderPlanSyncPending = true;
+  state.reminderPlanSyncError = "";
+  renderNotificationStatus();
+
+  try {
+    let response = await fetch("/api/reminder-plans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: payloadHash
+    });
+
+    if (response.status === 404) {
+      await registerPushSubscriptionWithServer(state.pushSubscription);
+      response = await fetch("/api/reminder-plans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: payloadHash
+      });
+    }
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(details || "Unable to sync hosted reminder jobs for this device.");
+    }
+
+    state.lastSyncedReminderPlanHash = payloadHash;
+    state.reminderPlanSyncError = "";
+  } catch (error) {
+    state.reminderPlanSyncError = error.message || "Unable to sync hosted reminder jobs for this device.";
+  } finally {
+    state.reminderPlanSyncPending = false;
+    renderNotificationStatus();
+    renderNotificationJobs();
+  }
+}
+
+function queueReminderPlanSync(options = {}) {
+  if (state.reminderPlanSyncQueued && !options.force) {
+    return;
+  }
+
+  state.reminderPlanSyncQueued = true;
+  window.setTimeout(async () => {
+    state.reminderPlanSyncQueued = false;
+    await syncReminderPlanToServer(options);
+  }, 0);
+}
+
 async function initializePushFeatures() {
   if (!canUseWebPush() || !isSecureHost()) {
     renderNotificationStatus();
@@ -2214,11 +2369,16 @@ async function initializePushFeatures() {
       saveJson(PUSH_SUBSCRIPTION_KEY, {
         endpoint: state.pushSubscription.endpoint
       });
+
+      if (state.pushConfig.enabled) {
+        await registerPushSubscriptionWithServer(state.pushSubscription);
+      }
     }
   } catch (error) {
     state.pushConfigError = error.message;
   }
 
+  queueReminderPlanSync({ force: true });
   renderNotificationStatus();
   renderNotificationJobs();
 }
@@ -2261,7 +2421,7 @@ function scheduleBrowserNotifications() {
 }
 
 function renderNotificationStatus() {
-  if (!notificationStatus || !enableNotificationsButton || !sendTestButton) {
+  if (!notificationStatus || !enableNotificationsButton || !sendTestButton || !scheduleTestButton) {
     return;
   }
 
@@ -2269,6 +2429,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This browser does not support notifications for this prototype.";
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = true;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2276,6 +2437,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This file preview can show local test alerts, but iPhone push needs the app hosted on https:// and opened from the Home Screen.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2283,6 +2445,16 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This browser can show alerts, but it does not support full web push on this device.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
+    return;
+  }
+
+  if (requiresHomeScreenInstallForPush() && !isStandaloneDisplay()) {
+    notificationStatus.textContent =
+      "On iPhone and iPad, push only works after you add this app to your Home Screen and open it from that icon.";
+    enableNotificationsButton.disabled = true;
+    sendTestButton.disabled = true;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2290,6 +2462,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = `Push setup hit a snag: ${state.pushConfigError}`;
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2297,14 +2470,24 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "This app is hosted securely, but server-side push keys are not configured yet. Local preview alerts can still be tested.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
   const permission = window.Notification.permission;
   if (state.pushSubscription && permission === "granted") {
-    notificationStatus.textContent = "Push is connected for this device. When a queued job reaches its time, the service worker can deliver it even after the app is installed.";
+    const scheduledTestNote = state.scheduledTestMessage ? ` ${state.scheduledTestMessage}` : "";
+    if (state.reminderPlanSyncPending) {
+      notificationStatus.textContent = "Push is connected for this device. Updating your upcoming reminder schedule on the server now.";
+    } else if (state.reminderPlanSyncError) {
+      notificationStatus.textContent = `Push is connected, but the automatic reminder schedule has not synced yet: ${state.reminderPlanSyncError}`;
+    } else {
+      notificationStatus.textContent =
+        `Push is connected for this device. Upcoming reminder times are synced to the hosted app so they can be delivered automatically.${scheduledTestNote}`;
+    }
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = false;
     return;
   }
 
@@ -2312,6 +2495,7 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "Notification permission is on. Tap the button once to connect this device to the app's push service.";
     enableNotificationsButton.disabled = false;
     sendTestButton.disabled = false;
+    scheduleTestButton.disabled = true;
     return;
   }
 
@@ -2319,16 +2503,23 @@ function renderNotificationStatus() {
     notificationStatus.textContent = "Notifications are blocked for this app in the browser settings on this device.";
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = true;
+    scheduleTestButton.disabled = true;
     return;
   }
 
   notificationStatus.textContent = "This app is ready to request push permission for this device.";
   enableNotificationsButton.disabled = false;
   sendTestButton.disabled = false;
+  scheduleTestButton.disabled = true;
 }
 
 async function requestBrowserNotifications() {
   if (!canUseBrowserNotifications()) {
+    renderNotificationStatus();
+    return;
+  }
+
+  if (requiresHomeScreenInstallForPush() && !isStandaloneDisplay()) {
     renderNotificationStatus();
     return;
   }
@@ -2371,19 +2562,10 @@ async function requestBrowserNotifications() {
       endpoint: subscription.endpoint
     });
 
-    await fetch("/api/push/subscriptions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        subscription: subscription.toJSON ? subscription.toJSON() : subscription,
-        userAgent: navigator.userAgent,
-        deviceLabel: navigator.platform || "unknown device"
-      })
-    });
-  } catch {
-    // Ignore subscription errors and let the UI reflect the current state.
+    await registerPushSubscriptionWithServer(subscription);
+    await syncReminderPlanToServer({ force: true });
+  } catch (error) {
+    state.reminderPlanSyncError = error.message || "Unable to connect this device to hosted reminders.";
   }
 
   renderNotificationStatus();
@@ -2474,6 +2656,50 @@ async function sendImmediateTestNotification(job = null) {
   new window.Notification("Street sweeping reminder test", {
     body: "Test alert: this is how your move-your-car reminder will look."
   });
+}
+
+async function scheduleHostedTestNotification() {
+  if (!state.pushSubscription) {
+    await requestBrowserNotifications();
+  }
+
+  if (!hasRemotePushReady()) {
+    renderNotificationStatus();
+    return;
+  }
+
+  state.scheduledTestMessage = "";
+  renderNotificationStatus();
+
+  try {
+    const response = await fetch("/api/push/schedule-test", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        endpoint: state.pushSubscription.endpoint,
+        delayMinutes: 2
+      })
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(details || "Unable to schedule the hosted test.");
+    }
+
+    const result = await response.json();
+    const scheduledDate = new Date(result.scheduledAt);
+    state.scheduledTestMessage = `A live hosted test is scheduled for ${scheduledDate.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit"
+    })}.`;
+  } catch (error) {
+    state.scheduledTestMessage = "";
+    state.reminderPlanSyncError = error.message || "Unable to schedule the hosted test.";
+  }
+
+  renderNotificationStatus();
 }
 
 function buildJobTitle(job) {
@@ -2609,6 +2835,7 @@ function renderAll() {
   renderNotificationJobs();
   renderNotificationStatus();
   renderStats();
+  queueReminderPlanSync();
 }
 
 function parseSweepDate(dateString) {
@@ -2652,6 +2879,7 @@ function registerEvents() {
   saveSetButton.addEventListener("click", saveCurrentAsSet);
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
+  scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
   setNameInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -2660,22 +2888,26 @@ function registerEvents() {
   });
 }
 
-try {
-  if (storageMode) {
-    storageMode.textContent = hasBrowserStorage ? "Saved in this browser" : "Temporary for this tab";
-  }
-
-  buildStreetData();
-  initializeMap();
-  registerEvents();
-  renderAll();
-  initializePushFeatures();
-} catch (error) {
-  const frame = document.querySelector(".map-frame");
-  if (frame) {
-    frame.innerHTML = `<div class="empty-state"><p>Map failed to load.</p><p class="empty-subtext">${error.message}</p></div>`;
-  }
+if (storageMode) {
+  storageMode.textContent = hasBrowserStorage ? "Saved in this browser" : "Temporary for this tab";
 }
+
+try {
+  buildStreetData();
+} catch (error) {
+  renderMapFailure(error.message);
+}
+
+registerEvents();
+
+try {
+  initializeMap();
+} catch (error) {
+  renderMapFailure(error.message);
+}
+
+renderAll();
+initializePushFeatures();
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
