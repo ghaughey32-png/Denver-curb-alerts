@@ -14,7 +14,7 @@ This is a working Denver pilot for a parking-protection app that helps people av
   - Day of at 7:00 AM
   - Day of at 9:00 AM
   - Day of at 11:00 AM
-- Saves alert plans locally to `data/subscriptions.json`
+- Uses a real database automatically when `DATABASE_URL` is set, and falls back to local JSON files only for local development
 
 ## What this version does not do yet
 
@@ -90,11 +90,25 @@ Add these environment variables in Render:
 
 - `HOST=0.0.0.0`
 - `PORT=10000`
+- `DATABASE_URL=...`
 - `VAPID_PUBLIC_KEY=...`
 - `VAPID_PRIVATE_KEY=...`
 - `VAPID_SUBJECT=mailto:you@example.com`
 
 Once deployed, Render will give you a public `https://` address.
+
+### 2a. Add a small database
+
+For a dependable hosted reminder system, create a Postgres database and copy its connection string into:
+
+- `DATABASE_URL`
+
+The app will then:
+
+- keep push subscriptions in the database
+- keep reminder plans in the database
+- keep scheduled reminder jobs in the database
+- automatically copy over any existing local JSON data the first time it starts with `DATABASE_URL`
 
 ### 3. Test on iPhone
 
@@ -114,7 +128,7 @@ If the server keys are configured correctly, the app will save the device subscr
 If we keep pushing this toward a real consumer app, the best next architecture is:
 
 1. Keep the Denver lookup behind our own backend so we control caching, retries, and future city integrations.
-2. Move subscriptions into a real database keyed by user/device.
+2. Add user accounts so one person can manage multiple saved curb-side sets across devices.
 3. Add service-worker web push for the PWA or move to a mobile app shell for more reliable notifications.
 4. Add a background job that expands each saved schedule into concrete reminders and sends them through push, SMS, or email.
 5. Add a city data ingestion job so users can browse the map first instead of starting from address lookup.

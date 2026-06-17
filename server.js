@@ -9,11 +9,17 @@ const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
+const DATABASE_URL = process.env.DATABASE_URL || "";
 const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const PUSH_SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "push-subscriptions.json");
 const REMINDER_PLANS_FILE = path.join(DATA_DIR, "reminder-plans.json");
 const DENVER_API_BASE = "https://www.denvergov.org/api/";
 const REMINDER_DISPATCH_INTERVAL_MS = 60 * 1000;
+const COLLECTION_KEYS = {
+  subscriptions: "subscriptions",
+  pushSubscriptions: "push-subscriptions",
+  reminderPlans: "reminder-plans"
+};
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -23,6 +29,10 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json; charset=utf-8"
 };
+
+let databasePool = null;
+let databaseSchemaReady = false;
+let storageBackend = DATABASE_URL ? "database" : "file";
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
@@ -45,6 +55,135 @@ async function ensureJsonFile(filePath) {
 
 async function ensureDataFiles() {
   await Promise.all([ensureJsonFile(SUBSCRIPTIONS_FILE), ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE), ensureJsonFile(REMINDER_PLANS_FILE)]);
+}
+
+function isDatabaseConfigured() {
+  return Boolean(DATABASE_URL);
+}
+
+function getPgLibrary() {
+  try {
+    return require("pg");
+  } catch {
+    return null;
+  }
+}
+
+function getDatabasePool() {
+  if (!isDatabaseConfigured()) {
+    return null;
+  }
+
+  if (!databasePool) {
+    const pg = getPgLibrary();
+    if (!pg) {
+      throw new Error("DATABASE_URL is set, but the pg package is not installed.");
+    }
+
+    databasePool = new pg.Pool({
+      connectionString: DATABASE_URL
+    });
+  }
+
+  return databasePool;
+}
+
+async function ensureDatabaseSchema() {
+  if (!isDatabaseConfigured() || databaseSchemaReady) {
+    return;
+  }
+
+  const pool = getDatabasePool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_collections (
+      name TEXT PRIMARY KEY,
+      items JSONB NOT NULL DEFAULT '[]'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await Promise.all(
+    Object.values(COLLECTION_KEYS).map((name) =>
+      pool.query(
+        `
+          INSERT INTO app_collections (name, items)
+          VALUES ($1, '[]'::jsonb)
+          ON CONFLICT (name) DO NOTHING
+        `,
+        [name]
+      )
+    )
+  );
+
+  databaseSchemaReady = true;
+}
+
+async function readCollectionFromFile(filePath) {
+  await ensureJsonFile(filePath);
+  const raw = await fs.readFile(filePath, "utf8");
+  return JSON.parse(raw);
+}
+
+async function writeCollectionToFile(filePath, items) {
+  await fs.writeFile(filePath, `${JSON.stringify(items, null, 2)}\n`, "utf8");
+}
+
+async function readCollectionFromDatabase(name) {
+  await ensureDatabaseSchema();
+  const pool = getDatabasePool();
+  const result = await pool.query("SELECT items FROM app_collections WHERE name = $1", [name]);
+
+  if (!result.rows[0]) {
+    return [];
+  }
+
+  return Array.isArray(result.rows[0].items) ? result.rows[0].items : [];
+}
+
+async function writeCollectionToDatabase(name, items) {
+  await ensureDatabaseSchema();
+  const pool = getDatabasePool();
+  await pool.query(
+    `
+      INSERT INTO app_collections (name, items, updated_at)
+      VALUES ($1, $2::jsonb, NOW())
+      ON CONFLICT (name)
+      DO UPDATE SET
+        items = EXCLUDED.items,
+        updated_at = NOW()
+    `,
+    [name, JSON.stringify(items)]
+  );
+}
+
+async function maybeMigrateFileCollectionToDatabase(name, filePath) {
+  const existingItems = await readCollectionFromDatabase(name);
+  if (existingItems.length > 0) {
+    return;
+  }
+
+  const fileItems = await readCollectionFromFile(filePath);
+  if (fileItems.length === 0) {
+    return;
+  }
+
+  await writeCollectionToDatabase(name, fileItems);
+}
+
+async function initStorage() {
+  if (!isDatabaseConfigured()) {
+    await ensureDataFiles();
+    storageBackend = "file";
+    return;
+  }
+
+  await ensureDatabaseSchema();
+  await Promise.all([
+    maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.subscriptions, SUBSCRIPTIONS_FILE),
+    maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.pushSubscriptions, PUSH_SUBSCRIPTIONS_FILE),
+    maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE)
+  ]);
+  storageBackend = "database";
 }
 
 function fetchJson(url) {
@@ -91,33 +230,54 @@ async function readRequestBody(request) {
 }
 
 async function readSubscriptions() {
-  await ensureJsonFile(SUBSCRIPTIONS_FILE);
-  const raw = await fs.readFile(SUBSCRIPTIONS_FILE, "utf8");
-  return JSON.parse(raw);
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.subscriptions);
+  }
+
+  return readCollectionFromFile(SUBSCRIPTIONS_FILE);
 }
 
 async function writeSubscriptions(subscriptions) {
-  await fs.writeFile(SUBSCRIPTIONS_FILE, `${JSON.stringify(subscriptions, null, 2)}\n`, "utf8");
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.subscriptions, subscriptions);
+    return;
+  }
+
+  await writeCollectionToFile(SUBSCRIPTIONS_FILE, subscriptions);
 }
 
 async function readPushSubscriptions() {
-  await ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE);
-  const raw = await fs.readFile(PUSH_SUBSCRIPTIONS_FILE, "utf8");
-  return JSON.parse(raw);
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.pushSubscriptions);
+  }
+
+  return readCollectionFromFile(PUSH_SUBSCRIPTIONS_FILE);
 }
 
 async function writePushSubscriptions(subscriptions) {
-  await fs.writeFile(PUSH_SUBSCRIPTIONS_FILE, `${JSON.stringify(subscriptions, null, 2)}\n`, "utf8");
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.pushSubscriptions, subscriptions);
+    return;
+  }
+
+  await writeCollectionToFile(PUSH_SUBSCRIPTIONS_FILE, subscriptions);
 }
 
 async function readReminderPlans() {
-  await ensureJsonFile(REMINDER_PLANS_FILE);
-  const raw = await fs.readFile(REMINDER_PLANS_FILE, "utf8");
-  return JSON.parse(raw);
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.reminderPlans);
+  }
+
+  return readCollectionFromFile(REMINDER_PLANS_FILE);
 }
 
 async function writeReminderPlans(plans) {
-  await fs.writeFile(REMINDER_PLANS_FILE, `${JSON.stringify(plans, null, 2)}\n`, "utf8");
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.reminderPlans, plans);
+    return;
+  }
+
+  await writeCollectionToFile(REMINDER_PLANS_FILE, plans);
 }
 
 function getWebPushLibrary() {
@@ -756,8 +916,8 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, async () => {
-  await ensureDataFiles();
-  console.log(`Denver Curb Alerts running at http://${HOST}:${PORT}`);
+  await initStorage();
+  console.log(`Denver Curb Alerts running at http://${HOST}:${PORT} using ${storageBackend} storage`);
   dispatchDueReminderPlans().catch((error) => {
     console.error(`Reminder dispatch failed during startup: ${error.message}`);
   });
