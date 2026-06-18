@@ -2068,6 +2068,32 @@ function updateSavedSet(setId, updates) {
   renderAll();
 }
 
+function getUpcomingSweepDates(segment) {
+  const seen = new Set();
+  const upcomingDates = [];
+
+  const addDate = (dateString) => {
+    const sweepDate = parseSweepDate(dateString);
+    if (!sweepDate) {
+      return;
+    }
+
+    const normalizedKey = sweepDate.toISOString().slice(0, 10);
+    if (seen.has(normalizedKey)) {
+      return;
+    }
+
+    seen.add(normalizedKey);
+    upcomingDates.push(sweepDate);
+  };
+
+  const allDates = Array.isArray(segment.schedule?.allDates) ? segment.schedule.allDates : [];
+  allDates.forEach((item) => addDate(item?.Date));
+  addDate(segment.schedule?.nextDate);
+
+  return upcomingDates.sort((a, b) => a.getTime() - b.getTime());
+}
+
 function updateDayOfReminder(setId, slotIndex, field, value) {
   const savedSet = state.savedSets.find((set) => set.id === setId);
   if (!savedSet) {
@@ -2159,65 +2185,62 @@ function buildNotificationJobs() {
     const selectedSegments = set.segmentIds.map(getSegmentById).filter(Boolean);
 
     selectedSegments.forEach((segment) => {
-      const nextDate = segment.schedule?.nextDate;
-      if (!nextDate) {
+      const sweepDates = getUpcomingSweepDates(segment);
+      if (!sweepDates.length) {
         return;
       }
 
-      const sweepDate = parseSweepDate(nextDate);
-      if (!sweepDate) {
-        return;
-      }
+      sweepDates.forEach((sweepDate) => {
+        const candidates = [];
 
-      const candidates = [];
-
-      if (reminders.dayBeforeEnabled) {
-        candidates.push({
-          kind: "day-before",
-          label: "Day before",
-          scheduledAt: applyTimeToDate(addDays(sweepDate, -1), reminders.dayBeforeTime)
-        });
-      }
-
-      reminders.dayOfReminders.forEach((slot, index) => {
-        if (!slot.enabled) {
-          return;
-        }
-
-        candidates.push({
-          kind: "day-of",
-          label: `Day of reminder ${index + 1}`,
-          scheduledAt: applyTimeToDate(sweepDate, slot.time)
-        });
-      });
-
-      candidates.forEach((candidate) => {
-        if (!candidate.scheduledAt || candidate.scheduledAt.getTime() <= now.getTime()) {
-          return;
-        }
-
-        const groupKey = `${set.id}|${candidate.scheduledAt.toISOString()}`;
-        if (!groupedJobs.has(groupKey)) {
-          groupedJobs.set(groupKey, {
-            id: `job-${groupKey}`,
-            setId: set.id,
-            setName: set.name,
-            scheduledAt: candidate.scheduledAt.toISOString(),
-            segmentIds: [],
-            segmentLabels: [],
-            triggerLabels: []
+        if (reminders.dayBeforeEnabled) {
+          candidates.push({
+            kind: "day-before",
+            label: "Day before",
+            scheduledAt: applyTimeToDate(addDays(sweepDate, -1), reminders.dayBeforeTime)
           });
         }
 
-        const job = groupedJobs.get(groupKey);
-        if (!job.segmentIds.includes(segment.id)) {
-          job.segmentIds.push(segment.id);
-          job.segmentLabels.push(`${segment.street} - ${segment.sideLabel}`);
-        }
+        reminders.dayOfReminders.forEach((slot, index) => {
+          if (!slot.enabled) {
+            return;
+          }
 
-        if (!job.triggerLabels.includes(candidate.label)) {
-          job.triggerLabels.push(candidate.label);
-        }
+          candidates.push({
+            kind: "day-of",
+            label: `Day of reminder ${index + 1}`,
+            scheduledAt: applyTimeToDate(sweepDate, slot.time)
+          });
+        });
+
+        candidates.forEach((candidate) => {
+          if (!candidate.scheduledAt || candidate.scheduledAt.getTime() <= now.getTime()) {
+            return;
+          }
+
+          const groupKey = `${set.id}|${candidate.scheduledAt.toISOString()}`;
+          if (!groupedJobs.has(groupKey)) {
+            groupedJobs.set(groupKey, {
+              id: `job-${groupKey}`,
+              setId: set.id,
+              setName: set.name,
+              scheduledAt: candidate.scheduledAt.toISOString(),
+              segmentIds: [],
+              segmentLabels: [],
+              triggerLabels: []
+            });
+          }
+
+          const job = groupedJobs.get(groupKey);
+          if (!job.segmentIds.includes(segment.id)) {
+            job.segmentIds.push(segment.id);
+            job.segmentLabels.push(`${segment.street} - ${segment.sideLabel}`);
+          }
+
+          if (!job.triggerLabels.includes(candidate.label)) {
+            job.triggerLabels.push(candidate.label);
+          }
+        });
       });
     });
   });
@@ -2769,19 +2792,14 @@ function summarizeSetSchedule(segmentIds) {
   const dates = segmentIds
     .map(getSegmentById)
     .filter(Boolean)
-    .map((segment) => segment.schedule?.nextDate)
-    .filter(Boolean)
-    .sort((a, b) => {
-      const [am, ad, ay] = a.split("/").map(Number);
-      const [bm, bd, by] = b.split("/").map(Number);
-      return new Date(ay, am - 1, ad) - new Date(by, bm - 1, bd);
-    });
+    .flatMap((segment) => getUpcomingSweepDates(segment))
+    .sort((a, b) => a.getTime() - b.getTime());
 
   if (!dates.length) {
     return "No dated sweep found";
   }
 
-  return `Earliest: ${formatDate(dates[0])}`;
+  return `Earliest: ${formatDateObject(dates[0])}`;
 }
 
 function summarizeReminders(reminders) {
@@ -2815,6 +2833,15 @@ function formatTime(timeValue) {
   return date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit"
+  });
+}
+
+function formatDateObject(date) {
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric"
   });
 }
 
