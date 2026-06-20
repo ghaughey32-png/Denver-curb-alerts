@@ -34,6 +34,12 @@ let databasePool = null;
 let databaseSchemaReady = false;
 let storageBackend = DATABASE_URL ? "database" : "file";
 
+function setApiCorsHeaders(response) {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload, null, 2));
@@ -867,6 +873,15 @@ async function serveStaticFile(response, pathname) {
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (url.pathname.startsWith("/api/")) {
+    setApiCorsHeaders(response);
+    if (request.method === "OPTIONS") {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+  }
 
   if (url.pathname === "/api/health") {
     sendJson(response, 200, {

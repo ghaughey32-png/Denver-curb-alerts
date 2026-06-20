@@ -1594,6 +1594,7 @@ const lookupAddressButton = document.querySelector("#lookup-address-button");
 const returnToPilotButton = document.querySelector("#return-to-pilot-button");
 const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
+const HOSTED_APP_ORIGIN = "https://denver-curb-alerts-2.onrender.com";
 
 function canUseBrowserStorage() {
   try {
@@ -1604,6 +1605,18 @@ function canUseBrowserStorage() {
   } catch {
     return false;
   }
+}
+
+function getApiBaseOrigin() {
+  if (window.location.protocol === "file:") {
+    return HOSTED_APP_ORIGIN;
+  }
+
+  return window.location.origin;
+}
+
+function buildApiUrl(path) {
+  return new URL(path, `${getApiBaseOrigin()}/`).toString();
 }
 
 const hasBrowserStorage = canUseBrowserStorage();
@@ -2079,7 +2092,7 @@ async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", opt
   }
 
   try {
-    const response = await fetch(`/api/denver/sweeping?address=${encodeURIComponent(cleanedAddress)}`);
+    const response = await fetch(buildApiUrl(`/api/denver/sweeping?address=${encodeURIComponent(cleanedAddress)}`));
     if (!response.ok) {
       const details = await response.text();
       throw new Error(details || "Unable to load Denver sweeping routes for that address.");
@@ -2599,7 +2612,7 @@ function buildReminderPlanPayload() {
 }
 
 async function registerPushSubscriptionWithServer(subscription) {
-  const response = await fetch("/api/push/subscriptions", {
+  const response = await fetch(buildApiUrl("/api/push/subscriptions"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -2641,7 +2654,7 @@ async function syncReminderPlanToServer(options = {}) {
   renderNotificationStatus();
 
   try {
-    let response = await fetch("/api/reminder-plans", {
+    let response = await fetch(buildApiUrl("/api/reminder-plans"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -2651,7 +2664,7 @@ async function syncReminderPlanToServer(options = {}) {
 
     if (response.status === 404) {
       await registerPushSubscriptionWithServer(state.pushSubscription);
-      response = await fetch("/api/reminder-plans", {
+      response = await fetch(buildApiUrl("/api/reminder-plans"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -2696,7 +2709,7 @@ async function initializePushFeatures() {
 
   try {
     state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js");
-    const configResponse = await fetch("/api/push/config");
+    const configResponse = await fetch(buildApiUrl("/api/push/config"));
     if (configResponse.ok) {
       state.pushConfig = await configResponse.json();
     } else {
@@ -2948,7 +2961,7 @@ async function sendPushTestRequest(job) {
     return false;
   }
 
-  const response = await fetch("/api/push/test", {
+  const response = await fetch(buildApiUrl("/api/push/test"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -3011,7 +3024,7 @@ async function scheduleHostedTestNotification() {
   renderNotificationStatus();
 
   try {
-    const response = await fetch("/api/push/schedule-test", {
+    const response = await fetch(buildApiUrl("/api/push/schedule-test"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
