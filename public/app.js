@@ -1543,11 +1543,11 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
-  activeAreaLabel: "Lowell to Hooker, Colfax to 18th",
-  activeGeometryLabel: "Real street lines",
-  activeMapTitle: "Sloan's Lake neighborhood map",
+  activeAreaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+  activeGeometryLabel: "Full known sweeping inventory",
+  activeMapTitle: "Sloan's Lake full neighborhood inventory",
   activeMapKicker: "Interactive map",
-  activeSourceLabel: "Sloan's Lake pilot",
+  activeSourceLabel: "Sloan's Lake full inventory",
   activeLookupAddress: "",
   activeContextMarkers: contextMarkers,
   mapNoteText:
@@ -1888,14 +1888,14 @@ function buildStreetData() {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "Lowell to Hooker, Colfax to 18th",
-    geometryLabel: "Real street lines",
-    mapTitleText: "Sloan's Lake neighborhood map",
+    areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+    geometryLabel: "Full known sweeping inventory",
+    mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Interactive map",
-    sourceLabel: "Sloan's Lake pilot",
+    sourceLabel: "Sloan's Lake full inventory",
     context: contextMarkers,
     mapNoteText:
-      "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it."
+      "This Sloan's Lake mode shows the full known sweepable street inventory we have mapped inside the pilot boundary. Click a colored curb line to select it for notifications."
   });
 }
 
@@ -3308,7 +3308,7 @@ function registerEvents() {
     refreshMapViewport();
     renderAll();
     if (lookupStatus) {
-      lookupStatus.textContent = "You're currently viewing the original Sloan's Lake pilot area between Lowell and Hooker, and Colfax to 18th.";
+      lookupStatus.textContent = "You're currently viewing the full Sloan's Lake inventory between Lowell and Hooker, and Colfax to 18th.";
     }
   });
   neighborhoodPresetButtons.forEach((button) => {
