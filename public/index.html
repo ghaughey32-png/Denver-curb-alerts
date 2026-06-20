@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sloan's Lake Curb Map</title>
+    <title>Denver Curb Alerts</title>
     <meta
       name="description"
-      content="Clickable curb-side selection map for the Sloan's Lake pilot area between Lowell and Hooker, and Colfax to 18th."
+      content="Clickable curb-side selection map for the Sloan's Lake pilot area and additional live Denver neighborhood lookups."
     />
     <meta name="theme-color" content="#c95d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -25,12 +25,12 @@
     <div class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Sloan's Lake pilot</p>
+          <p class="eyebrow">Denver neighborhood pilot</p>
           <h1>Pick curb sides straight from the map.</h1>
           <p class="hero-text">
-            This version is focused only on the area you named: from <strong>Lowell to Hooker</strong> and from
-            <strong>Colfax to 18th</strong>. The map below uses a real neighborhood basemap so people can orient
-            themselves with Sloan's Lake, schools, and surrounding landmarks before selecting curb sides.
+            Start with the Sloan's Lake pilot, then branch out into other Denver neighborhoods using the city's live
+            sweeping lookup. The map below can now swap from the original pilot blocks to real nearby routes around any
+            address you load.
           </p>
         </div>
         <div class="hero-summary">
@@ -49,12 +49,58 @@
         </div>
       </header>
 
+      <section class="lookup-card">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">Expand Beyond Sloan's Lake</p>
+            <h2>Load another Denver neighborhood</h2>
+            <p class="lookup-text">
+              Use a quick jump or load a specific address to pull in Denver's live sweeping routes and keep the same
+              side-of-street reminder flow.
+            </p>
+          </div>
+          <button id="return-to-pilot-button" class="ghost-button" type="button">Back to Sloan's Lake pilot</button>
+        </div>
+
+        <div class="lookup-toolbar">
+          <label class="lookup-field" for="lookup-address-input">
+            <span class="input-label">Address or block</span>
+            <input
+              id="lookup-address-input"
+              class="text-input"
+              type="text"
+              placeholder="Example: 4401 Tennyson St, Denver, CO"
+            />
+          </label>
+          <button id="lookup-address-button" class="primary-button" type="button">Load address</button>
+        </div>
+
+        <div class="preset-strip" aria-label="Quick neighborhood jumps">
+          <button class="ghost-button neighborhood-preset" type="button" data-label="West Colfax" data-address="1498 N Xavier St, Denver, CO">
+            West Colfax
+          </button>
+          <button class="ghost-button neighborhood-preset" type="button" data-label="Berkeley / Tennyson" data-address="4401 Tennyson St, Denver, CO">
+            Berkeley / Tennyson
+          </button>
+          <button class="ghost-button neighborhood-preset" type="button" data-label="Capitol Hill" data-address="1150 Sherman St, Denver, CO">
+            Capitol Hill
+          </button>
+          <button class="ghost-button neighborhood-preset" type="button" data-label="City Park West" data-address="2100 N Franklin St, Denver, CO">
+            City Park West
+          </button>
+        </div>
+
+        <p id="lookup-status" class="lookup-status">
+          You're currently viewing the original Sloan's Lake pilot area between Lowell and Hooker, and Colfax to 18th.
+        </p>
+      </section>
+
       <main class="workspace">
         <section class="map-card">
           <div class="section-head">
             <div>
-              <p class="section-kicker">Interactive map</p>
-              <h2>Sloan's Lake neighborhood map</h2>
+              <p class="section-kicker" id="map-kicker">Interactive map</p>
+              <h2 id="map-title">Sloan's Lake neighborhood map</h2>
             </div>
             <button id="clear-map-selection" class="ghost-button" type="button">Clear all selections</button>
           </div>
@@ -87,11 +133,11 @@
           <div class="selection-summary">
             <div class="summary-line">
               <span>Area</span>
-              <strong>Lowell to Hooker, Colfax to 18th</strong>
+              <strong id="area-summary-value">Lowell to Hooker, Colfax to 18th</strong>
             </div>
             <div class="summary-line">
               <span>Geometry</span>
-              <strong>Real street lines</strong>
+              <strong id="geometry-summary-value">Real street lines</strong>
             </div>
             <div class="summary-line">
               <span>Selection memory</span>

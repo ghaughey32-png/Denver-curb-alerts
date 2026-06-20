@@ -121,6 +121,52 @@ button {
   margin-top: 18px;
 }
 
+.lookup-card {
+  margin-top: 18px;
+  padding: 22px;
+  background: rgba(251, 248, 242, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 30px;
+  box-shadow: var(--shadow);
+}
+
+.lookup-text {
+  margin: 10px 0 0;
+  max-width: 60ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.lookup-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.lookup-field {
+  display: grid;
+  gap: 8px;
+}
+
+.preset-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.lookup-status {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.lookup-status strong {
+  color: var(--ink);
+}
+
 .map-card,
 .panel-card {
   padding: 22px;
@@ -624,6 +670,7 @@ button {
   }
 
   .hero,
+  .lookup-card,
   .map-card,
   .panel-card {
     padding: 18px;
@@ -635,6 +682,10 @@ button {
 
   .section-head h2 {
     font-size: 1.8rem;
+  }
+
+  .lookup-toolbar {
+    grid-template-columns: 1fr;
   }
 
   .reminder-row {

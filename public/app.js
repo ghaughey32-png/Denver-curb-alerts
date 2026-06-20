@@ -1543,6 +1543,16 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
+  activeAreaLabel: "Lowell to Hooker, Colfax to 18th",
+  activeGeometryLabel: "Real street lines",
+  activeMapTitle: "Sloan's Lake neighborhood map",
+  activeMapKicker: "Interactive map",
+  activeSourceLabel: "Sloan's Lake pilot",
+  activeLookupAddress: "",
+  activeContextMarkers: contextMarkers,
+  mapNoteText:
+    "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it.",
+  pendingApplySetId: "",
   map: null,
   baseLayerGroup: null,
   segmentLayerGroup: null,
@@ -1570,10 +1580,20 @@ const selectionTemplate = document.querySelector("#selection-item-template");
 const savedSetTemplate = document.querySelector("#saved-set-template");
 const jobList = document.querySelector("#job-list");
 const jobItemTemplate = document.querySelector("#job-item-template");
+const areaSummaryValue = document.querySelector("#area-summary-value");
+const geometrySummaryValue = document.querySelector("#geometry-summary-value");
+const mapTitle = document.querySelector("#map-title");
+const mapKicker = document.querySelector("#map-kicker");
+const mapNote = document.querySelector(".map-note");
 const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
 const sendTestButton = document.querySelector("#send-test-button");
 const scheduleTestButton = document.querySelector("#schedule-test-button");
+const lookupAddressInput = document.querySelector("#lookup-address-input");
+const lookupAddressButton = document.querySelector("#lookup-address-button");
+const returnToPilotButton = document.querySelector("#return-to-pilot-button");
+const lookupStatus = document.querySelector("#lookup-status");
+const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
 
 function canUseBrowserStorage() {
   try {
@@ -1733,32 +1753,109 @@ function offsetPoint([lat, lon], orientation, sideKey) {
   return [lat, lon + (sideKey === "east" ? lonOffset : -lonOffset)];
 }
 
+function serializeSegment(segment) {
+  return {
+    id: segment.id,
+    street: segment.street,
+    sideKey: segment.sideKey,
+    sideLabel: segment.sideLabel,
+    color: segment.color,
+    highway: segment.highway,
+    geometry: Array.isArray(segment.geometry) ? segment.geometry.map((point) => [...point]) : [],
+    schedule: segment.schedule ? { ...segment.schedule, allDates: Array.isArray(segment.schedule.allDates) ? [...segment.schedule.allDates] : [] } : null
+  };
+}
+
+function getSelectedSegments() {
+  return state.currentSelectionIds.map(getSegmentById).filter(Boolean);
+}
+
+function buildSegmentSideDefinitions(orientation) {
+  return orientation === "east-west"
+    ? [
+        { sideKey: "north", color: colors.north },
+        { sideKey: "south", color: colors.south }
+      ]
+    : [
+        { sideKey: "east", color: colors.east },
+        { sideKey: "west", color: colors.west }
+      ];
+}
+
+function normalizeWayRecord(way) {
+  return {
+    id: way.id,
+    name: way.name,
+    highway: way.highway,
+    geometry: way.geometry,
+    orientation: getStreetOrientation(way.geometry)
+  };
+}
+
+function hydrateSavedSet(set, validIds) {
+  const fallbackSegments = Array.isArray(set.segmentIds)
+    ? set.segmentIds
+        .map(getSegmentById)
+        .filter(Boolean)
+        .map(serializeSegment)
+    : [];
+  const segments = Array.isArray(set.segments) && set.segments.length ? set.segments : fallbackSegments;
+  const nextSegmentIds = Array.isArray(set.segmentIds)
+    ? set.segmentIds.filter((id) => validIds.has(id))
+    : segments.map((segment) => segment.id).filter((id) => validIds.has(id));
+
+  if (!segments.length) {
+    return null;
+  }
+
+  return {
+    ...set,
+    segmentIds: nextSegmentIds,
+    segments,
+    sourceLabel: set.sourceLabel || "Saved curb set",
+    lookupAddress: set.lookupAddress || "",
+    reminders: buildDefaultReminders(set.reminders)
+  };
+}
+
+function getSegmentsForSavedSet(set) {
+  if (Array.isArray(set.segments) && set.segments.length) {
+    return set.segments;
+  }
+
+  return (Array.isArray(set.segmentIds) ? set.segmentIds : []).map(getSegmentById).filter(Boolean).map(serializeSegment);
+}
+
+function loadSavedState() {
+  const validIds = new Set(state.curbSegments.map((segment) => segment.id));
+  state.currentSelectionIds = loadJson(CURRENT_SELECTION_KEY, []).filter((id) => validIds.has(id));
+  state.savedSets = loadJson(SAVED_SETS_KEY, []).map((set) => hydrateSavedSet(set, validIds)).filter(Boolean);
+}
+
+function setMapDataset({ streetWays, curbSegments, areaLabel, geometryLabel, mapTitleText, mapKickerText, sourceLabel, lookupAddress = "", context = [], mapNoteText }) {
+  state.streetWays = streetWays;
+  state.curbSegments = curbSegments;
+  state.activeAreaLabel = areaLabel;
+  state.activeGeometryLabel = geometryLabel;
+  state.activeMapTitle = mapTitleText;
+  state.activeMapKicker = mapKickerText;
+  state.activeSourceLabel = sourceLabel;
+  state.activeLookupAddress = lookupAddress;
+  state.activeContextMarkers = context;
+  state.mapNoteText = mapNoteText;
+  loadSavedState();
+}
+
 function buildStreetData() {
   const rawWays = EMBEDDED_GEOMETRY;
   if (!rawWays.length) {
     throw new Error("The Sloan's Lake street geometry did not load.");
   }
 
-  state.streetWays = rawWays.map((way) => ({
-    id: way.id,
-    name: way.name,
-    highway: way.highway,
-    geometry: way.geometry,
-    orientation: getStreetOrientation(way.geometry)
-  }));
-
-  state.curbSegments = state.streetWays.flatMap((way) => {
+  const streetWays = rawWays.map(normalizeWayRecord);
+  const curbSegments = streetWays.flatMap((way) => {
     const schedule = EMBEDDED_SCHEDULES[way.id] || null;
-    const sideDefs =
-      way.orientation === "east-west"
-        ? [
-            { sideKey: "north", color: colors.north },
-            { sideKey: "south", color: colors.south }
-          ]
-        : [
-            { sideKey: "east", color: colors.east },
-            { sideKey: "west", color: colors.west }
-          ];
+    const sideDefs = buildSegmentSideDefinitions(way.orientation);
 
     return sideDefs.map((sideDef) => {
       const scheduleInfo = getScheduleInfoForSide(way, sideDef.sideKey, schedule);
@@ -1775,15 +1872,18 @@ function buildStreetData() {
     });
   });
 
-  const validIds = new Set(state.curbSegments.map((segment) => segment.id));
-  state.currentSelectionIds = loadJson(CURRENT_SELECTION_KEY, []).filter((id) => validIds.has(id));
-  state.savedSets = loadJson(SAVED_SETS_KEY, [])
-    .map((set) => ({
-      ...set,
-      segmentIds: Array.isArray(set.segmentIds) ? set.segmentIds.filter((id) => validIds.has(id)) : [],
-      reminders: buildDefaultReminders(set.reminders)
-    }))
-    .filter((set) => set.segmentIds.length > 0);
+  setMapDataset({
+    streetWays,
+    curbSegments,
+    areaLabel: "Lowell to Hooker, Colfax to 18th",
+    geometryLabel: "Real street lines",
+    mapTitleText: "Sloan's Lake neighborhood map",
+    mapKickerText: "Interactive map",
+    sourceLabel: "Sloan's Lake pilot",
+    context: contextMarkers,
+    mapNoteText:
+      "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it."
+  });
 }
 
 function getScheduleInfoForSide(way, sideKey, schedule) {
@@ -1830,6 +1930,211 @@ function getScheduleInfoForSide(way, sideKey, schedule) {
     : null;
 }
 
+function normalizeDenverDate(dateString) {
+  if (!dateString) {
+    return "";
+  }
+
+  if (typeof dateString === "string" && dateString.includes("/")) {
+    return dateString;
+  }
+
+  const parsedDate = new Date(dateString);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
+  }
+
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  const year = parsedDate.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
+function buildRouteScheduleDates(route, desiredDirection) {
+  const desiredToken = normalizeToken(desiredDirection);
+  const routeSchedules = Array.isArray(route.schedules) ? route.schedules : [];
+  const matchingSchedules = routeSchedules.filter((entry) => normalizeToken(entry?.Description).includes(desiredToken));
+  const schedulesToUse = matchingSchedules.length ? matchingSchedules : routeSchedules;
+
+  const allDates = schedulesToUse
+    .map((entry) => ({
+      Date: normalizeDenverDate(entry?.Date),
+      Description: entry?.Description || desiredDirection
+    }))
+    .filter((entry) => entry.Date);
+
+  const nextDate = allDates.length ? allDates.map((entry) => entry.Date).sort((a, b) => parseSweepDate(a) - parseSweepDate(b))[0] : "";
+  return { allDates, nextDate };
+}
+
+function buildLiveScheduleInfoForSide(route, sideKey) {
+  const desiredDirection = sideKey === "north" ? "North" : sideKey === "south" ? "South" : sideKey === "east" ? "East" : "West";
+  const leftDirection = normalizeToken(route.leftSweepDirection);
+  const rightDirection = normalizeToken(route.rightSweepDirection);
+
+  const buildPayload = (direction, rule) => {
+    if (!direction && !rule && !Array.isArray(route.schedules)) {
+      return null;
+    }
+
+    const scheduleDates = buildRouteScheduleDates(route, direction || desiredDirection);
+    return {
+      routeId: route.id,
+      sweepType: route.sweepType,
+      direction: direction || desiredDirection,
+      rule: rule || `${desiredDirection} side schedule returned by Denver.`,
+      nextDate: scheduleDates.nextDate,
+      allDates: scheduleDates.allDates
+    };
+  };
+
+  if (leftDirection === normalizeToken(desiredDirection)) {
+    return buildPayload(route.leftSweepDirection, route.leftSweepingRule);
+  }
+
+  if (rightDirection === normalizeToken(desiredDirection)) {
+    return buildPayload(route.rightSweepDirection, route.rightSweepingRule);
+  }
+
+  if (sideKey === "north" || sideKey === "east") {
+    return buildPayload(route.rightSweepDirection, route.rightSweepingRule);
+  }
+
+  return buildPayload(route.leftSweepDirection, route.leftSweepingRule);
+}
+
+function buildLookupStreetData(summary, sourceLabel) {
+  const streetWays = (Array.isArray(summary.routes) ? summary.routes : [])
+    .filter((route) => Array.isArray(route.map?.path) && route.map.path.length >= 2)
+    .map((route) => ({
+      id: `route-${route.id}`,
+      routeId: route.id,
+      name: route.streetName || `${route.from || ""} to ${route.to || ""}`.trim() || "Denver route",
+      highway: route.sweepType === "Nightly" ? "primary" : "residential",
+      geometry: route.map.path,
+      orientation: getStreetOrientation(route.map.path),
+      route
+    }));
+
+  const curbSegments = streetWays.flatMap((way) =>
+    buildSegmentSideDefinitions(way.orientation).map((sideDef) => ({
+      id: `route-${way.routeId}:${sideDef.sideKey}`,
+      street: way.name,
+      sideKey: sideDef.sideKey,
+      sideLabel: `${capitalize(sideDef.sideKey)} curb`,
+      color: sideDef.color,
+      geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
+      highway: way.highway,
+      schedule: buildLiveScheduleInfoForSide(way.route, sideDef.sideKey)
+    }))
+  );
+
+  const firstCenter = streetWays.find((way) => Array.isArray(way.route.map?.center) && way.route.map.center.length === 2)?.route.map.center;
+  const context = firstCenter
+    ? [
+        {
+          name: sourceLabel,
+          lat: firstCenter[0],
+          lon: firstCenter[1],
+          kind: "landmark"
+        }
+      ]
+    : [];
+
+  return { streetWays, curbSegments, context };
+}
+
+function refreshMapViewport() {
+  if (!state.map || !state.streetWays.length) {
+    return;
+  }
+
+  const allLatLngs = state.streetWays.flatMap((way) => way.geometry);
+  const bounds = L.latLngBounds(allLatLngs);
+
+  if (state.activeLookupAddress) {
+    state.map.fitBounds(bounds, { padding: [26, 26], maxZoom: 16 });
+    return;
+  }
+
+  bounds.extend([39.7506, -105.0435]);
+  bounds.extend([39.7399, -105.0272]);
+  state.map.fitBounds(bounds, { padding: [28, 28] });
+}
+
+async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", options = {}) {
+  const cleanedAddress = String(address || "").trim();
+  if (!cleanedAddress) {
+    if (lookupStatus) {
+      lookupStatus.textContent = "Enter an address first so we know which neighborhood to load.";
+    }
+    return;
+  }
+
+  if (lookupStatus) {
+    lookupStatus.textContent = `Loading live sweeping routes near ${cleanedAddress}...`;
+  }
+  if (lookupAddressButton) {
+    lookupAddressButton.disabled = true;
+  }
+
+  try {
+    const response = await fetch(`/api/denver/sweeping?address=${encodeURIComponent(cleanedAddress)}`);
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(details || "Unable to load Denver sweeping routes for that address.");
+    }
+
+    const summary = await response.json();
+    const { streetWays, curbSegments, context } = buildLookupStreetData(summary, sourceLabel);
+    if (!streetWays.length || !curbSegments.length) {
+      throw new Error("Denver returned this address, but not enough route geometry to draw a neighborhood map yet.");
+    }
+
+    setMapDataset({
+      streetWays,
+      curbSegments,
+      areaLabel: cleanedAddress,
+      geometryLabel: `Live Denver route segments (${summary.routeCount || curbSegments.length} returned)`,
+      mapTitleText: `${sourceLabel} live map`,
+      mapKickerText: "Denver live lookup",
+      sourceLabel,
+      lookupAddress: cleanedAddress,
+      context,
+      mapNoteText:
+        "These curb lines came from Denver's live sweeping lookup for the address you loaded. Save any side you want reminders for, then the hosted reminder system will treat it just like the pilot blocks."
+    });
+
+    const applySetId = options.applySetId || state.pendingApplySetId;
+    if (applySetId) {
+      const savedSet = state.savedSets.find((set) => set.id === applySetId);
+      const availableIds = new Set(state.curbSegments.map((segment) => segment.id));
+      const matchingIds = savedSet ? getSegmentsForSavedSet(savedSet).map((segment) => segment.id).filter((id) => availableIds.has(id)) : [];
+      state.currentSelectionIds = matchingIds;
+      saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
+      state.pendingApplySetId = "";
+    }
+
+    refreshMapViewport();
+    renderAll();
+
+    if (lookupAddressInput) {
+      lookupAddressInput.value = cleanedAddress;
+    }
+    if (lookupStatus) {
+      lookupStatus.innerHTML = `<strong>${sourceLabel}</strong> is loaded from Denver's live sweeping service around ${cleanedAddress}.`;
+    }
+  } catch (error) {
+    if (lookupStatus) {
+      lookupStatus.textContent = error.message || "Unable to load that Denver area right now.";
+    }
+  } finally {
+    if (lookupAddressButton) {
+      lookupAddressButton.disabled = false;
+    }
+  }
+}
+
 function initializeMap() {
   if (!window.L) {
     throw new Error("Leaflet did not load.");
@@ -1848,12 +2153,7 @@ function initializeMap() {
   state.baseLayerGroup = L.layerGroup().addTo(state.map);
   state.segmentLayerGroup = L.layerGroup().addTo(state.map);
   state.contextLayerGroup = L.layerGroup().addTo(state.map);
-
-  const allLatLngs = state.streetWays.flatMap((way) => way.geometry);
-  const bounds = L.latLngBounds(allLatLngs);
-  bounds.extend([39.7506, -105.0435]);
-  bounds.extend([39.7399, -105.0272]);
-  state.map.fitBounds(bounds, { padding: [28, 28] });
+  refreshMapViewport();
 }
 
 function renderMapFailure(message) {
@@ -1870,7 +2170,7 @@ function renderContext() {
 
   state.contextLayerGroup.clearLayers();
 
-  contextMarkers.forEach((marker) => {
+  state.activeContextMarkers.forEach((marker) => {
     const circle = L.circleMarker([marker.lat, marker.lon], {
       radius: 7,
       color: "#ffffff",
@@ -2005,8 +2305,9 @@ function buildSelectionMeta(segment) {
 
 function saveCurrentAsSet() {
   const cleanedName = setNameInput.value.trim();
+  const selectedSegments = getSelectedSegments();
 
-  if (!state.currentSelectionIds.length) {
+  if (!selectedSegments.length) {
     setNameInput.focus();
     return;
   }
@@ -2016,6 +2317,9 @@ function saveCurrentAsSet() {
     id: `set-${Date.now()}`,
     name,
     segmentIds: [...state.currentSelectionIds],
+    segments: selectedSegments.map(serializeSegment),
+    sourceLabel: state.activeSourceLabel,
+    lookupAddress: state.activeLookupAddress,
     createdAt: new Date().toISOString(),
     reminders: buildDefaultReminders()
   };
@@ -2032,7 +2336,16 @@ function applySavedSet(setId) {
     return;
   }
 
-  state.currentSelectionIds = [...savedSet.segmentIds];
+  const availableIds = new Set(state.curbSegments.map((segment) => segment.id));
+  const matchingIds = getSegmentsForSavedSet(savedSet).map((segment) => segment.id).filter((id) => availableIds.has(id));
+
+  if (!matchingIds.length && savedSet.lookupAddress) {
+    state.pendingApplySetId = setId;
+    loadDenverLookup(savedSet.lookupAddress, savedSet.sourceLabel || savedSet.name, { applySetId: setId });
+    return;
+  }
+
+  state.currentSelectionIds = matchingIds;
   saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
   renderAll();
 }
@@ -2122,8 +2435,9 @@ function renderSavedSets() {
     .forEach((set) => {
       const item = savedSetTemplate.content.firstElementChild.cloneNode(true);
       const reminders = buildDefaultReminders(set.reminders);
+      const savedSegments = getSegmentsForSavedSet(set);
       item.querySelector(".saved-set-title").textContent = set.name;
-      item.querySelector(".saved-set-meta").textContent = `${set.segmentIds.length} curb sides | ${summarizeSetSchedule(set.segmentIds)} | saved ${new Date(
+      item.querySelector(".saved-set-meta").textContent = `${savedSegments.length} curb sides | ${summarizeSetSchedule(savedSegments)} | ${set.sourceLabel || "Saved curb set"} | saved ${new Date(
         set.createdAt
       ).toLocaleString()}`;
       item.querySelector(".reminder-summary").textContent = summarizeReminders(reminders);
@@ -2182,7 +2496,7 @@ function buildNotificationJobs() {
 
   state.savedSets.forEach((set) => {
     const reminders = buildDefaultReminders(set.reminders);
-    const selectedSegments = set.segmentIds.map(getSegmentById).filter(Boolean);
+    const selectedSegments = getSegmentsForSavedSet(set);
 
     selectedSegments.forEach((segment) => {
       const sweepDates = getUpcomingSweepDates(segment);
@@ -2266,7 +2580,9 @@ function buildReminderPlanPayload() {
     savedSets: state.savedSets.map((set) => ({
       id: set.id,
       name: set.name,
-      segmentIds: Array.isArray(set.segmentIds) ? [...set.segmentIds] : [],
+      sourceLabel: set.sourceLabel || "",
+      lookupAddress: set.lookupAddress || "",
+      segmentIds: getSegmentsForSavedSet(set).map((segment) => segment.id),
       createdAt: set.createdAt
     })),
     jobs: state.notificationJobs.map((job) => ({
@@ -2788,9 +3104,8 @@ function formatJobHeading(job) {
   });
 }
 
-function summarizeSetSchedule(segmentIds) {
-  const dates = segmentIds
-    .map(getSegmentById)
+function summarizeSetSchedule(segments) {
+  const dates = segments
     .filter(Boolean)
     .flatMap((segment) => getUpcomingSweepDates(segment))
     .sort((a, b) => a.getTime() - b.getTime());
@@ -2845,6 +3160,28 @@ function formatDateObject(date) {
   });
 }
 
+function renderActiveAreaDetails() {
+  if (areaSummaryValue) {
+    areaSummaryValue.textContent = state.activeAreaLabel;
+  }
+
+  if (geometrySummaryValue) {
+    geometrySummaryValue.textContent = state.activeGeometryLabel;
+  }
+
+  if (mapTitle) {
+    mapTitle.textContent = state.activeMapTitle;
+  }
+
+  if (mapKicker) {
+    mapKicker.textContent = state.activeMapKicker;
+  }
+
+  if (mapNote) {
+    mapNote.textContent = state.mapNoteText;
+  }
+}
+
 function renderStats() {
   const uniqueStreets = new Set(state.streetWays.map((way) => way.name));
   streetCount.textContent = String(uniqueStreets.size);
@@ -2854,6 +3191,7 @@ function renderStats() {
 function renderAll() {
   buildNotificationJobs();
   scheduleBrowserNotifications();
+  renderActiveAreaDetails();
   renderStreetBases();
   renderSegments();
   renderContext();
@@ -2907,10 +3245,34 @@ function registerEvents() {
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
   scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
+  lookupAddressButton?.addEventListener("click", () => {
+    loadDenverLookup(lookupAddressInput?.value, "Live Denver lookup");
+  });
+  returnToPilotButton?.addEventListener("click", () => {
+    buildStreetData();
+    refreshMapViewport();
+    renderAll();
+    if (lookupStatus) {
+      lookupStatus.textContent = "You're currently viewing the original Sloan's Lake pilot area between Lowell and Hooker, and Colfax to 18th.";
+    }
+  });
+  neighborhoodPresetButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const address = button.dataset.address || "";
+      const label = button.dataset.label || "Live Denver lookup";
+      loadDenverLookup(address, label);
+    });
+  });
   setNameInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       saveCurrentAsSet();
+    }
+  });
+  lookupAddressInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      loadDenverLookup(lookupAddressInput.value, "Live Denver lookup");
     }
   });
 }
