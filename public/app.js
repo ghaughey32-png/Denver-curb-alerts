@@ -3055,23 +3055,65 @@ async function scheduleHostedTestNotification() {
 }
 
 function buildJobTitle(job) {
-  const count = job.segmentIds.length;
-  const locationLabel = count === 1 ? "curb side" : "curb sides";
-  return `${job.setName}: move your car for ${count} ${locationLabel}`;
+  if (isDayBeforeJob(job)) {
+    return "Move your car tomorrow";
+  }
+
+  return "Move your car today";
 }
 
 function buildJobBody(job) {
-  const triggerText = job.triggerLabels.join(" + ");
   const segmentPreview = formatSegmentPreview(job.segmentLabels);
-  return `${triggerText}. ${segmentPreview}`;
+  const segmentLead = job.segmentLabels.length === 1 ? "Street sweeping is scheduled for" : "Street sweeping is scheduled for these curb sides:";
+
+  if (isDayBeforeJob(job)) {
+    return `${segmentLead} ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.`;
+  }
+
+  return `${segmentLead} ${segmentPreview}. Move your car before the sweep begins today.`;
 }
 
 function formatSegmentPreview(labels) {
-  if (labels.length <= 2) {
-    return labels.join(" and ");
+  if (!labels.length) {
+    return "your selected curb side";
   }
 
-  return `${labels.slice(0, 2).join(", ")}, and ${labels.length - 2} more`;
+  if (labels.length === 1) {
+    return labels[0];
+  }
+
+  if (labels.length === 2) {
+    return `${labels[0]} and ${labels[1]}`;
+  }
+
+  return `${labels.slice(0, 2).join(", ")}, plus ${labels.length - 2} more`;
+}
+
+function isDayBeforeJob(job) {
+  return job.triggerLabels.every((label) => String(label).toLowerCase().includes("day before"));
+}
+
+function formatTriggerSummary(job) {
+  if (isDayBeforeJob(job)) {
+    return "Day-before reminder";
+  }
+
+  const reminderNumbers = job.triggerLabels
+    .map((label) => {
+      const match = String(label).match(/(\d+)/);
+      return match ? Number(match[1]) : null;
+    })
+    .filter((value) => Number.isFinite(value));
+
+  if (!reminderNumbers.length) {
+    return "Same-day reminder";
+  }
+
+  if (reminderNumbers.length === 1) {
+    return `Same-day reminder ${reminderNumbers[0]}`;
+  }
+
+  return `Same-day reminders ${reminderNumbers.join(", ")}`;
 }
 
 function renderNotificationJobs() {
@@ -3082,9 +3124,9 @@ function renderNotificationJobs() {
   state.notificationJobs.forEach((job) => {
     const item = jobItemTemplate.content.firstElementChild.cloneNode(true);
     item.querySelector(".job-title").textContent = formatJobHeading(job);
-    item.querySelector(".job-meta").textContent = `${job.setName} | ${job.triggerLabels.join(", ")} | ${job.segmentIds.length} curb sides`;
+    item.querySelector(".job-meta").textContent = `${job.setName} | ${formatTriggerSummary(job)} | ${job.segmentIds.length} curb side${job.segmentIds.length === 1 ? "" : "s"}`;
     item.querySelector(".job-message").textContent = job.body;
-    item.querySelector(".job-segments").textContent = `Scheduled push payload: ${job.segmentLabels.join("; ")}`;
+    item.querySelector(".job-segments").textContent = `Included curb side${job.segmentLabels.length === 1 ? "" : "s"}: ${job.segmentLabels.join("; ")}`;
     item.querySelector(".job-status").textContent = hasRemotePushReady()
       ? "Subscribed device ready"
       : canUseBrowserNotifications() && window.Notification.permission === "granted"
