@@ -1601,8 +1601,8 @@ const SLOANS_LAKE_FULL_BOUNDS = {
   west: -105.0435,
   east: -105.0272
 };
-const SLOANS_LAKE_SAMPLE_ROWS = 8;
-const SLOANS_LAKE_SAMPLE_COLUMNS = 8;
+const SLOANS_LAKE_SAMPLE_ROWS = 10;
+const SLOANS_LAKE_SAMPLE_COLUMNS = 10;
 const SLOANS_LAKE_COVERAGE_THRESHOLD = 0.00085;
 
 function canUseBrowserStorage() {
@@ -2143,6 +2143,22 @@ function buildSloansLakeSamplePoints() {
 
   for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS - 1; row += 1) {
     const latitude = SLOANS_LAKE_FULL_BOUNDS.north - (row + 0.5) * latStep;
+    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS - 1; column += 1) {
+      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + (column + 0.5) * lonStep;
+      addPoint(latitude, longitude);
+    }
+  }
+
+  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS - 1; row += 1) {
+    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - (row + 0.5) * latStep;
+    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS; column += 1) {
+      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + column * lonStep;
+      addPoint(latitude, longitude);
+    }
+  }
+
+  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS; row += 1) {
+    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - row * latStep;
     for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS - 1; column += 1) {
       const longitude = SLOANS_LAKE_FULL_BOUNDS.west + (column + 0.5) * lonStep;
       addPoint(latitude, longitude);
