@@ -1604,6 +1604,42 @@ const SLOANS_LAKE_FULL_BOUNDS = {
 const SLOANS_LAKE_SAMPLE_ROWS = 10;
 const SLOANS_LAKE_SAMPLE_COLUMNS = 10;
 const SLOANS_LAKE_COVERAGE_THRESHOLD = 0.00085;
+const SLOANS_LAKE_SAMPLE_ADDRESSES = [
+  "2500 Hooker St, Denver, CO",
+  "2500 Irving St, Denver, CO",
+  "2500 Julian St, Denver, CO",
+  "2500 Knox Ct, Denver, CO",
+  "2500 Lowell Blvd, Denver, CO",
+  "2500 Meade St, Denver, CO",
+  "2500 Perry St, Denver, CO",
+  "2500 Raleigh St, Denver, CO",
+  "2500 Stuart St, Denver, CO",
+  "2500 Tennyson St, Denver, CO",
+  "2100 Hooker St, Denver, CO",
+  "2100 Irving St, Denver, CO",
+  "2100 Julian St, Denver, CO",
+  "2100 Lowell Blvd, Denver, CO",
+  "2100 Perry St, Denver, CO",
+  "2100 Raleigh St, Denver, CO",
+  "2100 Stuart St, Denver, CO",
+  "2100 Tennyson St, Denver, CO",
+  "1800 Hooker St, Denver, CO",
+  "1800 Irving St, Denver, CO",
+  "1800 Julian St, Denver, CO",
+  "1800 Lowell Blvd, Denver, CO",
+  "1800 Perry St, Denver, CO",
+  "1800 Raleigh St, Denver, CO",
+  "1800 Stuart St, Denver, CO",
+  "1800 Tennyson St, Denver, CO",
+  "1450 Hooker St, Denver, CO",
+  "1450 Irving St, Denver, CO",
+  "1450 Julian St, Denver, CO",
+  "1450 Lowell Blvd, Denver, CO",
+  "1450 Perry St, Denver, CO",
+  "1450 Raleigh St, Denver, CO",
+  "1450 Stuart St, Denver, CO",
+  "1450 Tennyson St, Denver, CO"
+];
 
 function canUseBrowserStorage() {
   try {
@@ -2123,6 +2159,10 @@ function buildCoordinateLookupUrl(latitude, longitude) {
   return buildApiUrl(`/api/denver/sweeping?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`);
 }
 
+function buildAddressLookupUrl(address) {
+  return buildApiUrl(`/api/denver/sweeping?address=${encodeURIComponent(address)}`);
+}
+
 function buildSloansLakeSamplePoints() {
   const pointMap = new Map();
   const latStep = (SLOANS_LAKE_FULL_BOUNDS.north - SLOANS_LAKE_FULL_BOUNDS.south) / (SLOANS_LAKE_SAMPLE_ROWS - 1);
@@ -2182,7 +2222,7 @@ async function loadSloansLakeFullInventory() {
 
   try {
     const samplePoints = buildSloansLakeSamplePoints();
-    const sampleResponses = await Promise.all(
+    const coordinateResponses = await Promise.all(
       samplePoints.map(async ({ latitude, longitude }) => {
         try {
           const response = await fetch(buildCoordinateLookupUrl(latitude, longitude));
@@ -2197,8 +2237,23 @@ async function loadSloansLakeFullInventory() {
       })
     );
 
+    const addressResponses = await Promise.all(
+      SLOANS_LAKE_SAMPLE_ADDRESSES.map(async (address) => {
+        try {
+          const response = await fetch(buildAddressLookupUrl(address));
+          if (!response.ok) {
+            return null;
+          }
+
+          return response.json();
+        } catch {
+          return null;
+        }
+      })
+    );
+
     const routeMap = new Map();
-    sampleResponses
+    [...coordinateResponses, ...addressResponses]
       .filter(Boolean)
       .forEach((summary) => {
         const routes = Array.isArray(summary.routes) ? summary.routes : [];
