@@ -1601,8 +1601,9 @@ const SLOANS_LAKE_FULL_BOUNDS = {
   west: -105.0435,
   east: -105.0272
 };
-const SLOANS_LAKE_SAMPLE_ROWS = 6;
-const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
+const SLOANS_LAKE_SAMPLE_ROWS = 8;
+const SLOANS_LAKE_SAMPLE_COLUMNS = 8;
+const SLOANS_LAKE_COVERAGE_THRESHOLD = 0.00085;
 
 function canUseBrowserStorage() {
   try {
@@ -1813,6 +1814,78 @@ function normalizeWayRecord(way) {
   };
 }
 
+function normalizeStreetNameForMatch(name) {
+  return String(name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function getGeometryMidpoint(geometry) {
+  if (!Array.isArray(geometry) || !geometry.length) {
+    return null;
+  }
+
+  return geometry[Math.floor(geometry.length / 2)];
+}
+
+function getPointDistance(pointA, pointB) {
+  if (!pointA || !pointB) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const latDiff = pointA[0] - pointB[0];
+  const lonDiff = pointA[1] - pointB[1];
+  return Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+}
+
+function buildEmbeddedDataset() {
+  const streetWays = EMBEDDED_GEOMETRY.map(normalizeWayRecord);
+  const curbSegments = streetWays.flatMap((way) => {
+    const schedule = EMBEDDED_SCHEDULES[way.id] || null;
+    const sideDefs = buildSegmentSideDefinitions(way.orientation);
+
+    return sideDefs.map((sideDef) => {
+      const scheduleInfo = getScheduleInfoForSide(way, sideDef.sideKey, schedule);
+      return {
+        id: `${way.id}:${sideDef.sideKey}`,
+        street: way.name,
+        sideKey: sideDef.sideKey,
+        sideLabel: `${capitalize(sideDef.sideKey)} curb`,
+        color: sideDef.color,
+        geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
+        highway: way.highway,
+        schedule: scheduleInfo
+      };
+    });
+  });
+
+  return { streetWays, curbSegments };
+}
+
+function getMissingEmbeddedWays(embeddedWays, officialWays) {
+  return embeddedWays.filter((embeddedWay) => {
+    const embeddedName = normalizeStreetNameForMatch(embeddedWay.name);
+    const midpoint = getGeometryMidpoint(embeddedWay.geometry);
+    if (!midpoint) {
+      return false;
+    }
+
+    const matchingOfficialWays = officialWays.filter(
+      (officialWay) => normalizeStreetNameForMatch(officialWay.name) === embeddedName
+    );
+
+    if (!matchingOfficialWays.length) {
+      return true;
+    }
+
+    const hasNearbyOfficialPath = matchingOfficialWays.some((officialWay) =>
+      officialWay.geometry.some((officialPoint) => getPointDistance(midpoint, officialPoint) <= SLOANS_LAKE_COVERAGE_THRESHOLD)
+    );
+
+    return !hasNearbyOfficialPath;
+  });
+}
+
 function hydrateSavedSet(set, validIds) {
   const fallbackSegments = Array.isArray(set.segmentIds)
     ? set.segmentIds
@@ -1868,30 +1941,11 @@ function setMapDataset({ streetWays, curbSegments, areaLabel, geometryLabel, map
 }
 
 function buildStreetData() {
-  const rawWays = EMBEDDED_GEOMETRY;
-  if (!rawWays.length) {
+  if (!EMBEDDED_GEOMETRY.length) {
     throw new Error("The Sloan's Lake street geometry did not load.");
   }
 
-  const streetWays = rawWays.map(normalizeWayRecord);
-  const curbSegments = streetWays.flatMap((way) => {
-    const schedule = EMBEDDED_SCHEDULES[way.id] || null;
-    const sideDefs = buildSegmentSideDefinitions(way.orientation);
-
-    return sideDefs.map((sideDef) => {
-      const scheduleInfo = getScheduleInfoForSide(way, sideDef.sideKey, schedule);
-      return {
-        id: `${way.id}:${sideDef.sideKey}`,
-        street: way.name,
-        sideKey: sideDef.sideKey,
-        sideLabel: `${capitalize(sideDef.sideKey)} curb`,
-        color: sideDef.color,
-        geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
-        highway: way.highway,
-        schedule: scheduleInfo
-      };
-    });
-  });
+  const { streetWays, curbSegments } = buildEmbeddedDataset();
 
   setMapDataset({
     streetWays,
@@ -2070,22 +2124,32 @@ function buildCoordinateLookupUrl(latitude, longitude) {
 }
 
 function buildSloansLakeSamplePoints() {
-  const points = [];
+  const pointMap = new Map();
   const latStep = (SLOANS_LAKE_FULL_BOUNDS.north - SLOANS_LAKE_FULL_BOUNDS.south) / (SLOANS_LAKE_SAMPLE_ROWS - 1);
   const lonStep = (SLOANS_LAKE_FULL_BOUNDS.east - SLOANS_LAKE_FULL_BOUNDS.west) / (SLOANS_LAKE_SAMPLE_COLUMNS - 1);
+  const addPoint = (latitude, longitude) => {
+    const lat = Number(latitude.toFixed(6));
+    const lon = Number(longitude.toFixed(6));
+    pointMap.set(`${lat},${lon}`, { latitude: lat, longitude: lon });
+  };
 
   for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS; row += 1) {
     const latitude = SLOANS_LAKE_FULL_BOUNDS.north - row * latStep;
     for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS; column += 1) {
       const longitude = SLOANS_LAKE_FULL_BOUNDS.west + column * lonStep;
-      points.push({
-        latitude: Number(latitude.toFixed(6)),
-        longitude: Number(longitude.toFixed(6))
-      });
+      addPoint(latitude, longitude);
     }
   }
 
-  return points;
+  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS - 1; row += 1) {
+    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - (row + 0.5) * latStep;
+    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS - 1; column += 1) {
+      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + (column + 0.5) * lonStep;
+      addPoint(latitude, longitude);
+    }
+  }
+
+  return Array.from(pointMap.values());
 }
 
 async function loadSloansLakeFullInventory() {
@@ -2136,7 +2200,22 @@ async function loadSloansLakeFullInventory() {
       routes: Array.from(routeMap.values())
     };
 
-    const { streetWays, curbSegments, context } = buildLookupStreetData(summary, "Sloan's Lake full inventory");
+    const { streetWays: officialStreetWays, curbSegments: officialCurbSegments, context } = buildLookupStreetData(
+      summary,
+      "Sloan's Lake full inventory"
+    );
+
+    const { streetWays: embeddedStreetWays, curbSegments: embeddedCurbSegments } = buildEmbeddedDataset();
+    const missingEmbeddedWays = getMissingEmbeddedWays(embeddedStreetWays, officialStreetWays);
+    const missingEmbeddedWayIds = new Set(missingEmbeddedWays.map((way) => way.id));
+    const missingEmbeddedSegments = embeddedCurbSegments.filter((segment) => {
+      const [wayId] = String(segment.id).split(":");
+      return missingEmbeddedWayIds.has(Number(wayId));
+    });
+
+    const streetWays = [...officialStreetWays, ...missingEmbeddedWays];
+    const curbSegments = [...officialCurbSegments, ...missingEmbeddedSegments];
+
     if (!streetWays.length || !curbSegments.length) {
       throw new Error("Denver did not return enough Sloan's Lake route geometry to draw the full neighborhood yet.");
     }
@@ -2145,13 +2224,13 @@ async function loadSloansLakeFullInventory() {
       streetWays,
       curbSegments,
       areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
-      geometryLabel: `Official Denver sweeping routes (${summary.routeCount} returned)`,
+      geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
       sourceLabel: "Sloan's Lake full inventory",
       context,
       mapNoteText:
-        "This Sloan's Lake mode samples Denver's official sweeping service across the full neighborhood boundary and combines the returned curb routes into one larger inventory."
+        "This Sloan's Lake mode samples Denver's official sweeping service across the full neighborhood boundary, then fills any remaining gaps with the original pilot curb inventory so the map stays as complete and clickable as possible."
     });
 
     refreshMapViewport();
@@ -3468,6 +3547,7 @@ try {
 
 renderAll();
 initializePushFeatures();
+loadSloansLakeFullInventory();
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
