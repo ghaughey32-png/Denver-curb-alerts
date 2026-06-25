@@ -362,6 +362,13 @@ function buildDenverSweepUrl(address) {
   return url.toString();
 }
 
+function buildDenverSweepUrlFromCoordinates(latitude, longitude) {
+  const url = new URL("Streets/Sweeping", DENVER_API_BASE);
+  url.searchParams.set("latitude", String(latitude));
+  url.searchParams.set("longitude", String(longitude));
+  return url.toString();
+}
+
 function parseStaticMapGeometry(staticMapUrl) {
   if (!staticMapUrl) {
     return { center: null, path: [] };
@@ -419,12 +426,12 @@ function normalizeRoute(route) {
   };
 }
 
-function summarizeRoutes(address, routes) {
+function summarizeRoutes(queryLabel, routes) {
   const normalizedRoutes = routes.map(normalizeRoute);
   const scheduledCount = normalizedRoutes.filter((route) => route.sweepType === "Scheduled").length;
 
   return {
-    address,
+    address: queryLabel,
     routeCount: normalizedRoutes.length,
     scheduledCount,
     routes: normalizedRoutes
@@ -433,15 +440,21 @@ function summarizeRoutes(address, routes) {
 
 async function handleDenverLookup(response, url) {
   const address = url.searchParams.get("address");
+  const latitude = Number(url.searchParams.get("latitude"));
+  const longitude = Number(url.searchParams.get("longitude"));
+  const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
 
-  if (!address) {
-    sendJson(response, 400, { error: "Address is required." });
+  if (!address && !hasCoordinates) {
+    sendJson(response, 400, { error: "Address or latitude/longitude is required." });
     return;
   }
 
   try {
-    const denverResponse = await fetchJson(buildDenverSweepUrl(address));
-    const summary = summarizeRoutes(address, denverResponse.Routes || []);
+    const denverResponse = await fetchJson(
+      hasCoordinates ? buildDenverSweepUrlFromCoordinates(latitude, longitude) : buildDenverSweepUrl(address)
+    );
+    const queryLabel = hasCoordinates ? `${latitude.toFixed(6)}, ${longitude.toFixed(6)}` : address;
+    const summary = summarizeRoutes(queryLabel, denverResponse.Routes || []);
     sendJson(response, 200, summary);
   } catch (error) {
     sendJson(response, 502, {

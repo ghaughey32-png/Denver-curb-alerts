@@ -1595,6 +1595,14 @@ const returnToPilotButton = document.querySelector("#return-to-pilot-button");
 const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
 const HOSTED_APP_ORIGIN = "https://denver-curb-alerts-2.onrender.com";
+const SLOANS_LAKE_FULL_BOUNDS = {
+  north: 39.7506,
+  south: 39.7399,
+  west: -105.0435,
+  east: -105.0272
+};
+const SLOANS_LAKE_SAMPLE_ROWS = 6;
+const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
 
 function canUseBrowserStorage() {
   try {
@@ -2055,6 +2063,119 @@ function buildLookupStreetData(summary, sourceLabel) {
     : [];
 
   return { streetWays, curbSegments, context };
+}
+
+function buildCoordinateLookupUrl(latitude, longitude) {
+  return buildApiUrl(`/api/denver/sweeping?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`);
+}
+
+function buildSloansLakeSamplePoints() {
+  const points = [];
+  const latStep = (SLOANS_LAKE_FULL_BOUNDS.north - SLOANS_LAKE_FULL_BOUNDS.south) / (SLOANS_LAKE_SAMPLE_ROWS - 1);
+  const lonStep = (SLOANS_LAKE_FULL_BOUNDS.east - SLOANS_LAKE_FULL_BOUNDS.west) / (SLOANS_LAKE_SAMPLE_COLUMNS - 1);
+
+  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS; row += 1) {
+    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - row * latStep;
+    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS; column += 1) {
+      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + column * lonStep;
+      points.push({
+        latitude: Number(latitude.toFixed(6)),
+        longitude: Number(longitude.toFixed(6))
+      });
+    }
+  }
+
+  return points;
+}
+
+async function loadSloansLakeFullInventory() {
+  if (returnToPilotButton) {
+    returnToPilotButton.disabled = true;
+  }
+  if (lookupAddressButton) {
+    lookupAddressButton.disabled = true;
+  }
+  if (lookupStatus) {
+    lookupStatus.textContent =
+      "Loading Sloan's Lake from Denver's official sweeping data across the full neighborhood boundary...";
+  }
+
+  try {
+    const samplePoints = buildSloansLakeSamplePoints();
+    const sampleResponses = await Promise.all(
+      samplePoints.map(async ({ latitude, longitude }) => {
+        try {
+          const response = await fetch(buildCoordinateLookupUrl(latitude, longitude));
+          if (!response.ok) {
+            return null;
+          }
+
+          return response.json();
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const routeMap = new Map();
+    sampleResponses
+      .filter(Boolean)
+      .forEach((summary) => {
+        const routes = Array.isArray(summary.routes) ? summary.routes : [];
+        routes.forEach((route) => {
+          if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
+            routeMap.set(route.id, route);
+          }
+        });
+      });
+
+    const summary = {
+      address: "Sloan's Lake full neighborhood inventory",
+      routeCount: routeMap.size,
+      scheduledCount: Array.from(routeMap.values()).filter((route) => route.sweepType === "Scheduled").length,
+      routes: Array.from(routeMap.values())
+    };
+
+    const { streetWays, curbSegments, context } = buildLookupStreetData(summary, "Sloan's Lake full inventory");
+    if (!streetWays.length || !curbSegments.length) {
+      throw new Error("Denver did not return enough Sloan's Lake route geometry to draw the full neighborhood yet.");
+    }
+
+    setMapDataset({
+      streetWays,
+      curbSegments,
+      areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+      geometryLabel: `Official Denver sweeping routes (${summary.routeCount} returned)`,
+      mapTitleText: "Sloan's Lake full neighborhood inventory",
+      mapKickerText: "Official Denver full-area lookup",
+      sourceLabel: "Sloan's Lake full inventory",
+      context,
+      mapNoteText:
+        "This Sloan's Lake mode samples Denver's official sweeping service across the full neighborhood boundary and combines the returned curb routes into one larger inventory."
+    });
+
+    refreshMapViewport();
+    renderAll();
+    if (lookupStatus) {
+      lookupStatus.innerHTML =
+        "<strong>Sloan's Lake full inventory</strong> is loaded from Denver's official sweeping routes across the whole neighborhood boundary.";
+    }
+  } catch (error) {
+    buildStreetData();
+    refreshMapViewport();
+    renderAll();
+    if (lookupStatus) {
+      lookupStatus.textContent =
+        error.message || "Unable to load the official Sloan's Lake inventory right now. The built-in neighborhood map is still available below.";
+    }
+  } finally {
+    if (returnToPilotButton) {
+      returnToPilotButton.disabled = false;
+    }
+    if (lookupAddressButton) {
+      lookupAddressButton.disabled = false;
+    }
+  }
 }
 
 function refreshMapViewport() {
@@ -3304,12 +3425,7 @@ function registerEvents() {
     loadDenverLookup(lookupAddressInput?.value, "Live Denver lookup");
   });
   returnToPilotButton?.addEventListener("click", () => {
-    buildStreetData();
-    refreshMapViewport();
-    renderAll();
-    if (lookupStatus) {
-      lookupStatus.textContent = "You're currently viewing the full Sloan's Lake inventory between Lowell and Hooker, and Colfax to 18th.";
-    }
+    loadSloansLakeFullInventory();
   });
   neighborhoodPresetButtons.forEach((button) => {
     button.addEventListener("click", () => {
