@@ -2530,6 +2530,12 @@ function renderSegments() {
 
   state.curbSegments.forEach((segment) => {
     const selected = isSelected(segment.id);
+    const touchTarget = L.polyline(segment.geometry, {
+      color: "#000000",
+      weight: selected ? 26 : 22,
+      opacity: 0.01,
+      lineCap: "round"
+    });
     const line = L.polyline(segment.geometry, {
       color: segment.color,
       weight: selected ? 10 : 4,
@@ -2568,10 +2574,11 @@ function renderSegments() {
     }
 
     const nextDateText = segment.schedule?.nextDate ? ` | Next: ${formatDate(segment.schedule.nextDate)}` : "";
-    line.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
+    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
       sticky: true
     });
-    line.on("click", () => toggleSegment(segment.id));
+    touchTarget.on("click", () => toggleSegment(segment.id));
+    touchTarget.addTo(state.segmentLayerGroup);
     line.addTo(state.segmentLayerGroup);
   });
 }
