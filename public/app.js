@@ -1595,6 +1595,12 @@ const returnToPilotButton = document.querySelector("#return-to-pilot-button");
 const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
 const HOSTED_APP_ORIGIN = "https://denver-curb-alerts-2.onrender.com";
+const DENVER_MAP_BOUNDS = {
+  north: 39.8275,
+  south: 39.6145,
+  west: -105.1095,
+  east: -104.5995
+};
 const SLOANS_LAKE_FULL_BOUNDS = {
   north: 39.7506,
   south: 39.7399,
@@ -2426,7 +2432,13 @@ function initializeMap() {
 
   state.map = L.map("map", {
     zoomControl: true,
-    preferCanvas: true
+    preferCanvas: true,
+    minZoom: 11,
+    maxBounds: L.latLngBounds(
+      [DENVER_MAP_BOUNDS.south, DENVER_MAP_BOUNDS.west],
+      [DENVER_MAP_BOUNDS.north, DENVER_MAP_BOUNDS.east]
+    ),
+    maxBoundsViscosity: 1
   });
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
