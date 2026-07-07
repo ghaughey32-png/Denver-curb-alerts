@@ -2518,14 +2518,42 @@ function renderSegments() {
 
   state.curbSegments.forEach((segment) => {
     const selected = isSelected(segment.id);
-    const weight = selected ? 8 : 5;
-    const opacity = selected ? 1 : 0.88;
     const line = L.polyline(segment.geometry, {
       color: segment.color,
-      weight,
-      opacity,
+      weight: selected ? 10 : 4,
+      opacity: selected ? 1 : 0.72,
       lineCap: "round"
     });
+
+    if (selected) {
+      L.polyline(segment.geometry, {
+        color: "rgba(31, 47, 55, 0.36)",
+        weight: 22,
+        opacity: 0.92,
+        lineCap: "round"
+      }).addTo(state.segmentLayerGroup);
+
+      L.polyline(segment.geometry, {
+        color: "#fff4b8",
+        weight: 16,
+        opacity: 1,
+        lineCap: "round"
+      }).addTo(state.segmentLayerGroup);
+
+      L.polyline(segment.geometry, {
+        color: "#ffffff",
+        weight: 6,
+        opacity: 0.98,
+        lineCap: "round"
+      }).addTo(state.segmentLayerGroup);
+    } else {
+      L.polyline(segment.geometry, {
+        color: "rgba(255, 255, 255, 0.28)",
+        weight: 6,
+        opacity: 0.45,
+        lineCap: "round"
+      }).addTo(state.segmentLayerGroup);
+    }
 
     const nextDateText = segment.schedule?.nextDate ? ` | Next: ${formatDate(segment.schedule.nextDate)}` : "";
     line.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
