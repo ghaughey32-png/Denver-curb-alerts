@@ -2532,7 +2532,7 @@ function renderSegments() {
     const selected = isSelected(segment.id);
     const touchTarget = L.polyline(segment.geometry, {
       color: "#000000",
-      weight: selected ? 26 : 22,
+      weight: selected ? 34 : 30,
       opacity: 0.01,
       lineCap: "round"
     });
