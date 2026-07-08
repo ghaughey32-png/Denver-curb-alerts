@@ -1489,6 +1489,7 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v1";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
   { enabled: true, time: "07:00" },
@@ -1700,6 +1701,46 @@ function saveJson(key, value) {
   } catch {
     memoryStore.set(key, raw);
   }
+}
+
+function saveSloansLakeInventoryCache(payload) {
+  saveJson(SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY, {
+    savedAt: Date.now(),
+    ...payload
+  });
+}
+
+function loadSloansLakeInventoryCache() {
+  const cached = loadJson(SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY, null);
+  if (!cached || !Array.isArray(cached.streetWays) || !Array.isArray(cached.curbSegments)) {
+    return null;
+  }
+
+  return cached;
+}
+
+function restoreCachedSloansLakeInventory() {
+  const cached = loadSloansLakeInventoryCache();
+  if (!cached) {
+    return false;
+  }
+
+  setMapDataset({
+    streetWays: cached.streetWays,
+    curbSegments: cached.curbSegments,
+    areaLabel: cached.areaLabel || "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+    geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
+    mapTitleText: cached.mapTitleText || "Sloan's Lake full neighborhood inventory",
+    mapKickerText: cached.mapKickerText || "Interactive map",
+    sourceLabel: cached.sourceLabel || "Sloan's Lake full inventory",
+    lookupAddress: "",
+    context: Array.isArray(cached.context) ? cached.context : contextMarkers,
+    mapNoteText:
+      cached.mapNoteText ||
+      "This Sloan's Lake mode shows the full known sweepable street inventory we have mapped inside the pilot boundary. Click a colored curb line to select it for notifications."
+  });
+
+  return true;
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -2229,7 +2270,8 @@ function buildSloansLakeSamplePoints() {
   return Array.from(pointMap.values());
 }
 
-async function loadSloansLakeFullInventory() {
+async function loadSloansLakeFullInventory(options = {}) {
+  const { hasCachedInventory = false } = options;
   if (returnToPilotButton) {
     returnToPilotButton.disabled = true;
   }
@@ -2237,8 +2279,9 @@ async function loadSloansLakeFullInventory() {
     lookupAddressButton.disabled = true;
   }
   if (lookupStatus) {
-    lookupStatus.textContent =
-      "Loading Sloan's Lake from Denver's official sweeping data across the full neighborhood boundary...";
+    lookupStatus.textContent = hasCachedInventory
+      ? "Refreshing Sloan's Lake from Denver's official sweeping data so the full neighborhood map stays up to date..."
+      : "Loading Sloan's Lake from Denver's official sweeping data across the full neighborhood boundary...";
   }
 
   try {
@@ -2313,6 +2356,19 @@ async function loadSloansLakeFullInventory() {
     }
 
     setMapDataset({
+      streetWays,
+      curbSegments,
+      areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+      geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
+      mapTitleText: "Sloan's Lake full neighborhood inventory",
+      mapKickerText: "Official Denver full-area lookup",
+      sourceLabel: "Sloan's Lake full inventory",
+      context,
+      mapNoteText:
+        "This Sloan's Lake mode samples Denver's official sweeping service across the full neighborhood boundary, then fills any remaining gaps with the original pilot curb inventory so the map stays as complete and clickable as possible."
+    });
+
+    saveSloansLakeInventoryCache({
       streetWays,
       curbSegments,
       areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
@@ -3762,8 +3818,13 @@ if (storageMode) {
   storageMode.textContent = hasBrowserStorage ? "Saved in this browser" : "Temporary for this tab";
 }
 
+let restoredCachedSloansLakeInventory = false;
+
 try {
-  buildStreetData();
+  restoredCachedSloansLakeInventory = restoreCachedSloansLakeInventory();
+  if (!restoredCachedSloansLakeInventory) {
+    buildStreetData();
+  }
 } catch (error) {
   renderMapFailure(error.message);
 }
@@ -3778,7 +3839,7 @@ try {
 
 renderAll();
 initializePushFeatures();
-loadSloansLakeFullInventory();
+loadSloansLakeFullInventory({ hasCachedInventory: restoredCachedSloansLakeInventory });
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
