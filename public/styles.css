@@ -179,6 +179,13 @@ button {
   align-items: flex-start;
 }
 
+.map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .section-head h2 {
   font-size: 2.2rem;
 }
@@ -233,6 +240,22 @@ button {
 
 .blue {
   background: var(--blue);
+}
+
+.leaflet-tooltip.you-are-here-label {
+  background: rgba(31, 47, 55, 0.9);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(31, 47, 55, 0.18);
+  color: #ffffff;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.leaflet-tooltip.you-are-here-label::before {
+  display: none;
 }
 
 .map-frame {
@@ -674,6 +697,15 @@ button {
 
   .section-head {
     flex-direction: column;
+  }
+
+  .map-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .map-actions .ghost-button {
+    width: 100%;
   }
 
   .section-head h2 {

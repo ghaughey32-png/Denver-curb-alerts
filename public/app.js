@@ -1550,6 +1550,7 @@ const state = {
   activeSourceLabel: "Sloan's Lake full inventory",
   activeLookupAddress: "",
   activeContextMarkers: contextMarkers,
+  userLocation: null,
   mapNoteText:
     "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it.",
   pendingApplySetId: "",
@@ -1585,6 +1586,7 @@ const geometrySummaryValue = document.querySelector("#geometry-summary-value");
 const mapTitle = document.querySelector("#map-title");
 const mapKicker = document.querySelector("#map-kicker");
 const mapNote = document.querySelector(".map-note");
+const useMyLocationButton = document.querySelector("#use-my-location-button");
 const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
 const sendTestButton = document.querySelector("#send-test-button");
@@ -1723,6 +1725,19 @@ function canUseWebPush() {
 
 function isSecureHost() {
   return window.isSecureContext || window.location.protocol === "https:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function canUseGeolocation() {
+  return typeof navigator !== "undefined" && "geolocation" in navigator;
+}
+
+function isWithinDenverBounds(lat, lon) {
+  return (
+    lat <= DENVER_MAP_BOUNDS.north &&
+    lat >= DENVER_MAP_BOUNDS.south &&
+    lon >= DENVER_MAP_BOUNDS.west &&
+    lon <= DENVER_MAP_BOUNDS.east
+  );
 }
 
 function isAppleMobileDevice() {
@@ -2352,6 +2367,16 @@ function refreshMapViewport() {
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
+function focusMapOnUserLocation() {
+  if (!state.map || !state.userLocation) {
+    return;
+  }
+
+  state.map.setView([state.userLocation.lat, state.userLocation.lon], Math.max(state.map.getZoom(), 16), {
+    animate: true
+  });
+}
+
 async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", options = {}) {
   const cleanedAddress = String(address || "").trim();
   if (!cleanedAddress) {
@@ -2425,6 +2450,64 @@ async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", opt
   }
 }
 
+function requestUserLocation() {
+  if (!lookupStatus || !useMyLocationButton) {
+    return;
+  }
+
+  if (!canUseGeolocation()) {
+    lookupStatus.textContent = "This browser cannot share your location yet, so keep using the map with your fingers for now.";
+    return;
+  }
+
+  if (!isSecureHost()) {
+    lookupStatus.textContent = "Location only works on the hosted app or localhost. This local file preview cannot ask for your location.";
+    return;
+  }
+
+  useMyLocationButton.disabled = true;
+  lookupStatus.textContent = "Finding your location in Denver now...";
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords;
+
+      if (!isWithinDenverBounds(latitude, longitude)) {
+        useMyLocationButton.disabled = false;
+        lookupStatus.textContent =
+          "We found you, but you look outside the Denver map area right now. You can still pan around Denver and tap curb sides manually.";
+        return;
+      }
+
+      state.userLocation = { lat: latitude, lon: longitude };
+      renderContext();
+      focusMapOnUserLocation();
+      lookupStatus.textContent = "You're on the map now. We dropped a dot at your location so you can tap nearby curbs more easily.";
+      useMyLocationButton.disabled = false;
+    },
+    (error) => {
+      useMyLocationButton.disabled = false;
+
+      if (error.code === error.PERMISSION_DENIED) {
+        lookupStatus.textContent = "We can only center on you if you allow location access. You can still move around the map manually.";
+        return;
+      }
+
+      if (error.code === error.TIMEOUT) {
+        lookupStatus.textContent = "We couldn't find your location quickly enough. Try again in a moment, or keep exploring the map manually.";
+        return;
+      }
+
+      lookupStatus.textContent = "We hit a snag trying to find your location. You can still move around the map manually for now.";
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 60000
+    }
+  );
+}
+
 function initializeMap() {
   if (!window.L) {
     throw new Error("Leaflet did not load.");
@@ -2484,6 +2567,35 @@ function renderContext() {
     circle.bindPopup(marker.name);
     circle.addTo(state.contextLayerGroup);
   });
+
+  if (state.userLocation) {
+    const locationRing = L.circleMarker([state.userLocation.lat, state.userLocation.lon], {
+      radius: 16,
+      color: "rgba(13, 110, 253, 0.22)",
+      weight: 10,
+      fillColor: "rgba(13, 110, 253, 0.08)",
+      fillOpacity: 1
+    });
+
+    const locationDot = L.circleMarker([state.userLocation.lat, state.userLocation.lon], {
+      radius: 8,
+      color: "#ffffff",
+      weight: 3,
+      fillColor: "#0d6efd",
+      fillOpacity: 1
+    });
+
+    locationDot.bindTooltip("You are here", {
+      permanent: true,
+      direction: "top",
+      offset: [0, -12],
+      className: "you-are-here-label"
+    });
+    locationDot.bindPopup("You are here");
+
+    locationRing.addTo(state.contextLayerGroup);
+    locationDot.addTo(state.contextLayerGroup);
+  }
 }
 
 function renderStreetBases() {
@@ -3614,6 +3726,7 @@ function applyTimeToDate(baseDate, timeValue) {
 
 function registerEvents() {
   clearButton.addEventListener("click", clearCurrentSelection);
+  useMyLocationButton?.addEventListener("click", requestUserLocation);
   saveSetButton.addEventListener("click", saveCurrentAsSet);
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
