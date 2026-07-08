@@ -1587,6 +1587,9 @@ const geometrySummaryValue = document.querySelector("#geometry-summary-value");
 const mapTitle = document.querySelector("#map-title");
 const mapKicker = document.querySelector("#map-kicker");
 const mapNote = document.querySelector(".map-note");
+const mapLoadingOverlay = document.querySelector("#map-loading-overlay");
+const mapLoadingTitle = document.querySelector("#map-loading-title");
+const mapLoadingMessage = document.querySelector("#map-loading-message");
 const useMyLocationButton = document.querySelector("#use-my-location-button");
 const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
@@ -1741,6 +1744,29 @@ function restoreCachedSloansLakeInventory() {
   });
 
   return true;
+}
+
+function showMapLoadingOverlay(title, message) {
+  if (!mapLoadingOverlay) {
+    return;
+  }
+
+  if (mapLoadingTitle) {
+    mapLoadingTitle.textContent = title;
+  }
+  if (mapLoadingMessage) {
+    mapLoadingMessage.textContent = message;
+  }
+
+  mapLoadingOverlay.classList.remove("is-hidden");
+}
+
+function hideMapLoadingOverlay() {
+  if (!mapLoadingOverlay) {
+    return;
+  }
+
+  mapLoadingOverlay.classList.add("is-hidden");
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -2283,6 +2309,12 @@ async function loadSloansLakeFullInventory(options = {}) {
       ? "Refreshing Sloan's Lake from Denver's official sweeping data so the full neighborhood map stays up to date..."
       : "Loading Sloan's Lake from Denver's official sweeping data across the full neighborhood boundary...";
   }
+  if (!hasCachedInventory) {
+    showMapLoadingOverlay(
+      "Loading Sloan's Lake",
+      "We're filling in the full neighborhood curb inventory now so the map opens complete instead of partial."
+    );
+  }
 
   try {
     const samplePoints = buildSloansLakeSamplePoints();
@@ -2387,6 +2419,7 @@ async function loadSloansLakeFullInventory(options = {}) {
       lookupStatus.innerHTML =
         "<strong>Sloan's Lake full inventory</strong> is loaded from Denver's official sweeping routes across the whole neighborhood boundary.";
     }
+    hideMapLoadingOverlay();
   } catch (error) {
     buildStreetData();
     refreshMapViewport();
@@ -2395,6 +2428,7 @@ async function loadSloansLakeFullInventory(options = {}) {
       lookupStatus.textContent =
         error.message || "Unable to load the official Sloan's Lake inventory right now. The built-in neighborhood map is still available below.";
     }
+    hideMapLoadingOverlay();
   } finally {
     if (returnToPilotButton) {
       returnToPilotButton.disabled = false;
@@ -3823,10 +3857,17 @@ let restoredCachedSloansLakeInventory = false;
 try {
   restoredCachedSloansLakeInventory = restoreCachedSloansLakeInventory();
   if (!restoredCachedSloansLakeInventory) {
+    showMapLoadingOverlay(
+      "Loading Sloan's Lake",
+      "We're filling in the full neighborhood curb inventory now so the map opens complete instead of partial."
+    );
     buildStreetData();
+  } else {
+    hideMapLoadingOverlay();
   }
 } catch (error) {
   renderMapFailure(error.message);
+  hideMapLoadingOverlay();
 }
 
 registerEvents();
@@ -3835,6 +3876,7 @@ try {
   initializeMap();
 } catch (error) {
   renderMapFailure(error.message);
+  hideMapLoadingOverlay();
 }
 
 renderAll();
