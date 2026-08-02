@@ -32,7 +32,8 @@ const MIME_TYPES = {
 
 let databasePool = null;
 let databaseSchemaReady = false;
-let storageBackend = DATABASE_URL ? "database" : "file";
+let databaseEnabled = Boolean(DATABASE_URL);
+let storageBackend = databaseEnabled ? "database" : "file";
 
 function setApiCorsHeaders(response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -64,7 +65,7 @@ async function ensureDataFiles() {
 }
 
 function isDatabaseConfigured() {
-  return Boolean(DATABASE_URL);
+  return databaseEnabled;
 }
 
 function getPgLibrary() {
@@ -183,13 +184,22 @@ async function initStorage() {
     return;
   }
 
-  await ensureDatabaseSchema();
-  await Promise.all([
-    maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.subscriptions, SUBSCRIPTIONS_FILE),
-    maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.pushSubscriptions, PUSH_SUBSCRIPTIONS_FILE),
-    maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE)
-  ]);
-  storageBackend = "database";
+  try {
+    await ensureDatabaseSchema();
+    await Promise.all([
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.subscriptions, SUBSCRIPTIONS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.pushSubscriptions, PUSH_SUBSCRIPTIONS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE)
+    ]);
+    storageBackend = "database";
+  } catch (error) {
+    databaseEnabled = false;
+    databasePool = null;
+    databaseSchemaReady = false;
+    storageBackend = "file";
+    await ensureDataFiles();
+    console.error(`Database unavailable at startup, falling back to file storage: ${error.message}`);
+  }
 }
 
 function fetchJson(url) {
