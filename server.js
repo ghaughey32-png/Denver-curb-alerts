@@ -887,7 +887,17 @@ async function serveStaticFile(response, pathname) {
     const file = await fs.readFile(filePath);
     const extension = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[extension] || "application/octet-stream";
-    response.writeHead(200, { "Content-Type": contentType });
+    const headers = { "Content-Type": contentType };
+
+    if (extension === ".html") {
+      headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+    } else if (path.basename(filePath) === "sw.js") {
+      headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+    } else if (extension === ".js" || extension === ".css" || extension === ".webmanifest" || extension === ".svg") {
+      headers["Cache-Control"] = "public, max-age=300";
+    }
+
+    response.writeHead(200, headers);
     response.end(file);
   } catch {
     sendText(response, 404, "Not found");

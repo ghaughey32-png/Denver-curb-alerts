@@ -1,5 +1,12 @@
-const CACHE_NAME = "curb-alerts-shell-v2";
-const APP_SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icon.svg"];
+const CACHE_NAME = "curb-alerts-shell-v3";
+const APP_SHELL = [
+  "/",
+  "/index.html",
+  "/styles.css?v=20260803",
+  "/app.js?v=20260803",
+  "/manifest.webmanifest?v=20260803",
+  "/icon.svg?v=20260803"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -28,6 +35,22 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", clone));
+          return response;
+        })
+        .catch(async () => {
+          const cachedIndex = await caches.match("/index.html");
+          return cachedIndex || caches.match("/");
+        })
+    );
     return;
   }
 
