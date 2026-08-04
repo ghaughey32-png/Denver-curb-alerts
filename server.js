@@ -10,15 +10,18 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
 const DATABASE_URL = process.env.DATABASE_URL || "";
+const ISSUE_REPORT_ADMIN_TOKEN = process.env.ISSUE_REPORT_ADMIN_TOKEN || "";
 const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const PUSH_SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "push-subscriptions.json");
 const REMINDER_PLANS_FILE = path.join(DATA_DIR, "reminder-plans.json");
+const ISSUE_REPORTS_FILE = path.join(DATA_DIR, "issue-reports.json");
 const DENVER_API_BASE = "https://www.denvergov.org/api/";
 const REMINDER_DISPATCH_INTERVAL_MS = 60 * 1000;
 const COLLECTION_KEYS = {
   subscriptions: "subscriptions",
   pushSubscriptions: "push-subscriptions",
-  reminderPlans: "reminder-plans"
+  reminderPlans: "reminder-plans",
+  issueReports: "issue-reports"
 };
 
 const MIME_TYPES = {
@@ -38,12 +41,21 @@ let storageBackend = databaseEnabled ? "database" : "file";
 function setApiCorsHeaders(response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
 }
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload, null, 2));
+}
+
+function hasIssueReportAdminAccess(request) {
+  if (!ISSUE_REPORT_ADMIN_TOKEN) {
+    return false;
+  }
+
+  const authorization = request.headers.authorization || "";
+  return authorization === `Bearer ${ISSUE_REPORT_ADMIN_TOKEN}`;
 }
 
 function sendText(response, statusCode, text) {
@@ -61,7 +73,12 @@ async function ensureJsonFile(filePath) {
 }
 
 async function ensureDataFiles() {
-  await Promise.all([ensureJsonFile(SUBSCRIPTIONS_FILE), ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE), ensureJsonFile(REMINDER_PLANS_FILE)]);
+  await Promise.all([
+    ensureJsonFile(SUBSCRIPTIONS_FILE),
+    ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE),
+    ensureJsonFile(REMINDER_PLANS_FILE),
+    ensureJsonFile(ISSUE_REPORTS_FILE)
+  ]);
 }
 
 function isDatabaseConfigured() {
@@ -189,7 +206,8 @@ async function initStorage() {
     await Promise.all([
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.subscriptions, SUBSCRIPTIONS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.pushSubscriptions, PUSH_SUBSCRIPTIONS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.issueReports, ISSUE_REPORTS_FILE)
     ]);
     storageBackend = "database";
   } catch (error) {
@@ -296,6 +314,23 @@ async function writeReminderPlans(plans) {
   await writeCollectionToFile(REMINDER_PLANS_FILE, plans);
 }
 
+async function readIssueReports() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.issueReports);
+  }
+
+  return readCollectionFromFile(ISSUE_REPORTS_FILE);
+}
+
+async function writeIssueReports(reports) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.issueReports, reports);
+    return;
+  }
+
+  await writeCollectionToFile(ISSUE_REPORTS_FILE, reports);
+}
+
 function getWebPushLibrary() {
   try {
     return require("web-push");
@@ -363,6 +398,46 @@ function buildReminderPlanRecord(existingPlan, subscriptionRecord, endpoint, sav
     updatedAt: now,
     savedSets,
     jobs: mergeReminderJobs(existingPlan?.jobs || [], jobs)
+  };
+}
+
+function cleanText(value, maxLength = 300) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+function normalizeIssueReport(body, request) {
+  const selectedSegments = Array.isArray(body.selectedSegments)
+    ? body.selectedSegments.slice(0, 25).map((segment) => ({
+        id: cleanText(segment.id, 120),
+        street: cleanText(segment.street, 160),
+        sideKey: cleanText(segment.sideKey, 40),
+        sideLabel: cleanText(segment.sideLabel, 80),
+        nextSweep: cleanText(segment.nextSweep, 80),
+        rule: cleanText(segment.rule, 240),
+        source: cleanText(segment.source, 160)
+      }))
+    : [];
+
+  return {
+    id: `issue_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    createdAtClient: cleanText(body.createdAtClient, 80),
+    type: cleanText(body.type || "Something else", 120),
+    note: cleanText(body.note, 1500),
+    selectedSegments,
+    selectionCount: Number(body.selectionCount || selectedSegments.length) || selectedSegments.length,
+    savedSetCount: Number(body.savedSetCount || 0) || 0,
+    jobCount: Number(body.jobCount || 0) || 0,
+    pushConnected: Boolean(body.pushConnected),
+    hasUserLocation: Boolean(body.hasUserLocation),
+    activeAreaLabel: cleanText(body.activeAreaLabel, 200),
+    activeSourceLabel: cleanText(body.activeSourceLabel, 200),
+    pageUrl: cleanText(body.pageUrl, 600),
+    viewport: {
+      width: Number(body.viewport?.width || 0) || 0,
+      height: Number(body.viewport?.height || 0) || 0
+    },
+    userAgent: cleanText(body.userAgent || request.headers["user-agent"], 600)
   };
 }
 
@@ -689,6 +764,70 @@ async function handleReminderPlans(request, response, url) {
   sendJson(response, 405, { error: "Method not allowed." });
 }
 
+async function handleIssueReports(request, response, url) {
+  if (request.method === "GET") {
+    if (!hasIssueReportAdminAccess(request)) {
+      sendJson(response, 403, { error: "Issue report access is private." });
+      return;
+    }
+
+    const reports = await readIssueReports();
+    sendJson(response, 200, {
+      count: reports.length,
+      reports
+    });
+    return;
+  }
+
+  if (request.method === "POST") {
+    try {
+      const body = JSON.parse(await readRequestBody(request));
+      const record = normalizeIssueReport(body, request);
+
+      if (!record.note) {
+        sendJson(response, 400, { error: "A quick note is required." });
+        return;
+      }
+
+      const reports = await readIssueReports();
+      const nextReports = [record, ...reports].slice(0, 500);
+      await writeIssueReports(nextReports);
+      sendJson(response, 201, {
+        ok: true,
+        reportId: record.id
+      });
+    } catch (error) {
+      sendJson(response, 400, {
+        error: "Invalid issue report payload.",
+        details: error.message
+      });
+    }
+    return;
+  }
+
+  if (request.method === "DELETE") {
+    if (!hasIssueReportAdminAccess(request)) {
+      sendJson(response, 403, { error: "Issue report access is private." });
+      return;
+    }
+
+    const id = url.pathname.split("/").pop();
+    const reports = await readIssueReports();
+    const nextReports = reports.filter((item) => item.id !== id);
+
+    if (nextReports.length === reports.length) {
+      sendJson(response, 404, { error: "Issue report not found." });
+      return;
+    }
+
+    await writeIssueReports(nextReports);
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed." });
+}
+
 async function handleScheduledPushTest(request, response) {
   if (request.method !== "POST") {
     sendJson(response, 405, { error: "Method not allowed." });
@@ -947,6 +1086,11 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/reminder-plans") {
     await handleReminderPlans(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/issue-reports" || url.pathname.startsWith("/api/issue-reports/")) {
+    await handleIssueReports(request, response, url);
     return;
   }
 

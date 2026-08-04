@@ -595,6 +595,36 @@ button {
   font: inherit;
 }
 
+.issue-report-card {
+  align-items: start;
+}
+
+.issue-note-input {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.issue-report-status {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #e4f2df;
+  border: 1px solid rgba(77, 160, 83, 0.28);
+  color: #21382c;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.issue-report-status.is-error {
+  background: #fff1eb;
+  border-color: rgba(176, 94, 46, 0.25);
+  color: #5c3222;
+}
+
+.issue-report-status[hidden] {
+  display: none;
+}
+
 .primary-button {
   border: 0;
   border-radius: 16px;

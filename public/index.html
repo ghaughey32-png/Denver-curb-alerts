@@ -263,6 +263,39 @@
             </div>
           </section>
 
+          <section class="panel-section feedback-section">
+            <div class="mini-head">
+              <h3>Report an issue</h3>
+            </div>
+
+            <form id="issue-report-form" class="save-set-card issue-report-card">
+              <p class="empty-subtext">
+                See a wrong sweeping date, missing curb, confusing map, or notification problem? Send a quick note.
+              </p>
+
+              <label class="input-label" for="issue-type-select">What went wrong?</label>
+              <select id="issue-type-select" class="text-input">
+                <option value="Wrong sweeping date">Wrong sweeping date</option>
+                <option value="Missing curb or street">Missing curb or street</option>
+                <option value="Wrong side selected">Wrong side selected</option>
+                <option value="Notification problem">Notification problem</option>
+                <option value="Map is confusing">Map is confusing</option>
+                <option value="Something else">Something else</option>
+              </select>
+
+              <label class="input-label" for="issue-note-input">Quick note</label>
+              <textarea
+                id="issue-note-input"
+                class="text-input issue-note-input"
+                rows="3"
+                placeholder="Example: 21st and King looks like the wrong side."
+              ></textarea>
+
+              <button id="submit-issue-button" class="ghost-button" type="submit">Send issue report</button>
+              <div id="issue-report-status" class="issue-report-status" role="status" aria-live="polite" hidden></div>
+            </form>
+          </section>
+
           <section class="panel-section">
             <div class="mini-head">
               <h3>Saved notification sets</h3>

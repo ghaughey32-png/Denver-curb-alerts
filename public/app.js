@@ -1600,6 +1600,11 @@ const enableNotificationsButton = document.querySelector("#enable-notifications-
 const sendTestButton = document.querySelector("#send-test-button");
 const scheduleTestButton = document.querySelector("#schedule-test-button");
 const readinessCount = document.querySelector("#readiness-count");
+const issueReportForm = document.querySelector("#issue-report-form");
+const issueTypeSelect = document.querySelector("#issue-type-select");
+const issueNoteInput = document.querySelector("#issue-note-input");
+const submitIssueButton = document.querySelector("#submit-issue-button");
+const issueReportStatus = document.querySelector("#issue-report-status");
 const readinessItems = {
   curb: document.querySelector("#readiness-curb"),
   push: document.querySelector("#readiness-push"),
@@ -3161,6 +3166,92 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function setIssueReportStatus(message, isError = false) {
+  if (!issueReportStatus) {
+    return;
+  }
+
+  issueReportStatus.textContent = message;
+  issueReportStatus.classList.toggle("is-error", isError);
+  issueReportStatus.hidden = false;
+}
+
+function buildIssueReportPayload() {
+  const selectedSegments = getSelectedSegments().map((segment) => {
+    const nextSweepDate = getNextSweepDate(segment);
+
+    return {
+      id: segment.id,
+      street: segment.street,
+      sideKey: segment.sideKey,
+      sideLabel: segment.sideLabel,
+      nextSweep: nextSweepDate ? formatDateObject(nextSweepDate) : "",
+      rule: segment.schedule?.rule || "",
+      source: segment.source || state.activeSourceLabel
+    };
+  });
+
+  return {
+    type: issueTypeSelect?.value || "Something else",
+    note: issueNoteInput?.value.trim() || "",
+    selectedSegments,
+    selectionCount: selectedSegments.length,
+    savedSetCount: state.savedSets.length,
+    jobCount: state.notificationJobs.length,
+    pushConnected: Boolean(state.pushSubscription),
+    hasUserLocation: Boolean(state.userLocation),
+    activeAreaLabel: state.activeAreaLabel,
+    activeSourceLabel: state.activeSourceLabel,
+    pageUrl: window.location.href,
+    userAgent: navigator.userAgent,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight
+    },
+    createdAtClient: new Date().toISOString()
+  };
+}
+
+async function submitIssueReport(event) {
+  event.preventDefault();
+
+  const payload = buildIssueReportPayload();
+  if (!payload.note) {
+    setIssueReportStatus("Add a quick note first so we know what to fix.", true);
+    issueNoteInput?.focus();
+    return;
+  }
+
+  if (submitIssueButton) {
+    submitIssueButton.disabled = true;
+  }
+  setIssueReportStatus("Sending your report...");
+
+  try {
+    const response = await fetch(buildApiUrl("/api/issue-reports"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || "Unable to save issue report.");
+    }
+
+    if (issueNoteInput) {
+      issueNoteInput.value = "";
+    }
+    setIssueReportStatus("Thanks. We saved that issue report.");
+  } catch (error) {
+    setIssueReportStatus(error.message || "We couldn't send that report yet. Try again in a minute.", true);
+  } finally {
+    if (submitIssueButton) {
+      submitIssueButton.disabled = false;
+    }
+  }
+}
+
 function renderSavedSets() {
   savedSetsList.innerHTML = "";
   savedSetCount.textContent = `${state.savedSets.length} saved`;
@@ -4082,6 +4173,7 @@ function registerEvents() {
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
   scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
+  issueReportForm?.addEventListener("submit", submitIssueReport);
   lookupAddressButton?.addEventListener("click", () => {
     loadDenverLookup(lookupAddressInput?.value, "Live Denver lookup");
   });
