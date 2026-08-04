@@ -1606,6 +1606,9 @@ const issueTypeSelect = document.querySelector("#issue-type-select");
 const issueNoteInput = document.querySelector("#issue-note-input");
 const submitIssueButton = document.querySelector("#submit-issue-button");
 const issueReportStatus = document.querySelector("#issue-report-status");
+const issueReportPanel = document.querySelector("#issue-report-panel");
+const openIssueReportButton = document.querySelector("#open-issue-report-button");
+const closeIssueReportButton = document.querySelector("#close-issue-report-button");
 const readinessItems = {
   curb: document.querySelector("#readiness-curb"),
   push: document.querySelector("#readiness-push"),
@@ -3458,6 +3461,25 @@ function setIssueReportStatus(message, isError = false) {
   issueReportStatus.hidden = false;
 }
 
+function setIssueReportPanelOpen(isOpen) {
+  if (!issueReportPanel || !openIssueReportButton) {
+    return;
+  }
+
+  issueReportPanel.hidden = !isOpen;
+  openIssueReportButton.setAttribute("aria-expanded", String(isOpen));
+
+  if (isOpen) {
+    window.setTimeout(() => {
+      issueTypeSelect?.focus();
+    }, 0);
+  }
+}
+
+function toggleIssueReportPanel() {
+  setIssueReportPanelOpen(Boolean(issueReportPanel?.hidden));
+}
+
 function buildIssueReportPayload() {
   const selectedSegments = getSelectedSegments().map((segment) => {
     const nextSweepDate = getNextSweepDate(segment);
@@ -4516,6 +4538,13 @@ function registerEvents() {
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
   scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
   issueReportForm?.addEventListener("submit", submitIssueReport);
+  openIssueReportButton?.addEventListener("click", toggleIssueReportPanel);
+  closeIssueReportButton?.addEventListener("click", () => setIssueReportPanelOpen(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setIssueReportPanelOpen(false);
+    }
+  });
   lookupForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     searchAddressAndCenter(lookupAddressInput?.value);
