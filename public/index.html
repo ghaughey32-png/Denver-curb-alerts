@@ -81,36 +81,6 @@
         <button id="dismiss-onboarding-button" class="ghost-button onboarding-dismiss" type="button">Got it</button>
       </section>
 
-      <section class="lookup-card">
-        <div class="section-head">
-          <div>
-            <p class="section-kicker">Optional lookup</p>
-            <h2>Need another area later?</h2>
-            <p class="lookup-text">
-              Sloan's Lake is the main map experience right now. If you want to explore another part of Denver later,
-              you can load a single address here and pull in nearby sweeping routes.
-            </p>
-          </div>
-        </div>
-
-        <div class="lookup-toolbar">
-          <label class="lookup-field" for="lookup-address-input">
-            <span class="input-label">Address or block</span>
-            <input
-              id="lookup-address-input"
-              class="text-input"
-              type="text"
-              placeholder="Example: 4401 Tennyson St, Denver, CO"
-            />
-          </label>
-          <button id="lookup-address-button" class="primary-button" type="button">Load address</button>
-        </div>
-
-        <p id="lookup-status" class="lookup-status">
-          You're currently viewing the full Sloan's Lake inventory between Lowell and Hooker, and Colfax to 18th.
-        </p>
-      </section>
-
       <main class="workspace">
         <section class="map-card">
           <div class="section-head">
@@ -123,6 +93,24 @@
               <button id="clear-map-selection" class="ghost-button" type="button">Clear all selections</button>
             </div>
           </div>
+
+          <form id="map-search-form" class="map-search-bar">
+            <label class="map-search-field" for="lookup-address-input">
+              <span class="input-label">Search address or cross streets</span>
+              <input
+                id="lookup-address-input"
+                class="text-input"
+                type="search"
+                placeholder="Example: 21st and King, Denver, CO"
+                autocomplete="street-address"
+              />
+            </label>
+            <button id="lookup-address-button" class="primary-button" type="submit">Search map</button>
+          </form>
+
+          <p id="lookup-status" class="lookup-status map-search-status">
+            Search for a Sloan's Lake address or nearby cross streets to jump the map there.
+          </p>
 
           <p class="privacy-note">
             Your location is only used to center the map. We don't sell your data.

@@ -1553,6 +1553,7 @@ const state = {
   activeLookupAddress: "",
   activeContextMarkers: contextMarkers,
   userLocation: null,
+  searchedLocation: null,
   mapNoteText:
     "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it.",
   pendingApplySetId: "",
@@ -1613,6 +1614,7 @@ const readinessItems = {
 };
 const lookupAddressInput = document.querySelector("#lookup-address-input");
 const lookupAddressButton = document.querySelector("#lookup-address-button");
+const lookupForm = document.querySelector("#map-search-form");
 const returnToPilotButton = document.querySelector("#return-to-pilot-button");
 const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
@@ -2496,6 +2498,109 @@ function focusMapOnUserLocation() {
   });
 }
 
+function normalizeDenverSearchQuery(query) {
+  const cleanedQuery = String(query || "").trim();
+  if (!cleanedQuery) {
+    return "";
+  }
+
+  if (/\bdenver\b/i.test(cleanedQuery)) {
+    return cleanedQuery;
+  }
+
+  return `${cleanedQuery}, Denver, CO`;
+}
+
+function getLookupCenter(summary) {
+  const routes = Array.isArray(summary?.routes) ? summary.routes : [];
+  const centeredRoute = routes.find((route) => Array.isArray(route?.map?.center) && route.map.center.length >= 2);
+  const center = centeredRoute?.map?.center;
+
+  if (center) {
+    const [lat, lon] = center.map(Number);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { lat, lon };
+    }
+  }
+
+  const routedPath = routes.find((route) => Array.isArray(route?.map?.path) && route.map.path.length)?.map?.path;
+  const fallbackPoint = routedPath?.[0];
+  if (Array.isArray(fallbackPoint) && fallbackPoint.length >= 2) {
+    const [lat, lon] = fallbackPoint.map(Number);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { lat, lon };
+    }
+  }
+
+  return null;
+}
+
+function focusMapOnSearchedLocation() {
+  if (!state.map || !state.searchedLocation) {
+    return;
+  }
+
+  state.map.setView([state.searchedLocation.lat, state.searchedLocation.lon], Math.max(state.map.getZoom(), 17), {
+    animate: true
+  });
+}
+
+async function searchAddressAndCenter(address) {
+  const cleanedAddress = String(address || "").trim();
+  if (!cleanedAddress) {
+    if (lookupStatus) {
+      lookupStatus.textContent = "Enter an address or cross streets first, then we'll jump the map there.";
+    }
+    lookupAddressInput?.focus();
+    return;
+  }
+
+  if (lookupStatus) {
+    lookupStatus.textContent = `Searching for ${cleanedAddress}...`;
+  }
+  if (lookupAddressButton) {
+    lookupAddressButton.disabled = true;
+  }
+
+  try {
+    const searchQuery = normalizeDenverSearchQuery(cleanedAddress);
+    const response = await fetch(buildAddressLookupUrl(searchQuery));
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(details || "Unable to find that spot yet.");
+    }
+
+    const summary = await response.json();
+    const center = getLookupCenter(summary);
+    if (!center) {
+      throw new Error("I couldn't find that spot yet. Try adding Denver, CO or a nearby cross street.");
+    }
+
+    if (!isWithinDenverBounds(center.lat, center.lon)) {
+      throw new Error("That looks outside the Denver map area. For now, search for a Denver address or cross streets.");
+    }
+
+    state.searchedLocation = { ...center, label: cleanedAddress };
+    renderContext();
+    focusMapOnSearchedLocation();
+
+    if (lookupAddressInput) {
+      lookupAddressInput.value = cleanedAddress;
+    }
+    if (lookupStatus) {
+      lookupStatus.textContent = `Found it. The map is centered near ${cleanedAddress}. Tap a colored curb nearby to select reminders.`;
+    }
+  } catch (error) {
+    if (lookupStatus) {
+      lookupStatus.textContent = error.message || "Unable to find that spot right now.";
+    }
+  } finally {
+    if (lookupAddressButton) {
+      lookupAddressButton.disabled = false;
+    }
+  }
+}
+
 async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", options = {}) {
   const cleanedAddress = String(address || "").trim();
   if (!cleanedAddress) {
@@ -2714,6 +2819,36 @@ function renderContext() {
 
     locationRing.addTo(state.contextLayerGroup);
     locationDot.addTo(state.contextLayerGroup);
+  }
+
+  if (state.searchedLocation) {
+    const searchRing = L.circleMarker([state.searchedLocation.lat, state.searchedLocation.lon], {
+      radius: 17,
+      color: "rgba(224, 122, 31, 0.24)",
+      weight: 10,
+      fillColor: "rgba(224, 122, 31, 0.12)",
+      fillOpacity: 1
+    });
+
+    const searchDot = L.circleMarker([state.searchedLocation.lat, state.searchedLocation.lon], {
+      radius: 8,
+      color: "#ffffff",
+      weight: 3,
+      fillColor: "#e07a1f",
+      fillOpacity: 1
+    });
+
+    const label = state.searchedLocation.label || "Search result";
+    searchDot.bindTooltip("Search result", {
+      permanent: true,
+      direction: "top",
+      offset: [0, -12],
+      className: "search-result-label"
+    });
+    searchDot.bindPopup(label);
+
+    searchRing.addTo(state.contextLayerGroup);
+    searchDot.addTo(state.contextLayerGroup);
   }
 }
 
@@ -4174,8 +4309,9 @@ function registerEvents() {
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
   scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
   issueReportForm?.addEventListener("submit", submitIssueReport);
-  lookupAddressButton?.addEventListener("click", () => {
-    loadDenverLookup(lookupAddressInput?.value, "Live Denver lookup");
+  lookupForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    searchAddressAndCenter(lookupAddressInput?.value);
   });
   returnToPilotButton?.addEventListener("click", () => {
     loadSloansLakeFullInventory();
@@ -4193,12 +4329,17 @@ function registerEvents() {
       saveCurrentAsSet();
     }
   });
-  lookupAddressInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      loadDenverLookup(lookupAddressInput.value, "Live Denver lookup");
-    }
-  });
+  if (!lookupForm) {
+    lookupAddressButton?.addEventListener("click", () => {
+      searchAddressAndCenter(lookupAddressInput?.value);
+    });
+    lookupAddressInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        searchAddressAndCenter(lookupAddressInput.value);
+      }
+    });
+  }
 }
 
 if (storageMode) {

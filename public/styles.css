@@ -247,6 +247,27 @@ button {
   color: var(--ink);
 }
 
+.map-search-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  border-radius: 22px;
+}
+
+.map-search-field {
+  display: grid;
+  gap: 8px;
+}
+
+.map-search-status {
+  margin-top: 10px;
+}
+
 .map-card,
 .panel-card {
   padding: 22px;
@@ -350,6 +371,22 @@ button {
 }
 
 .leaflet-tooltip.you-are-here-label::before {
+  display: none;
+}
+
+.leaflet-tooltip.search-result-label {
+  background: rgba(88, 61, 35, 0.92);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(88, 61, 35, 0.18);
+  color: #ffffff;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+
+.leaflet-tooltip.search-result-label::before {
   display: none;
 }
 
@@ -1048,8 +1085,13 @@ button {
     font-size: 1.8rem;
   }
 
-  .lookup-toolbar {
+  .lookup-toolbar,
+  .map-search-bar {
     grid-template-columns: 1fr;
+  }
+
+  .map-search-bar .primary-button {
+    width: 100%;
   }
 
   .reminder-row {
