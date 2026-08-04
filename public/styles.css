@@ -107,13 +107,15 @@ button {
 
 .ready-kicker {
   width: max-content;
-  padding: 8px 12px;
+  padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(247, 176, 67, 0.16);
-  color: #ffd79b;
-  font-size: clamp(1rem, 2vw, 1.35rem);
+  background: linear-gradient(135deg, rgba(247, 176, 67, 0.22), rgba(255, 228, 169, 0.12));
+  border: 1px solid rgba(247, 176, 67, 0.45);
+  color: #ffe0a4;
+  font-size: clamp(1.35rem, 3vw, 2rem);
   font-weight: 900;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.26em;
+  text-shadow: 0 2px 12px rgba(247, 176, 67, 0.28);
 }
 
 .landing-next-card h2 {
@@ -131,13 +133,45 @@ button {
 }
 
 .landing-next-button {
+  position: relative;
+  overflow: hidden;
   min-height: 68px;
-  padding: 18px 30px;
-  background: #f7b043;
+  padding: 20px 34px;
+  background:
+    linear-gradient(135deg, #fff1b8 0%, #f7b043 34%, #d97925 100%);
+  border: 3px solid #ffe48c;
   color: #1f2f37;
-  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  font-size: clamp(1.45rem, 2.5vw, 1.95rem);
   font-weight: 900;
-  box-shadow: 0 16px 34px rgba(247, 176, 67, 0.28);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow:
+    0 0 0 5px rgba(247, 176, 67, 0.18),
+    0 18px 38px rgba(247, 176, 67, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.landing-next-button::after {
+  position: absolute;
+  top: -45%;
+  left: -35%;
+  width: 32%;
+  height: 190%;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  transform: rotate(22deg);
+  animation: button-shine 3.2s ease-in-out infinite;
+}
+
+@keyframes button-shine {
+  0% {
+    left: -40%;
+  }
+
+  45%,
+  100% {
+    left: 125%;
+  }
 }
 
 .single-panel-view {
