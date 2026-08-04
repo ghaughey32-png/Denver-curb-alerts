@@ -627,6 +627,73 @@ button {
   line-height: 1.45;
 }
 
+.readiness-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(31, 47, 55, 0.08);
+  border-radius: 22px;
+}
+
+.readiness-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(31, 47, 55, 0.04);
+  border: 1px solid rgba(31, 47, 55, 0.07);
+}
+
+.readiness-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(98, 114, 123, 0.16);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.readiness-icon::before {
+  content: "!";
+}
+
+.readiness-item strong,
+.readiness-item span {
+  display: block;
+}
+
+.readiness-item strong {
+  font-size: 0.95rem;
+}
+
+.readiness-item span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.readiness-item.is-ready {
+  background: #e4f2df;
+  border-color: rgba(77, 160, 83, 0.28);
+}
+
+.readiness-item.is-ready .readiness-icon {
+  background: var(--green);
+  color: #fff;
+}
+
+.readiness-item.is-ready .readiness-icon::before {
+  content: "✓";
+}
+
 .saved-set-title {
   margin: 0;
   font-size: 1rem;

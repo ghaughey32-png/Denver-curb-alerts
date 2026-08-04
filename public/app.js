@@ -1599,6 +1599,13 @@ const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
 const sendTestButton = document.querySelector("#send-test-button");
 const scheduleTestButton = document.querySelector("#schedule-test-button");
+const readinessCount = document.querySelector("#readiness-count");
+const readinessItems = {
+  curb: document.querySelector("#readiness-curb"),
+  push: document.querySelector("#readiness-push"),
+  set: document.querySelector("#readiness-set"),
+  jobs: document.querySelector("#readiness-jobs")
+};
 const lookupAddressInput = document.querySelector("#lookup-address-input");
 const lookupAddressButton = document.querySelector("#lookup-address-button");
 const returnToPilotButton = document.querySelector("#return-to-pilot-button");
@@ -3864,6 +3871,61 @@ function renderNotificationJobs() {
   });
 }
 
+function setReadinessItem(item, isReady, readyText, waitingText) {
+  if (!item) {
+    return;
+  }
+
+  item.classList.toggle("is-ready", isReady);
+  const detail = item.querySelector("div span");
+  if (detail) {
+    detail.textContent = isReady ? readyText : waitingText;
+  }
+}
+
+function renderReminderReadiness() {
+  if (!readinessCount) {
+    return;
+  }
+
+  const selectedSegments = getSelectedSegments();
+  const savedSegments = state.savedSets.flatMap(getSegmentsForSavedSet);
+  const hasCurb = selectedSegments.length > 0 || savedSegments.length > 0;
+  const hasSavedSet = state.savedSets.length > 0;
+  const hasPush = hasRemotePushReady();
+  const hasJobs = state.notificationJobs.length > 0;
+  const readyTotal = [hasCurb, hasPush, hasSavedSet, hasJobs].filter(Boolean).length;
+
+  readinessCount.textContent = `${readyTotal} of 4 ready`;
+
+  setReadinessItem(
+    readinessItems.curb,
+    hasCurb,
+    selectedSegments.length
+      ? `${selectedSegments.length} curb side${selectedSegments.length === 1 ? "" : "s"} selected.`
+      : "Saved curb sides are ready.",
+    "Tap a colored curb side on the map."
+  );
+  setReadinessItem(
+    readinessItems.push,
+    hasPush,
+    "This device is connected for push alerts.",
+    "Turn on push notifications for this phone."
+  );
+  setReadinessItem(
+    readinessItems.set,
+    hasSavedSet,
+    `${state.savedSets.length} reminder set${state.savedSets.length === 1 ? "" : "s"} saved.`,
+    "Name it and save the curbs you want alerts for."
+  );
+  setReadinessItem(
+    readinessItems.jobs,
+    hasJobs,
+    `${state.notificationJobs.length} upcoming reminder job${state.notificationJobs.length === 1 ? "" : "s"} queued.`,
+    "Day-before and day-of reminders will appear below."
+  );
+}
+
 function formatJobHeading(job) {
   const scheduledDate = new Date(job.scheduledAt);
   return scheduledDate.toLocaleString("en-US", {
@@ -3971,6 +4033,7 @@ function renderAll() {
   renderSavedSets();
   renderNotificationJobs();
   renderNotificationStatus();
+  renderReminderReadiness();
   renderStats();
   queueReminderPlanSync();
 }
