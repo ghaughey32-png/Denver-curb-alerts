@@ -1618,6 +1618,9 @@ const lookupForm = document.querySelector("#map-search-form");
 const returnToPilotButton = document.querySelector("#return-to-pilot-button");
 const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
+const appViews = Array.from(document.querySelectorAll(".app-view"));
+const appViewButtons = Array.from(document.querySelectorAll("[data-view-target]"));
+const APP_VIEW_NAMES = new Set(["landing", "setup", "alerts", "schedule"]);
 const HOSTED_APP_ORIGIN = "https://denver-curb-alerts-2.onrender.com";
 const DENVER_MAP_BOUNDS = {
   north: 39.8275,
@@ -4428,6 +4431,65 @@ function addDays(date, count) {
   return nextDate;
 }
 
+function viewFromHash() {
+  const hashValue = window.location.hash.replace("#", "").trim();
+  return APP_VIEW_NAMES.has(hashValue) ? hashValue : "";
+}
+
+function setActiveView(viewName, options = {}) {
+  if (!APP_VIEW_NAMES.has(viewName)) {
+    return;
+  }
+
+  appViews.forEach((view) => {
+    const isActive = view.dataset.view === viewName;
+    view.hidden = !isActive;
+    view.classList.toggle("is-active", isActive);
+  });
+
+  appViewButtons.forEach((button) => {
+    const isActive = button.dataset.viewTarget === viewName;
+    button.classList.toggle("is-active", isActive);
+
+    if (button.classList.contains("app-tab")) {
+      if (isActive) {
+        button.setAttribute("aria-current", "page");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    }
+  });
+
+  if (!options.skipHash) {
+    window.history.replaceState(null, "", `#${viewName}`);
+  }
+
+  if (viewName === "setup" && state.map) {
+    window.setTimeout(() => state.map.invalidateSize(), 80);
+  }
+
+  if (!options.skipScroll) {
+    window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
+  }
+}
+
+function initializeViewNavigation() {
+  appViewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setActiveView(button.dataset.viewTarget);
+    });
+  });
+
+  window.addEventListener("hashchange", () => {
+    const nextView = viewFromHash();
+    if (nextView) {
+      setActiveView(nextView, { skipHash: true });
+    }
+  });
+
+  setActiveView(viewFromHash() || "landing", { skipHash: true, instant: true });
+}
+
 function applyTimeToDate(baseDate, timeValue) {
   if (!baseDate || !isValidTimeValue(timeValue)) {
     return null;
@@ -4509,6 +4571,7 @@ try {
   hideMapLoadingOverlay();
 }
 
+initializeViewNavigation();
 registerEvents();
 
 try {
