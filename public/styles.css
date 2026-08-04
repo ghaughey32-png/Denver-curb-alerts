@@ -95,24 +95,49 @@ button {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   align-items: center;
-  padding: 20px 22px;
-  background: rgba(251, 248, 242, 0.9);
-  border: 1px solid rgba(31, 47, 55, 0.1);
-  border-radius: 28px;
-  box-shadow: var(--shadow);
+  padding: 28px 30px;
+  background:
+    linear-gradient(135deg, rgba(31, 47, 55, 0.96), rgba(60, 77, 84, 0.92)),
+    radial-gradient(circle at top right, rgba(247, 176, 67, 0.34), transparent 38%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 34px;
+  box-shadow: 0 24px 54px rgba(31, 47, 55, 0.2);
+  color: #fff;
+}
+
+.ready-kicker {
+  width: max-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(247, 176, 67, 0.16);
+  color: #ffd79b;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 900;
+  letter-spacing: 0.24em;
 }
 
 .landing-next-card h2 {
   margin: 0;
   font-family: "Iowan Old Style", Georgia, serif;
-  font-size: clamp(1.8rem, 3vw, 2.7rem);
+  font-size: clamp(2.35rem, 4vw, 3.7rem);
   line-height: 1;
 }
 
 .landing-next-card p:last-child {
-  margin: 8px 0 0;
-  color: var(--muted);
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.08rem;
   line-height: 1.55;
+}
+
+.landing-next-button {
+  min-height: 68px;
+  padding: 18px 30px;
+  background: #f7b043;
+  color: #1f2f37;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  font-weight: 900;
+  box-shadow: 0 16px 34px rgba(247, 176, 67, 0.28);
 }
 
 .single-panel-view {
@@ -1032,6 +1057,41 @@ a.ghost-button {
   color: #52665c;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.setup-next-card {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 18px;
+  border: 2px solid rgba(247, 176, 67, 0.58);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 250, 229, 0.94), rgba(255, 246, 212, 0.84)),
+    radial-gradient(circle at top right, rgba(247, 176, 67, 0.24), transparent 42%);
+}
+
+.setup-next-card strong,
+.setup-next-card span {
+  display: block;
+}
+
+.setup-next-card strong {
+  font-size: 1rem;
+}
+
+.setup-next-card span {
+  margin-top: 5px;
+  color: #677781;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.setup-next-button {
+  min-height: 56px;
+  width: 100%;
+  background: var(--ink);
+  font-size: 1.05rem;
 }
 
 .readiness-card {

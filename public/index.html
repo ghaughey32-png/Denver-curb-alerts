@@ -11,15 +11,15 @@
     <meta name="theme-color" content="#c95d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest?v=20260804g" />
+    <link rel="manifest" href="/manifest.webmanifest?v=20260804h" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/styles.css?v=20260804g" />
-    <link rel="icon" href="/icon.svg?v=20260804g" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=20260804h" />
+    <link rel="icon" href="/icon.svg?v=20260804h" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
@@ -117,11 +117,11 @@
 
         <div class="landing-next-card">
           <div>
-            <p class="section-kicker">Ready?</p>
+            <p class="section-kicker ready-kicker">Ready?</p>
             <h2>Set up your Sloan's Lake reminders.</h2>
             <p>Choose your curb, connect this phone, and save the reminder set you want to test.</p>
           </div>
-          <button class="primary-button" type="button" data-view-target="setup">Get started</button>
+          <button class="primary-button landing-next-button" type="button" data-view-target="setup">Get started</button>
         </div>
       </section>
 
@@ -242,6 +242,16 @@
               <input id="set-name-input" class="text-input" type="text" placeholder="Example: weekday parking near home" />
               <button id="save-set-button" class="primary-button" type="button">Save current selection</button>
               <div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div>
+            </div>
+
+            <div class="setup-next-card" aria-label="Next step">
+              <div>
+                <strong>Next: review your alert setup</strong>
+                <span>Check your saved curb sides, push status, and reminder readiness before viewing scheduled alerts.</span>
+              </div>
+              <button class="primary-button setup-next-button" type="button" data-view-target="alerts">
+                Continue to alert setup
+              </button>
             </div>
           </section>
         </aside>
@@ -634,6 +644,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js?v=20260804g"></script>
+    <script src="/app.js?v=20260804h"></script>
   </body>
 </html>
