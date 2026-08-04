@@ -270,6 +270,17 @@ button {
   gap: 10px;
 }
 
+.privacy-note {
+  margin: 14px 0 0;
+  padding: 11px 14px;
+  border: 1px solid rgba(31, 47, 55, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .section-head h2 {
   font-size: 2.2rem;
 }
