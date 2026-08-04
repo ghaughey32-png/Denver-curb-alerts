@@ -3658,6 +3658,7 @@ async function initializePushFeatures() {
 
   try {
     state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js");
+    state.serviceWorkerRegistration.update?.();
     const configResponse = await fetch(buildApiUrl("/api/push/config"));
     if (configResponse.ok) {
       state.pushConfig = await configResponse.json();
