@@ -529,6 +529,31 @@ button {
   font-size: 0.92rem;
 }
 
+.saved-set-details {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(31, 47, 55, 0.08);
+}
+
+.saved-set-detail-row {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 10px;
+  align-items: start;
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.saved-set-detail-label {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .reminder-card {
   margin-top: 14px;
   padding: 14px;

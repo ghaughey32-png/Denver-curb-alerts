@@ -2845,7 +2845,7 @@ function saveCurrentAsSet() {
     return;
   }
 
-  const name = cleanedName || `Set ${state.savedSets.length + 1}`;
+  const name = cleanedName || buildDefaultSetName(selectedSegments, state.savedSets.length + 1);
   const nextSet = {
     id: `set-${Date.now()}`,
     name,
@@ -2957,6 +2957,85 @@ function updateDayOfReminder(setId, slotIndex, field, value) {
   });
 }
 
+function buildDefaultSetName(segments, fallbackNumber) {
+  const validSegments = segments.filter(Boolean);
+  if (!validSegments.length) {
+    return `Parking reminder ${fallbackNumber}`;
+  }
+
+  if (validSegments.length === 1) {
+    return `${validSegments[0].street} - ${validSegments[0].sideLabel}`;
+  }
+
+  const streetNames = [...new Set(validSegments.map((segment) => segment.street).filter(Boolean))];
+  if (streetNames.length === 1) {
+    return `${streetNames[0]} - ${validSegments.length} curb sides`;
+  }
+
+  return `${streetNames[0]} + ${streetNames.length - 1} more streets`;
+}
+
+function summarizeSavedSetMeta(segments) {
+  const count = segments.filter(Boolean).length;
+  return `${count} ${count === 1 ? "curb side" : "curb sides"} selected`;
+}
+
+function buildSavedSetDetails(set, segments, reminders) {
+  const detailRows = [
+    ["Next sweep", summarizeSetSchedule(segments)],
+    ["Curbs", summarizeCurbList(segments)],
+    ["Reminders", summarizeReminders(reminders).replace(/^Scheduled /, "")],
+    ["Area", set.sourceLabel || "Saved curb set"],
+    ["Saved", formatSavedAt(set.createdAt)]
+  ];
+
+  return detailRows
+    .map(
+      ([label, value]) => `
+        <div class="saved-set-detail-row">
+          <span class="saved-set-detail-label">${escapeHtml(label)}</span>
+          <span>${escapeHtml(value)}</span>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function summarizeCurbList(segments) {
+  const curbs = segments.filter(Boolean).map((segment) => `${segment.sideLabel} of ${segment.street}`);
+  if (!curbs.length) {
+    return "No curb sides found";
+  }
+
+  const visibleCurbs = curbs.slice(0, 3);
+  const hiddenCount = curbs.length - visibleCurbs.length;
+  return hiddenCount ? `${visibleCurbs.join(", ")} and ${hiddenCount} more` : visibleCurbs.join(", ");
+}
+
+function formatSavedAt(createdAt) {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "Saved recently";
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function renderSavedSets() {
   savedSetsList.innerHTML = "";
   savedSetCount.textContent = `${state.savedSets.length} saved`;
@@ -2970,9 +3049,8 @@ function renderSavedSets() {
       const reminders = buildDefaultReminders(set.reminders);
       const savedSegments = getSegmentsForSavedSet(set);
       item.querySelector(".saved-set-title").textContent = set.name;
-      item.querySelector(".saved-set-meta").textContent = `${savedSegments.length} curb sides | ${summarizeSetSchedule(savedSegments)} | ${set.sourceLabel || "Saved curb set"} | saved ${new Date(
-        set.createdAt
-      ).toLocaleString()}`;
+      item.querySelector(".saved-set-meta").textContent = summarizeSavedSetMeta(savedSegments);
+      item.querySelector(".saved-set-details").innerHTML = buildSavedSetDetails(set, savedSegments, reminders);
       item.querySelector(".reminder-summary").textContent = summarizeReminders(reminders);
 
       const dayBeforeEnabledInput = item.querySelector(".day-before-enabled");
