@@ -45,6 +45,8 @@ button {
 .app-shell {
   width: min(1480px, calc(100% - 28px));
   margin: 18px auto 28px;
+  display: grid;
+  gap: 22px;
 }
 
 .hero {
@@ -170,7 +172,6 @@ button {
   grid-template-columns: 0.85fr 1.45fr auto;
   gap: 16px;
   align-items: center;
-  margin-top: 18px;
   padding: 18px 22px;
   background:
     linear-gradient(135deg, rgba(31, 47, 55, 0.94), rgba(48, 65, 73, 0.9)),
@@ -253,7 +254,10 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 18px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 34px;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .value-card {
@@ -286,7 +290,7 @@ button {
   display: grid;
   grid-template-columns: 1.35fr 0.65fr;
   gap: 18px;
-  margin-top: 18px;
+  padding-top: 6px;
 }
 
 .lookup-card {
@@ -357,8 +361,13 @@ button {
   padding: 22px;
   background: rgba(251, 248, 242, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.6);
+  border-top: 5px solid rgba(31, 47, 55, 0.18);
   border-radius: 30px;
   box-shadow: var(--shadow);
+}
+
+.map-card {
+  border-top-color: rgba(180, 93, 42, 0.62);
 }
 
 .section-head {
@@ -366,6 +375,8 @@ button {
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(31, 47, 55, 0.1);
 }
 
 .map-actions {
@@ -548,15 +559,28 @@ button {
   padding: 14px 16px;
   display: grid;
   gap: 10px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(250, 245, 237, 0.86)),
+    radial-gradient(circle at top right, rgba(180, 93, 42, 0.12), transparent 38%);
 }
 
 .panel-section {
-  margin-top: 18px;
+  margin-top: 22px;
+}
+
+.panel-step-section {
+  padding: 18px;
+  border: 1px solid rgba(31, 47, 55, 0.09);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(250, 246, 239, 0.52)),
+    radial-gradient(circle at top left, rgba(180, 93, 42, 0.06), transparent 36%);
+  box-shadow: 0 14px 34px rgba(31, 47, 55, 0.05);
 }
 
 .mini-head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
 }
@@ -569,6 +593,22 @@ button {
 .mini-count {
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.panel-step-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(31, 47, 55, 0.08);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .summary-line {
@@ -677,7 +717,7 @@ button {
 .save-set-card {
   margin-top: 14px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(31, 47, 55, 0.08);
   border-radius: 22px;
   display: grid;
@@ -742,6 +782,13 @@ button {
   background: rgba(255, 246, 212, 0.72);
   border: 2px solid rgba(245, 197, 66, 0.88);
   box-shadow: 0 16px 34px rgba(129, 93, 10, 0.08);
+}
+
+.feedback-section {
+  background:
+    linear-gradient(180deg, rgba(255, 249, 223, 0.82), rgba(255, 246, 212, 0.58)),
+    radial-gradient(circle at top right, rgba(245, 197, 66, 0.22), transparent 40%);
+  border-color: rgba(245, 197, 66, 0.74);
 }
 
 .issue-note-input {
@@ -826,7 +873,7 @@ a.ghost-button {
   gap: 10px;
   margin-top: 14px;
   padding: 14px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(31, 47, 55, 0.08);
   border-radius: 22px;
 }
@@ -1147,6 +1194,13 @@ a.ghost-button {
   .app-shell {
     width: min(100% - 18px, 1480px);
     margin-top: 10px;
+    gap: 16px;
+  }
+
+  .value-grid {
+    padding: 0;
+    background: transparent;
+    border: 0;
   }
 
   .hero,
@@ -1178,6 +1232,21 @@ a.ghost-button {
 
   .section-head {
     flex-direction: column;
+    gap: 12px;
+  }
+
+  .panel-step-section {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .mini-head {
+    grid-template-columns: 1fr auto;
+  }
+
+  .panel-step-label {
+    grid-column: 1 / -1;
+    width: fit-content;
   }
 
   .map-actions {

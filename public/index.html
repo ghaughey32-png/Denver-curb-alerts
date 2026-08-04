@@ -11,15 +11,15 @@
     <meta name="theme-color" content="#c95d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest?v=20260804d" />
+    <link rel="manifest" href="/manifest.webmanifest?v=20260804e" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/styles.css?v=20260804d" />
-    <link rel="icon" href="/icon.svg?v=20260804d" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=20260804e" />
+    <link rel="icon" href="/icon.svg?v=20260804e" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
@@ -198,8 +198,9 @@
             </div>
           </div>
 
-          <section class="panel-section">
+          <section class="panel-section panel-step-section">
             <div class="mini-head">
+              <span class="panel-step-label">Step 1</span>
               <h3>Current selection</h3>
               <span class="mini-count" id="live-selection-count">0 selected</span>
             </div>
@@ -212,8 +213,9 @@
             <div id="selection-list" class="selection-list"></div>
           </section>
 
-          <section class="panel-section save-section">
+          <section class="panel-section panel-step-section save-section">
             <div class="mini-head">
+              <span class="panel-step-label">Step 2</span>
               <h3>Device alerts</h3>
             </div>
 
@@ -232,8 +234,9 @@
             </div>
           </section>
 
-          <section class="panel-section save-section">
+          <section class="panel-section panel-step-section save-section">
             <div class="mini-head">
+              <span class="panel-step-label">Step 3</span>
               <h3>Save notification set</h3>
             </div>
 
@@ -245,8 +248,9 @@
             </div>
           </section>
 
-          <section class="panel-section readiness-section">
+          <section class="panel-section panel-step-section readiness-section">
             <div class="mini-head">
+              <span class="panel-step-label">Checklist</span>
               <h3>Reminder readiness</h3>
               <span class="mini-count" id="readiness-count">0 of 4 ready</span>
             </div>
@@ -283,8 +287,9 @@
             </div>
           </section>
 
-          <section class="panel-section feedback-section">
+          <section class="panel-section panel-step-section feedback-section">
             <div class="mini-head">
+              <span class="panel-step-label">Help improve this</span>
               <h3 class="issue-report-title">
                 <span class="caution-icon" aria-hidden="true">!</span>
                 Report an issue
@@ -319,8 +324,9 @@
             </form>
           </section>
 
-          <section class="panel-section">
+          <section class="panel-section panel-step-section">
             <div class="mini-head">
+              <span class="panel-step-label">Saved</span>
               <h3>Saved notification sets</h3>
               <span class="mini-count" id="saved-set-count">0 saved</span>
             </div>
@@ -332,8 +338,9 @@
             <div id="saved-sets-list" class="saved-sets-list"></div>
           </section>
 
-          <section class="panel-section">
+          <section class="panel-section panel-step-section">
             <div class="mini-head">
+              <span class="panel-step-label">Scheduled</span>
               <h3>Upcoming notification jobs</h3>
               <span class="mini-count" id="job-count">0 queued</span>
             </div>
@@ -451,6 +458,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js?v=20260804d"></script>
+    <script src="/app.js?v=20260804e"></script>
   </body>
 </html>
