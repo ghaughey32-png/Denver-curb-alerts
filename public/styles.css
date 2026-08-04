@@ -517,6 +517,32 @@ button {
   padding: 18px 16px;
 }
 
+.save-confirmation {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #e4f2df;
+  border: 1px solid rgba(77, 160, 83, 0.28);
+  color: #21382c;
+  box-shadow: 0 10px 24px rgba(43, 99, 56, 0.08);
+}
+
+.save-confirmation[hidden] {
+  display: none;
+}
+
+.save-confirmation strong {
+  font-size: 1rem;
+}
+
+.save-confirmation span {
+  color: #52665c;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .saved-set-title {
   margin: 0;
   font-size: 1rem;

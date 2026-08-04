@@ -1577,6 +1577,7 @@ const jobCount = document.querySelector("#job-count");
 const storageMode = document.querySelector("#storage-mode");
 const clearButton = document.querySelector("#clear-map-selection");
 const saveSetButton = document.querySelector("#save-set-button");
+const saveConfirmation = document.querySelector("#save-confirmation");
 const setNameInput = document.querySelector("#set-name-input");
 const selectionTemplate = document.querySelector("#selection-item-template");
 const savedSetTemplate = document.querySelector("#saved-set-template");
@@ -2864,6 +2865,21 @@ function saveCurrentAsSet() {
   saveJson(SAVED_SETS_KEY, state.savedSets);
   setNameInput.value = "";
   renderAll();
+  showSaveConfirmation(nextSet, selectedSegments);
+}
+
+function showSaveConfirmation(savedSet, selectedSegments) {
+  if (!saveConfirmation) {
+    return;
+  }
+
+  const nextSweep = summarizeSetSchedule(selectedSegments);
+  const reminders = summarizeReminders(buildDefaultReminders(savedSet.reminders)).replace(/^Scheduled /, "");
+  saveConfirmation.hidden = false;
+  saveConfirmation.innerHTML = `
+    <strong>You're all set for ${escapeHtml(savedSet.name)}.</strong>
+    <span>${escapeHtml(nextSweep)}. Reminders: ${escapeHtml(reminders)}</span>
+  `;
 }
 
 function applySavedSet(setId) {
