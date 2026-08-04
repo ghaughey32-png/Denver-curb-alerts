@@ -2535,6 +2535,134 @@ function getLookupCenter(summary) {
   return null;
 }
 
+function getPathCenter(geometry) {
+  const points = (Array.isArray(geometry) ? geometry : []).filter(
+    (point) => Array.isArray(point) && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1]))
+  );
+
+  if (!points.length) {
+    return null;
+  }
+
+  const totals = points.reduce(
+    (sum, point) => ({
+      lat: sum.lat + Number(point[0]),
+      lon: sum.lon + Number(point[1])
+    }),
+    { lat: 0, lon: 0 }
+  );
+
+  return {
+    lat: totals.lat / points.length,
+    lon: totals.lon / points.length
+  };
+}
+
+function normalizeSearchStreetText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/(\d+)(st|nd|rd|th)\b/g, "$1")
+    .replace(/\b(west|east|north|south|w|e|n|s)\b/g, " ")
+    .replace(/\b(avenue|ave|street|st|boulevard|blvd|court|ct|drive|dr|place|pl|road|rd)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function getSearchStreetGroups() {
+  const groups = new Map();
+  const streetWays = state.streetWays.length ? state.streetWays : buildEmbeddedDataset().streetWays;
+
+  streetWays.forEach((way) => {
+    const key = normalizeSearchStreetText(way.name);
+    if (!key) {
+      return;
+    }
+
+    const existing = groups.get(key) || {
+      key,
+      name: way.name,
+      orientations: new Set(),
+      geometry: []
+    };
+    existing.orientations.add(way.orientation);
+    existing.geometry.push(...(Array.isArray(way.geometry) ? way.geometry : []));
+    groups.set(key, existing);
+  });
+
+  return Array.from(groups.values());
+}
+
+function scoreStreetSearchMatch(group, normalizedQuery) {
+  if (!group.key || !normalizedQuery) {
+    return 0;
+  }
+
+  if (normalizedQuery === group.key) {
+    return 100;
+  }
+
+  if (` ${normalizedQuery} `.includes(` ${group.key} `)) {
+    return 80;
+  }
+
+  const groupTokens = group.key.split(" ").filter(Boolean);
+  if (groupTokens.length && groupTokens.every((token) => normalizedQuery.includes(token))) {
+    return 60;
+  }
+
+  return 0;
+}
+
+function findLocalSearchMatch(query) {
+  const normalizedQuery = normalizeSearchStreetText(query);
+  const matches = getSearchStreetGroups()
+    .map((group) => ({ ...group, score: scoreStreetSearchMatch(group, normalizedQuery) }))
+    .filter((group) => group.score > 0)
+    .sort((a, b) => b.score - a.score || b.key.length - a.key.length);
+
+  if (!matches.length) {
+    return null;
+  }
+
+  const eastWestMatch = matches.find((match) => match.orientations.has("east-west"));
+  const northSouthMatch = matches.find((match) => match.orientations.has("north-south"));
+
+  if (eastWestMatch && northSouthMatch) {
+    const eastWestCenter = getPathCenter(eastWestMatch.geometry);
+    const northSouthCenter = getPathCenter(northSouthMatch.geometry);
+
+    if (eastWestCenter && northSouthCenter) {
+      return {
+        lat: eastWestCenter.lat,
+        lon: northSouthCenter.lon,
+        label: `${eastWestMatch.name} and ${northSouthMatch.name}`,
+        matchedStreet: `${eastWestMatch.name} and ${northSouthMatch.name}`
+      };
+    }
+  }
+
+  const bestMatch = matches[0];
+  const center = getPathCenter(bestMatch.geometry);
+  if (!center) {
+    return null;
+  }
+
+  return {
+    ...center,
+    label: bestMatch.name,
+    matchedStreet: bestMatch.name
+  };
+}
+
+async function getFriendlyLookupError(response) {
+  try {
+    const details = await response.json();
+    return details?.error || details?.details || "Denver's lookup did not answer for that address.";
+  } catch {
+    return "Denver's lookup did not answer for that address.";
+  }
+}
+
 function focusMapOnSearchedLocation() {
   if (!state.map || !state.searchedLocation) {
     return;
@@ -2563,24 +2691,40 @@ async function searchAddressAndCenter(address) {
   }
 
   try {
+    let denverLookupError = "";
     const searchQuery = normalizeDenverSearchQuery(cleanedAddress);
     const response = await fetch(buildAddressLookupUrl(searchQuery));
-    if (!response.ok) {
-      const details = await response.text();
-      throw new Error(details || "Unable to find that spot yet.");
+    if (response.ok) {
+      const summary = await response.json();
+      const center = getLookupCenter(summary);
+
+      if (center && isWithinDenverBounds(center.lat, center.lon)) {
+        state.searchedLocation = { ...center, label: cleanedAddress };
+        renderContext();
+        focusMapOnSearchedLocation();
+
+        if (lookupAddressInput) {
+          lookupAddressInput.value = cleanedAddress;
+        }
+        if (lookupStatus) {
+          lookupStatus.textContent = `Found it. The map is centered near ${cleanedAddress}. Tap a colored curb nearby to select reminders.`;
+        }
+        return;
+      }
+
+      denverLookupError = "Denver found the address, but did not send back a map point we can use.";
+    } else {
+      denverLookupError = await getFriendlyLookupError(response);
     }
 
-    const summary = await response.json();
-    const center = getLookupCenter(summary);
-    if (!center) {
-      throw new Error("I couldn't find that spot yet. Try adding Denver, CO or a nearby cross street.");
+    const localMatch = findLocalSearchMatch(cleanedAddress);
+    if (!localMatch || !isWithinDenverBounds(localMatch.lat, localMatch.lon)) {
+      throw new Error(
+        `${denverLookupError} Try a Sloan's Lake street or cross street, like "23rd and King" or "Lowell and 17th".`
+      );
     }
 
-    if (!isWithinDenverBounds(center.lat, center.lon)) {
-      throw new Error("That looks outside the Denver map area. For now, search for a Denver address or cross streets.");
-    }
-
-    state.searchedLocation = { ...center, label: cleanedAddress };
+    state.searchedLocation = { ...localMatch, label: localMatch.label || cleanedAddress };
     renderContext();
     focusMapOnSearchedLocation();
 
@@ -2588,7 +2732,7 @@ async function searchAddressAndCenter(address) {
       lookupAddressInput.value = cleanedAddress;
     }
     if (lookupStatus) {
-      lookupStatus.textContent = `Found it. The map is centered near ${cleanedAddress}. Tap a colored curb nearby to select reminders.`;
+      lookupStatus.textContent = `Denver's lookup was unavailable, so I matched this to ${localMatch.matchedStreet} in the Sloan's Lake map. Tap a colored curb nearby to select reminders.`;
     }
   } catch (error) {
     if (lookupStatus) {
