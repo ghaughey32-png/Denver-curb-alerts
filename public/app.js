@@ -1490,6 +1490,7 @@ const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
 const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v1";
+const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
   { enabled: true, time: "07:00" },
@@ -1592,6 +1593,8 @@ const mapLoadingOverlay = document.querySelector("#map-loading-overlay");
 const mapLoadingTitle = document.querySelector("#map-loading-title");
 const mapLoadingMessage = document.querySelector("#map-loading-message");
 const useMyLocationButton = document.querySelector("#use-my-location-button");
+const onboardingCard = document.querySelector("#onboarding-card");
+const onboardingDismissButton = document.querySelector("#dismiss-onboarding-button");
 const notificationStatus = document.querySelector("#notification-status");
 const enableNotificationsButton = document.querySelector("#enable-notifications-button");
 const sendTestButton = document.querySelector("#send-test-button");
@@ -1705,6 +1708,19 @@ function saveJson(key, value) {
   } catch {
     memoryStore.set(key, raw);
   }
+}
+
+function renderOnboarding() {
+  if (!onboardingCard) {
+    return;
+  }
+
+  onboardingCard.hidden = loadJson(ONBOARDING_DISMISSED_KEY, false) === true;
+}
+
+function dismissOnboarding() {
+  saveJson(ONBOARDING_DISMISSED_KEY, true);
+  renderOnboarding();
 }
 
 function saveSloansLakeInventoryCache(payload) {
@@ -3946,6 +3962,7 @@ function renderStats() {
 function renderAll() {
   buildNotificationJobs();
   scheduleBrowserNotifications();
+  renderOnboarding();
   renderActiveAreaDetails();
   renderStreetBases();
   renderSegments();
@@ -3997,6 +4014,7 @@ function applyTimeToDate(baseDate, timeValue) {
 function registerEvents() {
   clearButton.addEventListener("click", clearCurrentSelection);
   useMyLocationButton?.addEventListener("click", requestUserLocation);
+  onboardingDismissButton?.addEventListener("click", dismissOnboarding);
   saveSetButton.addEventListener("click", saveCurrentAsSet);
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
