@@ -1620,7 +1620,7 @@ const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
 const appViews = Array.from(document.querySelectorAll(".app-view"));
 const appViewButtons = Array.from(document.querySelectorAll("[data-view-target]"));
-const APP_VIEW_NAMES = new Set(["landing", "setup", "alerts", "schedule"]);
+const APP_VIEW_NAMES = new Set(["landing", "setup", "alerts", "schedule", "terms", "privacy", "disclaimer"]);
 const HOSTED_APP_ORIGIN = "https://denver-curb-alerts-2.onrender.com";
 const DENVER_MAP_BOUNDS = {
   north: 39.8275,

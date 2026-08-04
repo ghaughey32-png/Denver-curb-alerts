@@ -11,15 +11,15 @@
     <meta name="theme-color" content="#c95d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest?v=20260804f" />
+    <link rel="manifest" href="/manifest.webmanifest?v=20260804g" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/styles.css?v=20260804f" />
-    <link rel="icon" href="/icon.svg?v=20260804f" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=20260804g" />
+    <link rel="icon" href="/icon.svg?v=20260804g" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
@@ -391,6 +391,149 @@
           </aside>
         </main>
       </section>
+      <section class="app-view legal-view" data-view="terms" hidden>
+        <main class="legal-page">
+          <article class="legal-card">
+            <p class="section-kicker">Terms of use</p>
+            <h1>Terms for Denver Curb Alerts</h1>
+            <p class="legal-updated">Last updated August 4, 2026</p>
+
+            <div class="legal-copy">
+              <p>
+                Denver Curb Alerts is a beta reminder tool built to help drivers remember posted Denver street sweeping
+                restrictions. By using the app, you agree to use it as an extra reminder and not as a replacement for
+                checking posted signs, city rules, or your own parking situation.
+              </p>
+
+              <h2>Your responsibility</h2>
+              <p>
+                You are responsible for parking legally. Street signs, temporary city notices, emergency restrictions,
+                construction, weather, and official Denver rules always control over anything shown in this app.
+              </p>
+
+              <h2>Beta service</h2>
+              <p>
+                The app may be incomplete, delayed, unavailable, or wrong while we test it. We may change, pause, or stop
+                features at any time as we improve the product.
+              </p>
+
+              <h2>Acceptable use</h2>
+              <p>
+                Please do not misuse the app, interfere with the service, scrape it aggressively, submit false reports, or
+                use it in a way that could harm other users or the city data services it relies on.
+              </p>
+
+              <h2>Contact</h2>
+              <p>
+                For now, use the in-app Report an issue form to share problems, correction requests, or questions.
+              </p>
+            </div>
+
+            <div class="legal-actions">
+              <button class="primary-button" type="button" data-view-target="setup">Set up alerts</button>
+              <button class="ghost-button" type="button" data-view-target="landing">Back to overview</button>
+            </div>
+          </article>
+        </main>
+      </section>
+
+      <section class="app-view legal-view" data-view="privacy" hidden>
+        <main class="legal-page">
+          <article class="legal-card">
+            <p class="section-kicker">Privacy</p>
+            <h1>Privacy for Denver Curb Alerts</h1>
+            <p class="legal-updated">Last updated August 4, 2026</p>
+
+            <div class="legal-copy">
+              <p>
+                We collect only what this beta needs to help you create and receive curb reminders. Your location is only
+                used to center the map. We do not sell your data.
+              </p>
+
+              <h2>Information the app may use</h2>
+              <ul>
+                <li>Your selected curb sides and reminder times, so the app can build your alert schedule.</li>
+                <li>Your browser push subscription, so reminders can be delivered to the device you connected.</li>
+                <li>Your approximate or precise location only when you tap Use my location, so the map can move to you.</li>
+                <li>Issue reports you choose to send, including your note and helpful app context.</li>
+              </ul>
+
+              <h2>How information is used</h2>
+              <p>
+                We use this information to show the map, save your alert setup, send test notifications, schedule reminders,
+                troubleshoot bugs, and improve Sloan's Lake coverage.
+              </p>
+
+              <h2>Services involved</h2>
+              <p>
+                The app is hosted on Render and uses browser push services, map tiles, and Denver street sweeping data. Those
+                services may process basic technical information needed to load maps, routes, and notifications.
+              </p>
+
+              <h2>Your choices</h2>
+              <p>
+                You can decline location access, decline notifications, clear selections, delete saved sets, or remove the app
+                from your device. For now, use Report an issue if you want us to review or remove stored beta data tied to your
+                device.
+              </p>
+            </div>
+
+            <div class="legal-actions">
+              <button class="primary-button" type="button" data-view-target="setup">Set up alerts</button>
+              <button class="ghost-button" type="button" data-view-target="landing">Back to overview</button>
+            </div>
+          </article>
+        </main>
+      </section>
+
+      <section class="app-view legal-view" data-view="disclaimer" hidden>
+        <main class="legal-page">
+          <article class="legal-card">
+            <p class="section-kicker">Disclaimer</p>
+            <h1>Important parking disclaimer</h1>
+            <p class="legal-updated">Last updated August 4, 2026</p>
+
+            <div class="legal-copy">
+              <p>
+                Denver Curb Alerts is an informational reminder app. It is not legal advice, not an official City and County
+                of Denver service, and not a guarantee that you will avoid a parking ticket.
+              </p>
+
+              <h2>Always check the signs</h2>
+              <p>
+                Posted signs, temporary restrictions, emergency routes, construction notices, special events, and official city
+                rules may change. You should always check the curb signs where your car is parked before relying on a reminder.
+              </p>
+
+              <h2>Notifications are not guaranteed</h2>
+              <p>
+                Push notifications depend on your phone, browser, internet connection, battery settings, and hosting services.
+                A reminder may arrive late, fail to arrive, or display outdated information.
+              </p>
+
+              <h2>Beta coverage</h2>
+              <p>
+                This version focuses on Sloan's Lake and may not include every sign, exception, or route detail. Please report
+                anything that looks wrong so we can improve it before expanding.
+              </p>
+            </div>
+
+            <div class="legal-actions">
+              <button class="primary-button" type="button" data-view-target="setup">Set up alerts</button>
+              <button class="ghost-button" type="button" data-view-target="landing">Back to overview</button>
+            </div>
+          </article>
+        </main>
+      </section>
+
+      <footer class="legal-footer" aria-label="Legal information">
+        <span>Denver Curb Alerts is a beta reminder tool for Sloan's Lake drivers.</span>
+        <div class="legal-footer-links">
+          <button class="legal-link" type="button" data-view-target="terms">Terms</button>
+          <button class="legal-link" type="button" data-view-target="privacy">Privacy</button>
+          <button class="legal-link" type="button" data-view-target="disclaimer">Disclaimer</button>
+        </div>
+      </footer>
     </div>
 
     <template id="selection-item-template">
@@ -491,6 +634,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js?v=20260804f"></script>
+    <script src="/app.js?v=20260804g"></script>
   </body>
 </html>
