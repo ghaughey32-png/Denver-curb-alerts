@@ -3877,7 +3877,7 @@ function setReadinessItem(item, isReady, readyText, waitingText) {
   }
 
   item.classList.toggle("is-ready", isReady);
-  const detail = item.querySelector("div span");
+  const detail = item.querySelector(".readiness-detail");
   if (detail) {
     detail.textContent = isReady ? readyText : waitingText;
   }

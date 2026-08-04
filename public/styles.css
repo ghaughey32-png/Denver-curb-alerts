@@ -639,8 +639,8 @@ button {
 
 .readiness-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  column-gap: 12px;
   align-items: start;
   padding: 12px;
   border-radius: 18px;
@@ -656,28 +656,38 @@ button {
   border-radius: 50%;
   background: rgba(98, 114, 123, 0.16);
   color: var(--muted);
+  flex: 0 0 auto;
   font-size: 0.8rem;
   font-weight: 900;
+  line-height: 1;
+  margin-top: 1px;
+  overflow: hidden;
 }
 
 .readiness-icon::before {
   content: "!";
 }
 
-.readiness-item strong,
-.readiness-item span {
+.readiness-copy {
+  min-width: 0;
+}
+
+.readiness-copy strong,
+.readiness-detail {
   display: block;
 }
 
-.readiness-item strong {
+.readiness-copy strong {
   font-size: 0.95rem;
+  line-height: 1.25;
 }
 
-.readiness-item span {
+.readiness-detail {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .readiness-item.is-ready {
