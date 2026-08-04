@@ -3,36 +3,51 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Denver Curb Alerts</title>
+    <title>Denver Curb Alerts | Sloan's Lake Street Sweeping Reminders</title>
     <meta
       name="description"
-      content="Clickable curb-side selection map for the Sloan's Lake pilot area and additional live Denver neighborhood lookups."
+      content="Avoid surprise Denver street sweeping tickets with Sloan's Lake curb-side reminders, address search, and iPhone-ready push alerts."
     />
     <meta name="theme-color" content="#c95d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest?v=20260803" />
+    <link rel="manifest" href="/manifest.webmanifest?v=20260804d" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/styles.css?v=20260803" />
-    <link rel="icon" href="/icon.svg?v=20260803" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=20260804d" />
+    <link rel="icon" href="/icon.svg?v=20260804d" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Denver neighborhood pilot</p>
-          <h1>Pick curb sides straight from the map.</h1>
+          <p class="eyebrow">Sloan's Lake street sweeping alerts</p>
+          <h1>Avoid surprise street sweeping tickets.</h1>
           <p class="hero-text">
-            Sloan's Lake is the first neighborhood in the app with a full clickable curb inventory already loaded. You
-            can pan, zoom, and tap curb sides directly on the map the same way you would in any other map app.
+            Tap the curb where you park, save it once, and get reminders before Denver's street sweeping window.
+            This Sloan's Lake beta is built around curb-side selection, so alerts match the side of the street you
+            actually use.
           </p>
+          <div class="hero-cta-row">
+            <a class="primary-button hero-cta" href="#map-title">Start with the map</a>
+            <a class="ghost-button hero-secondary" href="#onboarding-title">See how it works</a>
+          </div>
+          <div class="hero-trust-list" aria-label="Pilot highlights">
+            <span>Sloan's Lake beta</span>
+            <span>Denver route data</span>
+            <span>iPhone-ready push</span>
+          </div>
         </div>
         <div class="hero-summary">
+          <div class="summary-card summary-card-featured">
+            <span class="summary-label">Built for</span>
+            <strong>Sloan's Lake drivers</strong>
+            <p>Testing a focused neighborhood first before expanding across Denver.</p>
+          </div>
           <div class="summary-card">
             <span class="summary-label">Streets mapped</span>
             <strong id="street-count">12</strong>
@@ -50,8 +65,8 @@
 
       <section id="onboarding-card" class="onboarding-card" aria-labelledby="onboarding-title">
         <div class="onboarding-copy">
-          <p class="section-kicker">First time here?</p>
-          <h2 id="onboarding-title">Set up a reminder in three quick steps.</h2>
+          <p class="section-kicker">How it works</p>
+          <h2 id="onboarding-title">From parked car to protected curb in under a minute.</h2>
         </div>
 
         <ol class="onboarding-steps">
@@ -59,21 +74,21 @@
             <span class="step-number">1</span>
             <div>
               <strong>Tap the curb where you park.</strong>
-              <span>Use the map like a normal map. Selected curbs get a bold highlight.</span>
+              <span>Search your address, use your location, or pan the Sloan's Lake map.</span>
             </div>
           </li>
           <li>
             <span class="step-number">2</span>
             <div>
-              <strong>Turn on push notifications.</strong>
-              <span>On iPhone, install the app to your Home Screen first, then allow alerts.</span>
+              <strong>Choose the exact side.</strong>
+              <span>Colored lines show the curb side you are selecting, not just the street name.</span>
             </div>
           </li>
           <li>
             <span class="step-number">3</span>
             <div>
-              <strong>Save your reminder set.</strong>
-              <span>We'll queue day-before and day-of reminders for the next sweeping dates.</span>
+              <strong>Save your reminders.</strong>
+              <span>Connect push and queue day-before plus day-of reminders for the next sweep.</span>
             </div>
           </li>
         </ol>
@@ -81,12 +96,30 @@
         <button id="dismiss-onboarding-button" class="ghost-button onboarding-dismiss" type="button">Got it</button>
       </section>
 
+      <section class="value-grid" aria-label="Why Denver Curb Alerts helps">
+        <article class="value-card">
+          <p class="section-kicker">Ticket prevention</p>
+          <h2>One less thing to remember.</h2>
+          <p>Save your usual curb and let the app remind you before sweeping day sneaks up.</p>
+        </article>
+        <article class="value-card">
+          <p class="section-kicker">Curb-side accuracy</p>
+          <h2>Pick the side that matters.</h2>
+          <p>North, south, east, and west curb sides are shown separately so alerts match posted signs.</p>
+        </article>
+        <article class="value-card beta-note">
+          <p class="section-kicker">Beta note</p>
+          <h2>Still follow the signs.</h2>
+          <p>This beta helps you remember, but posted street signs and official city rules always control.</p>
+        </article>
+      </section>
+
       <main class="workspace">
         <section class="map-card">
           <div class="section-head">
             <div>
-              <p class="section-kicker" id="map-kicker">Interactive map</p>
-              <h2 id="map-title">Sloan's Lake neighborhood map</h2>
+              <p class="section-kicker" id="map-kicker">Start here</p>
+              <h2 id="map-title">Choose your Sloan's Lake curb</h2>
             </div>
             <div class="map-actions">
               <button id="use-my-location-button" class="ghost-button" type="button">Use my location</button>
@@ -109,7 +142,7 @@
           </form>
 
           <p id="lookup-status" class="lookup-status map-search-status">
-            Search for a Sloan's Lake address or nearby cross streets to jump the map there.
+            Search your address or cross streets, then tap the colored curb side where you park.
           </p>
 
           <p class="privacy-note">
@@ -137,16 +170,16 @@
           </div>
 
           <p class="map-note">
-            Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the
-            right, to deselect it.
+            Tap a colored curb line to select it for notifications. Tap it again, or remove it from the list, to
+            deselect it.
           </p>
         </section>
 
         <aside class="panel-card">
           <div class="section-head">
             <div>
-              <p class="section-kicker">Notification draft</p>
-              <h2>Selected curb sides</h2>
+              <p class="section-kicker">Your alert setup</p>
+              <h2>Build your reminder</h2>
             </div>
           </div>
 
@@ -188,8 +221,7 @@
               <div class="notification-status-block">
                 <p id="notification-status" class="notification-status-text">This app is not connected to push on this device yet.</p>
                 <p class="empty-subtext">
-                  When we host this on `https://` and install it on your Home Screen, this is where you turn on iPhone-ready
-                  push for the device.
+                  Install this app to your iPhone Home Screen, then tap this to allow parking reminders on this device.
                 </p>
               </div>
               <div class="notification-action-row">
@@ -307,7 +339,7 @@
             </div>
 
             <div class="queue-note">
-              These are the real alert jobs this pilot would hand to push delivery for the next sweep dates.
+              These are the reminders currently scheduled for saved curb sets on this device.
             </div>
 
             <div id="empty-jobs" class="empty-state compact-empty">
@@ -419,6 +451,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js?v=20260803"></script>
+    <script src="/app.js?v=20260804d"></script>
   </body>
 </html>

@@ -24,6 +24,10 @@ body {
   min-height: 100%;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(180, 93, 42, 0.14), transparent 30%),
@@ -84,6 +88,35 @@ button {
   line-height: 1.7;
 }
 
+.hero-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.hero-cta,
+.hero-secondary {
+  min-height: 48px;
+}
+
+.hero-trust-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.hero-trust-list span {
+  padding: 8px 11px;
+  border: 1px solid rgba(31, 47, 55, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .hero-summary {
   display: grid;
   gap: 12px;
@@ -107,6 +140,24 @@ button {
 
 .summary-card strong {
   font-size: 1.8rem;
+}
+
+.summary-card-featured {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 246, 235, 0.86)),
+    radial-gradient(circle at top right, rgba(180, 93, 42, 0.18), transparent 42%);
+}
+
+.summary-card-featured strong {
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.summary-card-featured p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .summary-label {
@@ -196,6 +247,39 @@ button {
   border-color: rgba(255, 255, 255, 0.28);
   color: #fff;
   white-space: nowrap;
+}
+
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.value-card {
+  padding: 20px 22px;
+  background: rgba(251, 248, 242, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 26px;
+  box-shadow: 0 16px 42px rgba(31, 47, 55, 0.08);
+}
+
+.value-card h2 {
+  margin: 0;
+  font-family: "Iowan Old Style", Georgia, serif;
+  font-size: clamp(1.45rem, 2.4vw, 2.1rem);
+  line-height: 1;
+}
+
+.value-card p:last-child {
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.beta-note {
+  background: rgba(255, 246, 212, 0.74);
+  border-color: rgba(245, 197, 66, 0.72);
 }
 
 .workspace {
@@ -699,6 +783,14 @@ button {
   filter: brightness(0.96);
 }
 
+a.primary-button,
+a.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .compact-empty {
   padding: 18px 16px;
 }
@@ -1041,7 +1133,8 @@ button {
 @media (max-width: 1100px) {
   .hero,
   .workspace,
-  .onboarding-card {
+  .onboarding-card,
+  .value-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1059,9 +1152,24 @@ button {
   .hero,
   .onboarding-card,
   .lookup-card,
+  .value-card,
   .map-card,
   .panel-card {
     padding: 18px;
+  }
+
+  .hero-cta-row {
+    flex-direction: column;
+  }
+
+  .hero-cta-row .primary-button,
+  .hero-cta-row .ghost-button {
+    width: 100%;
+  }
+
+  .hero-trust-list span {
+    width: 100%;
+    text-align: center;
   }
 
   .onboarding-card {
