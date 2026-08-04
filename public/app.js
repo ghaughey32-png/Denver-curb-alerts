@@ -2775,7 +2775,8 @@ function renderSegments() {
       }).addTo(state.segmentLayerGroup);
     }
 
-    const nextDateText = segment.schedule?.nextDate ? ` | Next: ${formatDate(segment.schedule.nextDate)}` : "";
+    const nextSweepDate = getNextSweepDate(segment);
+    const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
     touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
       sticky: true
     });
@@ -2833,7 +2834,9 @@ function buildSelectionMeta(segment) {
     return `${segment.sideLabel} of ${segment.street} | Nightly sweep route | ${segment.schedule.rule}`;
   }
 
-  return `${segment.sideLabel} of ${segment.street} | Next sweep: ${formatDate(segment.schedule.nextDate)} | ${segment.schedule.rule}`;
+  const nextSweepDate = getNextSweepDate(segment);
+  const nextSweepText = nextSweepDate ? formatDateObject(nextSweepDate) : "No upcoming sweep found";
+  return `${segment.sideLabel} of ${segment.street} | Next sweep: ${nextSweepText} | ${segment.schedule.rule}`;
 }
 
 function saveCurrentAsSet() {
@@ -2917,10 +2920,15 @@ function updateSavedSet(setId, updates) {
 function getUpcomingSweepDates(segment) {
   const seen = new Set();
   const upcomingDates = [];
+  const today = getStartOfToday();
 
-  const addDate = (dateString) => {
-    const sweepDate = parseSweepDate(dateString);
+  const addDate = (dateValue) => {
+    const sweepDate = dateValue instanceof Date ? dateValue : parseSweepDate(dateValue);
     if (!sweepDate) {
+      return;
+    }
+
+    if (sweepDate.getTime() < today.getTime()) {
       return;
     }
 
@@ -2936,8 +2944,86 @@ function getUpcomingSweepDates(segment) {
   const allDates = Array.isArray(segment.schedule?.allDates) ? segment.schedule.allDates : [];
   allDates.forEach((item) => addDate(item?.Date));
   addDate(segment.schedule?.nextDate);
+  getRuleBasedSweepDates(segment).forEach(addDate);
 
-  return upcomingDates.sort((a, b) => a.getTime() - b.getTime());
+  return upcomingDates.sort((a, b) => a.getTime() - b.getTime()).slice(0, 8);
+}
+
+function getNextSweepDate(segment) {
+  return getUpcomingSweepDates(segment)[0] || null;
+}
+
+function getRuleBasedSweepDates(segment, monthCount = 8) {
+  const rule = parseMonthlySweepRule(segment.schedule?.rule);
+  if (!rule) {
+    return [];
+  }
+
+  const dates = [];
+  const today = getStartOfToday();
+  const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  for (let offset = 0; offset < monthCount; offset += 1) {
+    const targetMonth = new Date(startMonth.getFullYear(), startMonth.getMonth() + offset, 1);
+    const sweepDate = getMonthlyOrdinalWeekdayDate(
+      targetMonth.getFullYear(),
+      targetMonth.getMonth(),
+      rule.ordinal,
+      rule.weekdayIndex
+    );
+
+    if (sweepDate && sweepDate.getTime() >= today.getTime()) {
+      dates.push(sweepDate);
+    }
+  }
+
+  return dates;
+}
+
+function parseMonthlySweepRule(ruleText) {
+  const match = String(ruleText || "").match(
+    /(?:the\s+)?(\d+)(?:st|nd|rd|th)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+of\s+the\s+month/i
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const weekdayMap = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6
+  };
+
+  const ordinal = Number(match[1]);
+  const weekdayIndex = weekdayMap[match[2].toLowerCase()];
+  if (!ordinal || weekdayIndex === undefined) {
+    return null;
+  }
+
+  return { ordinal, weekdayIndex };
+}
+
+function getMonthlyOrdinalWeekdayDate(year, monthIndex, ordinal, weekdayIndex) {
+  const firstDay = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const daysUntilWeekday = (weekdayIndex - firstDay.getDay() + 7) % 7;
+  const dayOfMonth = 1 + daysUntilWeekday + (ordinal - 1) * 7;
+  const candidate = new Date(year, monthIndex, dayOfMonth, 0, 0, 0, 0);
+
+  if (candidate.getMonth() !== monthIndex) {
+    return null;
+  }
+
+  return candidate;
+}
+
+function getStartOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 }
 
 function updateDayOfReminder(setId, slotIndex, field, value) {
