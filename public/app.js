@@ -3043,37 +3043,52 @@ function getSelectedCurbStyle() {
 
   if (zoom <= 14) {
     return {
-      touchWeight: 34,
-      lineWeight: 9,
-      outerWeight: 22,
-      goldWeight: 16,
-      innerWeight: 10,
-      shineWeight: 4,
-      markerRadius: 7
+      touchWeight: 38,
+      lineWeight: 10,
+      outerWeight: 20,
+      goldWeight: 15,
+      markerRadius: 8,
+      spreadLat: 0.00009,
+      spreadLon: 0.000115
     };
   }
 
   if (zoom <= 16) {
     return {
-      touchWeight: 36,
+      touchWeight: 38,
       lineWeight: 11,
-      outerWeight: 26,
-      goldWeight: 19,
-      innerWeight: 13,
-      shineWeight: 5,
-      markerRadius: 8
+      outerWeight: 22,
+      goldWeight: 16,
+      markerRadius: 8,
+      spreadLat: 0.000055,
+      spreadLon: 0.00007
     };
   }
 
   return {
     touchWeight: 38,
-    lineWeight: 13,
-    outerWeight: 30,
-    goldWeight: 22,
-    innerWeight: 15,
-    shineWeight: 6,
-    markerRadius: 9
+    lineWeight: 12,
+    outerWeight: 24,
+    goldWeight: 17,
+    markerRadius: 9,
+    spreadLat: 0.000018,
+    spreadLon: 0.000024
   };
+}
+
+function getSelectedDisplayGeometry(segment, selectedStyle) {
+  if (!segment || !Array.isArray(segment.geometry)) {
+    return [];
+  }
+
+  const latShift = segment.sideKey === "north" ? selectedStyle.spreadLat : segment.sideKey === "south" ? -selectedStyle.spreadLat : 0;
+  const lonShift = segment.sideKey === "east" ? selectedStyle.spreadLon : segment.sideKey === "west" ? -selectedStyle.spreadLon : 0;
+
+  return segment.geometry.map(([lat, lon]) => [lat + latShift, lon + lonShift]);
+}
+
+function getSegmentRenderGeometry(segment, selectedStyle) {
+  return isSelected(segment.id) ? getSelectedDisplayGeometry(segment, selectedStyle) : segment.geometry;
 }
 
 function renderSegments() {
@@ -3106,7 +3121,9 @@ function renderSegments() {
   });
 
   selectedSegments.forEach((segment) => {
-    L.polyline(segment.geometry, {
+    const geometry = getSelectedDisplayGeometry(segment, selectedStyle);
+
+    L.polyline(geometry, {
       color: "rgba(31, 47, 55, 0.46)",
       weight: selectedStyle.outerWeight,
       opacity: 0.9,
@@ -3114,17 +3131,9 @@ function renderSegments() {
       interactive: false
     }).addTo(state.segmentLayerGroup);
 
-    L.polyline(segment.geometry, {
+    L.polyline(geometry, {
       color: "#ffd23f",
       weight: selectedStyle.goldWeight,
-      opacity: 1,
-      lineCap: "round",
-      interactive: false
-    }).addTo(state.segmentLayerGroup);
-
-    L.polyline(segment.geometry, {
-      color: "#fff7c9",
-      weight: selectedStyle.innerWeight,
       opacity: 1,
       lineCap: "round",
       interactive: false
@@ -3132,23 +3141,39 @@ function renderSegments() {
   });
 
   selectedSegments.forEach((segment) => {
-    L.polyline(segment.geometry, {
+    const geometry = getSelectedDisplayGeometry(segment, selectedStyle);
+
+    L.polyline(geometry, {
       color: segment.color,
       weight: selectedStyle.lineWeight,
       opacity: 1,
       lineCap: "round",
       interactive: false
     }).addTo(state.segmentLayerGroup);
+  });
 
-    L.polyline(segment.geometry, {
-      color: "#ffffff",
-      weight: selectedStyle.shineWeight,
-      opacity: 0.94,
-      lineCap: "round",
-      interactive: false
-    }).addTo(state.segmentLayerGroup);
+  state.curbSegments.forEach((segment) => {
+    const selected = isSelected(segment.id);
+    const geometry = getSegmentRenderGeometry(segment, selectedStyle);
+    const touchTarget = L.polyline(geometry, {
+      color: "#000000",
+      weight: selected ? selectedStyle.touchWeight : 30,
+      opacity: 0.01,
+      lineCap: "round"
+    });
+    const nextSweepDate = getNextSweepDate(segment);
+    const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
+    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
+      sticky: true
+    });
+    touchTarget.on("click", () => toggleSegment(segment.id));
+    touchTarget.addTo(state.segmentLayerGroup);
+  });
 
-    const midpoint = getGeometryMidpoint(segment.geometry);
+  selectedSegments.forEach((segment) => {
+    const geometry = getSelectedDisplayGeometry(segment, selectedStyle);
+
+    const midpoint = getGeometryMidpoint(geometry);
     if (midpoint) {
       const marker = L.circleMarker(midpoint, {
         radius: selectedStyle.markerRadius,
@@ -3163,23 +3188,6 @@ function renderSegments() {
       marker.on("click", () => toggleSegment(segment.id));
       marker.addTo(state.segmentLayerGroup);
     }
-  });
-
-  state.curbSegments.forEach((segment) => {
-    const selected = isSelected(segment.id);
-    const touchTarget = L.polyline(segment.geometry, {
-      color: "#000000",
-      weight: selected ? selectedStyle.touchWeight : 30,
-      opacity: 0.01,
-      lineCap: "round"
-    });
-    const nextSweepDate = getNextSweepDate(segment);
-    const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
-    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
-      sticky: true
-    });
-    touchTarget.on("click", () => toggleSegment(segment.id));
-    touchTarget.addTo(state.segmentLayerGroup);
   });
 }
 
