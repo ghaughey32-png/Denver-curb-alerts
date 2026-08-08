@@ -2906,6 +2906,7 @@ function initializeMap() {
   state.baseLayerGroup = L.layerGroup().addTo(state.map);
   state.segmentLayerGroup = L.layerGroup().addTo(state.map);
   state.contextLayerGroup = L.layerGroup().addTo(state.map);
+  state.map.on("zoomend", renderSegments);
   refreshMapViewport();
 }
 
@@ -3037,6 +3038,44 @@ function getSegmentById(segmentId) {
   return state.curbSegments.find((segment) => segment.id === segmentId) || null;
 }
 
+function getSelectedCurbStyle() {
+  const zoom = state.map?.getZoom?.() || 15;
+
+  if (zoom <= 14) {
+    return {
+      touchWeight: 34,
+      lineWeight: 9,
+      outerWeight: 22,
+      goldWeight: 16,
+      innerWeight: 10,
+      shineWeight: 4,
+      markerRadius: 7
+    };
+  }
+
+  if (zoom <= 16) {
+    return {
+      touchWeight: 36,
+      lineWeight: 11,
+      outerWeight: 26,
+      goldWeight: 19,
+      innerWeight: 13,
+      shineWeight: 5,
+      markerRadius: 8
+    };
+  }
+
+  return {
+    touchWeight: 38,
+    lineWeight: 13,
+    outerWeight: 30,
+    goldWeight: 22,
+    innerWeight: 15,
+    shineWeight: 6,
+    markerRadius: 9
+  };
+}
+
 function renderSegments() {
   if (!state.segmentLayerGroup) {
     return;
@@ -3044,62 +3083,96 @@ function renderSegments() {
 
   state.segmentLayerGroup.clearLayers();
 
-  const orderedSegments = [...state.curbSegments].sort((first, second) => {
-    return Number(isSelected(first.id)) - Number(isSelected(second.id));
+  const selectedStyle = getSelectedCurbStyle();
+  const selectedSegments = state.curbSegments.filter((segment) => isSelected(segment.id));
+  const unselectedSegments = state.curbSegments.filter((segment) => !isSelected(segment.id));
+
+  unselectedSegments.forEach((segment) => {
+    L.polyline(segment.geometry, {
+      color: "rgba(255, 255, 255, 0.28)",
+      weight: 6,
+      opacity: 0.45,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+
+    L.polyline(segment.geometry, {
+      color: segment.color,
+      weight: 4,
+      opacity: 0.72,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
   });
 
-  orderedSegments.forEach((segment) => {
+  selectedSegments.forEach((segment) => {
+    L.polyline(segment.geometry, {
+      color: "rgba(31, 47, 55, 0.46)",
+      weight: selectedStyle.outerWeight,
+      opacity: 0.9,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+
+    L.polyline(segment.geometry, {
+      color: "#ffd23f",
+      weight: selectedStyle.goldWeight,
+      opacity: 1,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+
+    L.polyline(segment.geometry, {
+      color: "#fff7c9",
+      weight: selectedStyle.innerWeight,
+      opacity: 1,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+  });
+
+  selectedSegments.forEach((segment) => {
+    L.polyline(segment.geometry, {
+      color: segment.color,
+      weight: selectedStyle.lineWeight,
+      opacity: 1,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+
+    L.polyline(segment.geometry, {
+      color: "#ffffff",
+      weight: selectedStyle.shineWeight,
+      opacity: 0.94,
+      lineCap: "round",
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+
+    const midpoint = getGeometryMidpoint(segment.geometry);
+    if (midpoint) {
+      const marker = L.circleMarker(midpoint, {
+        radius: selectedStyle.markerRadius,
+        color: "#1f2f37",
+        weight: 2,
+        fillColor: "#ffd23f",
+        fillOpacity: 1
+      });
+      marker.bindTooltip(`Selected: ${segment.street} - ${segment.sideLabel}`, {
+        sticky: true
+      });
+      marker.on("click", () => toggleSegment(segment.id));
+      marker.addTo(state.segmentLayerGroup);
+    }
+  });
+
+  state.curbSegments.forEach((segment) => {
     const selected = isSelected(segment.id);
     const touchTarget = L.polyline(segment.geometry, {
       color: "#000000",
-      weight: selected ? 34 : 30,
+      weight: selected ? selectedStyle.touchWeight : 30,
       opacity: 0.01,
       lineCap: "round"
     });
-    const line = L.polyline(segment.geometry, {
-      color: segment.color,
-      weight: selected ? 13 : 4,
-      opacity: selected ? 1 : 0.72,
-      lineCap: "round"
-    });
-
-    if (selected) {
-      L.polyline(segment.geometry, {
-        color: "rgba(31, 47, 55, 0.52)",
-        weight: 32,
-        opacity: 0.9,
-        lineCap: "round"
-      }).addTo(state.segmentLayerGroup);
-
-      L.polyline(segment.geometry, {
-        color: "#ffd23f",
-        weight: 25,
-        opacity: 1,
-        lineCap: "round"
-      }).addTo(state.segmentLayerGroup);
-
-      L.polyline(segment.geometry, {
-        color: "#fff7c9",
-        weight: 18,
-        opacity: 1,
-        lineCap: "round"
-      }).addTo(state.segmentLayerGroup);
-
-      L.polyline(segment.geometry, {
-        color: "#ffffff",
-        weight: 7,
-        opacity: 0.98,
-        lineCap: "round"
-      }).addTo(state.segmentLayerGroup);
-    } else {
-      L.polyline(segment.geometry, {
-        color: "rgba(255, 255, 255, 0.28)",
-        weight: 6,
-        opacity: 0.45,
-        lineCap: "round"
-      }).addTo(state.segmentLayerGroup);
-    }
-
     const nextSweepDate = getNextSweepDate(segment);
     const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
     touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
@@ -3107,7 +3180,6 @@ function renderSegments() {
     });
     touchTarget.on("click", () => toggleSegment(segment.id));
     touchTarget.addTo(state.segmentLayerGroup);
-    line.addTo(state.segmentLayerGroup);
   });
 }
 
