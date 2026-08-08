@@ -3044,7 +3044,11 @@ function renderSegments() {
 
   state.segmentLayerGroup.clearLayers();
 
-  state.curbSegments.forEach((segment) => {
+  const orderedSegments = [...state.curbSegments].sort((first, second) => {
+    return Number(isSelected(first.id)) - Number(isSelected(second.id));
+  });
+
+  orderedSegments.forEach((segment) => {
     const selected = isSelected(segment.id);
     const touchTarget = L.polyline(segment.geometry, {
       color: "#000000",
@@ -3054,29 +3058,36 @@ function renderSegments() {
     });
     const line = L.polyline(segment.geometry, {
       color: segment.color,
-      weight: selected ? 10 : 4,
+      weight: selected ? 13 : 4,
       opacity: selected ? 1 : 0.72,
       lineCap: "round"
     });
 
     if (selected) {
       L.polyline(segment.geometry, {
-        color: "rgba(31, 47, 55, 0.36)",
-        weight: 22,
-        opacity: 0.92,
+        color: "rgba(31, 47, 55, 0.52)",
+        weight: 32,
+        opacity: 0.9,
         lineCap: "round"
       }).addTo(state.segmentLayerGroup);
 
       L.polyline(segment.geometry, {
-        color: "#fff4b8",
-        weight: 16,
+        color: "#ffd23f",
+        weight: 25,
+        opacity: 1,
+        lineCap: "round"
+      }).addTo(state.segmentLayerGroup);
+
+      L.polyline(segment.geometry, {
+        color: "#fff7c9",
+        weight: 18,
         opacity: 1,
         lineCap: "round"
       }).addTo(state.segmentLayerGroup);
 
       L.polyline(segment.geometry, {
         color: "#ffffff",
-        weight: 6,
+        weight: 7,
         opacity: 0.98,
         lineCap: "round"
       }).addTo(state.segmentLayerGroup);
