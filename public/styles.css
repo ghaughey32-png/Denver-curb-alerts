@@ -277,13 +277,22 @@ button {
 .hero {
   display: grid;
   grid-template-columns: 1.3fr 0.7fr;
-  gap: 18px;
-  padding: 24px 26px;
-  background: rgba(251, 248, 242, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 30px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  gap: clamp(20px, 4vw, 42px);
+  padding: clamp(28px, 5vw, 54px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 16% 10%, rgba(247, 176, 67, 0.24), transparent 34%),
+    radial-gradient(circle at 86% 0%, rgba(47, 111, 237, 0.16), transparent 36%),
+    linear-gradient(135deg, rgba(31, 47, 55, 0.98), rgba(47, 67, 78, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 36px;
+  box-shadow: 0 28px 70px rgba(31, 47, 55, 0.22);
+  color: #fff;
+}
+
+.hero-copy {
+  display: grid;
+  align-content: start;
 }
 
 .eyebrow,
@@ -295,6 +304,10 @@ button {
   color: var(--accent);
 }
 
+.hero .eyebrow {
+  color: #f7b043;
+}
+
 .hero h1,
 .section-head h2 {
   margin: 0;
@@ -303,16 +316,19 @@ button {
 }
 
 .hero h1 {
-  font-size: clamp(2.8rem, 6vw, 5.1rem);
-  max-width: 10ch;
+  font-size: clamp(3.25rem, 7vw, 6.2rem);
+  max-width: 11.5ch;
+  color: #fff;
+  text-wrap: balance;
+  letter-spacing: -0.04em;
 }
 
 .hero-text {
-  max-width: 62ch;
-  margin: 16px 0 0;
-  color: var(--muted);
-  font-size: 1.06rem;
-  line-height: 1.7;
+  max-width: 58ch;
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: clamp(1.04rem, 1.5vw, 1.22rem);
+  line-height: 1.62;
 }
 
 .hero-cta-row {
@@ -324,7 +340,13 @@ button {
 
 .hero-cta,
 .hero-secondary {
-  min-height: 48px;
+  min-height: 56px;
+}
+
+.hero-secondary {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .hero-trust-list {
@@ -336,10 +358,10 @@ button {
 
 .hero-trust-list span {
   padding: 8px 11px;
-  border: 1px solid rgba(31, 47, 55, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.66);
-  color: var(--muted);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 0.84rem;
   font-weight: 700;
 }
@@ -363,6 +385,7 @@ button {
   padding: 16px 18px;
   display: grid;
   gap: 6px;
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .summary-card strong {
@@ -1604,8 +1627,33 @@ a.ghost-button {
     padding: 18px;
   }
 
+  .hero {
+    gap: 22px;
+    padding: 28px 20px 22px;
+    border-radius: 30px;
+  }
+
+  .hero h1 {
+    max-width: 100%;
+    font-size: clamp(3rem, 13vw, 4.1rem);
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+  }
+
+  .hero-text {
+    margin-top: 18px;
+    font-size: 1.13rem;
+    line-height: 1.55;
+  }
+
+  .hero .eyebrow {
+    max-width: 18rem;
+    line-height: 1.45;
+  }
+
   .hero-cta-row {
     flex-direction: column;
+    margin-top: 28px;
   }
 
   .hero-cta-row .primary-button,
