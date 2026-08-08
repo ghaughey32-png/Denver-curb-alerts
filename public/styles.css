@@ -366,6 +366,29 @@ button {
   font-weight: 700;
 }
 
+.hero-quick-proof {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.hero-quick-proof span {
+  padding: 12px 13px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.35;
+  font-size: 0.9rem;
+}
+
+.hero-quick-proof strong {
+  display: block;
+  color: #fff;
+  font-size: 0.96rem;
+}
+
 .hero-summary {
   display: grid;
   gap: 12px;
@@ -413,6 +436,78 @@ button {
 .summary-label {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.journey-card {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 18px;
+  align-items: stretch;
+  padding: 22px;
+  border-radius: 34px;
+  background:
+    linear-gradient(135deg, rgba(251, 248, 242, 0.92), rgba(244, 239, 231, 0.86)),
+    radial-gradient(circle at top right, rgba(47, 111, 237, 0.14), transparent 34%);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow: var(--shadow);
+}
+
+.journey-copy {
+  padding: 8px 8px 8px 0;
+}
+
+.journey-copy h2 {
+  margin: 0;
+  font-family: "Iowan Old Style", Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.95;
+}
+
+.journey-copy p:last-child {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 1.04rem;
+}
+
+.journey-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journey-steps li {
+  min-height: 100%;
+  padding: 16px;
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.journey-steps span {
+  display: inline-flex;
+  margin-bottom: 14px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(180, 93, 42, 0.12);
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.journey-steps strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.journey-steps p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .onboarding-card {
@@ -532,6 +627,74 @@ button {
 .beta-note {
   background: rgba(255, 246, 212, 0.74);
   border-color: rgba(245, 197, 66, 0.72);
+}
+
+.page-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+  padding: 26px 30px;
+  border-radius: 32px;
+  background:
+    linear-gradient(135deg, rgba(251, 248, 242, 0.94), rgba(242, 235, 225, 0.9)),
+    radial-gradient(circle at top right, rgba(47, 111, 237, 0.12), transparent 36%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: var(--shadow);
+}
+
+.page-intro h1 {
+  margin: 0;
+  font-family: "Iowan Old Style", Georgia, serif;
+  font-size: clamp(2.1rem, 4.6vw, 4rem);
+  line-height: 0.95;
+}
+
+.page-intro p:not(.section-kicker) {
+  max-width: 66ch;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 1.03rem;
+  line-height: 1.55;
+}
+
+.compact-page-intro {
+  width: min(900px, 100%);
+  justify-self: center;
+}
+
+.journey-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.journey-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.journey-pill.is-current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(180, 93, 42, 0.22);
+}
+
+.journey-pill.is-done {
+  background: rgba(47, 158, 68, 0.13);
+  border-color: rgba(47, 158, 68, 0.3);
+  color: #216d35;
 }
 
 .workspace {
@@ -1232,6 +1395,10 @@ a.ghost-button {
   font-size: 1.05rem;
 }
 
+.confirmation-next-card {
+  margin-top: 18px;
+}
+
 .readiness-card {
   display: grid;
   gap: 10px;
@@ -1545,8 +1712,19 @@ a.ghost-button {
   .hero,
   .workspace,
   .onboarding-card,
+  .journey-card,
+  .page-intro,
   .value-grid {
     grid-template-columns: 1fr;
+  }
+
+  .journey-pills {
+    justify-content: flex-start;
+  }
+
+  .hero-quick-proof,
+  .journey-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .onboarding-steps {
@@ -1591,6 +1769,21 @@ a.ghost-button {
 
   .landing-next-card .primary-button {
     width: 100%;
+  }
+
+  .hero-quick-proof,
+  .journey-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-card,
+  .page-intro {
+    padding: 20px;
+    border-radius: 28px;
+  }
+
+  .journey-steps li {
+    padding: 16px;
   }
 
   .single-panel-view {
