@@ -11,15 +11,15 @@
     <meta name="theme-color" content="#c95d2a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="manifest" href="/manifest.webmanifest?v=20260808b" />
+    <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="/styles.css?v=20260808b" />
-    <link rel="icon" href="/icon.svg?v=20260808b" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css?v=20260808d" />
+    <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
@@ -42,6 +42,11 @@
             <span>Denver route data</span>
             <span>iPhone-ready push</span>
           </div>
+          <div class="hero-quick-proof" aria-label="What setup includes">
+            <span><strong>1-minute setup</strong> from curb to reminder</span>
+            <span><strong>No account needed</strong> for the beta</span>
+            <span><strong>Push-ready</strong> day-before and day-of alerts</span>
+          </div>
         </div>
         <div class="hero-summary">
           <div class="summary-card summary-card-featured">
@@ -63,6 +68,39 @@
           </div>
         </div>
       </header>
+
+      <section class="journey-card" aria-labelledby="journey-title">
+        <div class="journey-copy">
+          <p class="section-kicker">First value moment</p>
+          <h2 id="journey-title">Get one curb protected before you scroll.</h2>
+          <p>
+            Start by searching or centering the map, tap the exact side where you park,
+            then save a reminder set so the app can show what will go out.
+          </p>
+        </div>
+        <ol class="journey-steps">
+          <li>
+            <span>01</span>
+            <strong>Find your block</strong>
+            <p>Use location, search, or pan the Sloan's Lake map.</p>
+          </li>
+          <li>
+            <span>02</span>
+            <strong>Tap the curb side</strong>
+            <p>Selected curbs get a bold gold highlight.</p>
+          </li>
+          <li>
+            <span>03</span>
+            <strong>Save the set</strong>
+            <p>Name it once for the place you park most.</p>
+          </li>
+          <li>
+            <span>04</span>
+            <strong>Confirm reminders</strong>
+            <p>Review scheduled jobs and send a test.</p>
+          </li>
+        </ol>
+      </section>
 
       <section id="onboarding-card" class="onboarding-card" aria-labelledby="onboarding-title">
         <div class="onboarding-copy">
@@ -133,6 +171,23 @@
       </nav>
 
       <section class="app-view setup-view" data-view="setup" hidden>
+        <header class="page-intro setup-intro">
+          <div>
+            <p class="section-kicker">Set up alerts</p>
+            <h1>Pick your curb and turn it into reminders.</h1>
+            <p>
+              Most people only need one saved curb set. Start with the map, connect this phone for push,
+              then save the setup you want to test.
+            </p>
+          </div>
+          <div class="journey-pills" aria-label="Setup progress">
+            <span class="journey-pill is-current">1 Find</span>
+            <span class="journey-pill">2 Select</span>
+            <span class="journey-pill">3 Save</span>
+            <span class="journey-pill">4 Confirm</span>
+          </div>
+        </header>
+
         <main class="workspace">
         <section class="map-card">
           <div class="section-head">
@@ -259,6 +314,22 @@
     </section>
 
       <section class="app-view alerts-view" data-view="alerts" hidden>
+        <header class="page-intro compact-page-intro">
+          <div>
+            <p class="section-kicker">Confirm setup</p>
+            <h1>Make sure your reminders are ready.</h1>
+            <p>
+              Use this page as the handoff between choosing curbs and trusting the app to remind you later.
+            </p>
+          </div>
+          <div class="journey-pills" aria-label="Alert setup progress">
+            <span class="journey-pill is-done">1 Curb selected</span>
+            <span class="journey-pill is-done">2 Device connected</span>
+            <span class="journey-pill is-current">3 Save set</span>
+            <span class="journey-pill">4 Schedule</span>
+          </div>
+        </header>
+
         <main class="single-panel-view">
           <aside class="panel-card">
           <div class="section-head">
@@ -268,19 +339,28 @@
             </div>
           </div>
 
-          <div class="selection-summary">
-            <div class="summary-line">
-              <span>Area</span>
-              <strong id="area-summary-value">Sloan's Lake: Lowell to Hooker, Colfax to 18th</strong>
+          <section class="panel-section panel-step-section">
+            <div class="mini-head">
+              <span class="panel-step-label">Saved</span>
+              <h3>Saved notification sets</h3>
+              <span class="mini-count" id="saved-set-count">0 saved</span>
             </div>
-            <div class="summary-line">
-              <span>Geometry</span>
-              <strong id="geometry-summary-value">Full known sweeping inventory</strong>
+
+            <div id="empty-sets" class="empty-state compact-empty">
+              <p>No saved sets yet.</p>
             </div>
-            <div class="summary-line">
-              <span>Selection memory</span>
-              <strong id="storage-mode">Saved in this browser</strong>
+
+            <div id="saved-sets-list" class="saved-sets-list"></div>
+          </section>
+
+          <div class="setup-next-card confirmation-next-card" aria-label="Next step">
+            <div>
+              <strong>Ready to check what will send?</strong>
+              <span>Open the schedule page to review day-before and day-of notification jobs.</span>
             </div>
+            <button class="primary-button setup-next-button" type="button" data-view-target="schedule">
+              Review scheduled alerts
+            </button>
           </div>
 
           <section class="panel-section panel-step-section readiness-section">
@@ -322,25 +402,27 @@
             </div>
           </section>
 
-          <section class="panel-section panel-step-section">
-            <div class="mini-head">
-              <span class="panel-step-label">Saved</span>
-              <h3>Saved notification sets</h3>
-              <span class="mini-count" id="saved-set-count">0 saved</span>
-            </div>
-
-            <div id="empty-sets" class="empty-state compact-empty">
-              <p>No saved sets yet.</p>
-            </div>
-
-            <div id="saved-sets-list" class="saved-sets-list"></div>
-          </section>
-
         </aside>
       </main>
     </section>
 
       <section class="app-view schedule-view" data-view="schedule" hidden>
+        <header class="page-intro compact-page-intro">
+          <div>
+            <p class="section-kicker">Future reminders</p>
+            <h1>See what is queued before you rely on it.</h1>
+            <p>
+              These scheduled jobs are the confidence check: what will send, when it will send,
+              and which curb set it belongs to.
+            </p>
+          </div>
+          <div class="journey-pills" aria-label="Scheduled alert progress">
+            <span class="journey-pill is-done">Saved set</span>
+            <span class="journey-pill is-current">Queued reminders</span>
+            <span class="journey-pill">Send test</span>
+          </div>
+        </header>
+
         <main class="single-panel-view">
           <aside class="panel-card">
           <section class="panel-section panel-step-section">
@@ -662,6 +744,6 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="/app.js?v=20260808b"></script>
+    <script src="./app.js?v=20260808d"></script>
   </body>
 </html>
