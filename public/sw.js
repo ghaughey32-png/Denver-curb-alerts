@@ -1,11 +1,11 @@
-const CACHE_NAME = "curb-alerts-shell-v19";
+const CACHE_NAME = "curb-alerts-shell-v20";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css?v=20260809a",
-  "/app.js?v=20260809a",
-  "/manifest.webmanifest?v=20260809a",
-  "/icon.svg?v=20260809a"
+  "/styles.css?v=20260809b",
+  "/app.js?v=20260809b",
+  "/manifest.webmanifest?v=20260809b",
+  "/icon.svg?v=20260809b"
 ];
 
 self.addEventListener("install", (event) => {

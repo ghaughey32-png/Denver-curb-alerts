@@ -3985,7 +3985,7 @@ function setPushButtonConnected(isConnected) {
   }
 
   enableNotificationsButton.textContent = isConnected
-    ? "Push Notifications On"
+    ? "Push Notifications Enabled"
     : "Turn on push for this device";
   enableNotificationsButton.classList.toggle("push-notifications-on", isConnected);
   enableNotificationsButton.setAttribute("aria-pressed", isConnected ? "true" : "false");
