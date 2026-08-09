@@ -1159,6 +1159,13 @@ button {
   filter: brightness(0.96);
 }
 
+#enable-notifications-button.notifications-on,
+#enable-notifications-button.notifications-on:disabled {
+  background: #b9e7bd;
+  color: #173c25;
+  opacity: 1;
+}
+
 a.primary-button,
 a.ghost-button {
   display: inline-flex;

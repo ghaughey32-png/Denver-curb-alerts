@@ -3987,6 +3987,12 @@ function renderNotificationStatus() {
     return;
   }
 
+  const notificationsAllowed = canUseBrowserNotifications() && window.Notification.permission === "granted";
+  enableNotificationsButton.textContent = notificationsAllowed
+    ? "Push Notifications On"
+    : "Turn on push for this device";
+  enableNotificationsButton.classList.toggle("notifications-on", notificationsAllowed);
+
   if (!canUseBrowserNotifications()) {
     notificationStatus.textContent = "This browser does not support notifications for this prototype.";
     enableNotificationsButton.disabled = true;
