@@ -3979,10 +3979,24 @@ function scheduleBrowserNotifications() {
   });
 }
 
+function setPushButtonConnected(isConnected) {
+  if (!enableNotificationsButton) {
+    return;
+  }
+
+  enableNotificationsButton.textContent = isConnected
+    ? "Push Notifications On"
+    : "Turn on push for this device";
+  enableNotificationsButton.classList.toggle("push-notifications-on", isConnected);
+  enableNotificationsButton.setAttribute("aria-pressed", isConnected ? "true" : "false");
+}
+
 function renderNotificationStatus() {
   if (!notificationStatus || !enableNotificationsButton || !sendTestButton || !scheduleTestButton) {
     return;
   }
+
+  setPushButtonConnected(false);
 
   if (!canUseBrowserNotifications()) {
     notificationStatus.textContent = "This browser does not support notifications for this prototype.";
@@ -4036,6 +4050,7 @@ function renderNotificationStatus() {
   const permission = window.Notification.permission;
   if (state.pushSubscription && permission === "granted") {
     const scheduledTestNote = state.scheduledTestMessage ? ` ${state.scheduledTestMessage}` : "";
+    setPushButtonConnected(true);
     if (state.reminderPlanSyncPending) {
       notificationStatus.textContent = "Push is connected for this device. Updating your upcoming reminder schedule on the server now.";
     } else if (state.reminderPlanSyncError) {

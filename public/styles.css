@@ -1311,6 +1311,20 @@ button {
   filter: brightness(0.96);
 }
 
+.primary-button.push-notifications-on,
+.primary-button.push-notifications-on:disabled {
+  background: #dff3d7;
+  color: #1f5f31;
+  box-shadow:
+    inset 0 0 0 1px rgba(56, 142, 60, 0.32),
+    0 10px 22px rgba(57, 135, 64, 0.14);
+  opacity: 1;
+}
+
+.primary-button.push-notifications-on:hover {
+  filter: none;
+}
+
 a.primary-button,
 a.ghost-button {
   display: inline-flex;
