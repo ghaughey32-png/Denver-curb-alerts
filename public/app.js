@@ -1576,7 +1576,6 @@ const segmentCount = document.querySelector("#segment-count");
 const liveSelectionCount = document.querySelector("#live-selection-count");
 const savedSetCount = document.querySelector("#saved-set-count");
 const jobCount = document.querySelector("#job-count");
-const storageMode = document.querySelector("#storage-mode");
 const clearButton = document.querySelector("#clear-map-selection");
 const saveSetButton = document.querySelector("#save-set-button");
 const saveConfirmation = document.querySelector("#save-confirmation");
@@ -1585,8 +1584,6 @@ const selectionTemplate = document.querySelector("#selection-item-template");
 const savedSetTemplate = document.querySelector("#saved-set-template");
 const jobList = document.querySelector("#job-list");
 const jobItemTemplate = document.querySelector("#job-item-template");
-const areaSummaryValue = document.querySelector("#area-summary-value");
-const geometrySummaryValue = document.querySelector("#geometry-summary-value");
 const mapTitle = document.querySelector("#map-title");
 const mapKicker = document.querySelector("#map-kicker");
 const mapNote = document.querySelector(".map-note");
@@ -4481,14 +4478,6 @@ function formatDateObject(date) {
 }
 
 function renderActiveAreaDetails() {
-  if (areaSummaryValue) {
-    areaSummaryValue.textContent = state.activeAreaLabel;
-  }
-
-  if (geometrySummaryValue) {
-    geometrySummaryValue.textContent = state.activeGeometryLabel;
-  }
-
   if (mapTitle) {
     mapTitle.textContent = state.activeMapTitle;
   }
@@ -4667,10 +4656,6 @@ function registerEvents() {
       }
     });
   }
-}
-
-if (storageMode) {
-  storageMode.textContent = hasBrowserStorage ? "Saved in this browser" : "Temporary for this tab";
 }
 
 let restoredCachedSloansLakeInventory = false;

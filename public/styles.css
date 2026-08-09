@@ -396,7 +396,6 @@ button {
 }
 
 .summary-card,
-.selection-summary,
 .note-card,
 .selection-item {
   background: rgba(255, 255, 255, 0.76);
@@ -963,16 +962,6 @@ button {
   margin: 14px 4px 0;
   color: var(--muted);
   line-height: 1.6;
-}
-
-.selection-summary {
-  margin-top: 18px;
-  padding: 14px 16px;
-  display: grid;
-  gap: 10px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(250, 245, 237, 0.86)),
-    radial-gradient(circle at top right, rgba(180, 93, 42, 0.12), transparent 38%);
 }
 
 .panel-section {
