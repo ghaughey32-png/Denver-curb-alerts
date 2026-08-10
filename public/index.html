@@ -23,6 +23,13 @@
   </head>
   <body>
     <div class="app-shell">
+      <nav class="app-tabs" aria-label="App sections">
+        <button class="app-tab is-active" type="button" data-view-target="landing" aria-current="page">Overview</button>
+        <button class="app-tab" type="button" data-view-target="setup">Set up alerts</button>
+        <button class="app-tab" type="button" data-view-target="alerts">My alert setup</button>
+        <button class="app-tab" type="button" data-view-target="schedule">Scheduled alerts</button>
+      </nav>
+
       <section class="app-view landing-view is-active" data-view="landing">
         <header class="hero">
         <div class="hero-copy">
@@ -136,16 +143,6 @@
       </section>
 
       <section class="value-grid" aria-label="Why Denver Curb Alerts helps">
-        <article class="value-card">
-          <p class="section-kicker">Ticket prevention</p>
-          <h2>One less thing to remember.</h2>
-          <p>Save your usual curb and let the app remind you before sweeping day sneaks up.</p>
-        </article>
-        <article class="value-card">
-          <p class="section-kicker">Curb-side accuracy</p>
-          <h2>Pick the side that matters.</h2>
-          <p>North, south, east, and west curb sides are shown separately so alerts match posted signs.</p>
-        </article>
         <article class="value-card beta-note">
           <p class="section-kicker">Beta note</p>
           <h2>Still follow the signs.</h2>
@@ -163,22 +160,12 @@
         </div>
       </section>
 
-      <nav class="app-tabs" aria-label="App sections">
-        <button class="app-tab is-active" type="button" data-view-target="landing" aria-current="page">Overview</button>
-        <button class="app-tab" type="button" data-view-target="setup">Set up alerts</button>
-        <button class="app-tab" type="button" data-view-target="alerts">My alert setup</button>
-        <button class="app-tab" type="button" data-view-target="schedule">Scheduled alerts</button>
-      </nav>
-
       <section class="app-view setup-view" data-view="setup" hidden>
         <header class="page-intro setup-intro">
           <div>
             <p class="section-kicker">Set up alerts</p>
-            <h1>Pick your curb and turn it into reminders.</h1>
-            <p>
-              Most people only need one saved curb set. Start with the map, connect this phone for push,
-              then save the setup you want to test.
-            </p>
+            <h1>Choose The Curbs You Want Reminders For</h1>
+            <p>Click a curb on the map, see your selections on the right, then turn on push notifications</p>
           </div>
           <div class="journey-pills" aria-label="Setup progress">
             <span class="journey-pill is-current">1 Find</span>
@@ -250,9 +237,9 @@
         </section>
 
         <aside class="panel-card">
-          <section class="panel-section panel-step-section">
+          <section id="current-selection-section" class="panel-section panel-step-section is-empty">
             <div class="mini-head">
-              <span class="panel-step-label">Step 1</span>
+              <span class="panel-step-label workflow-step-label">Step 1</span>
               <h3>Current selection</h3>
               <span class="mini-count" id="live-selection-count">0 selected</span>
             </div>
@@ -267,7 +254,7 @@
 
           <section class="panel-section panel-step-section save-section">
             <div class="mini-head">
-              <span class="panel-step-label">Step 2</span>
+              <span class="panel-step-label workflow-step-label">Step 2</span>
               <h3>Device alerts</h3>
             </div>
 
@@ -288,7 +275,7 @@
 
           <section class="panel-section panel-step-section save-section">
             <div class="mini-head">
-              <span class="panel-step-label">Step 3</span>
+              <span class="panel-step-label workflow-step-label">Step 3</span>
               <h3>Save notification set</h3>
             </div>
 
@@ -668,49 +655,90 @@
         <div class="saved-set-details"></div>
         <div class="reminder-card">
           <div class="reminder-head">
-            <h4 class="reminder-title">Reminder timing</h4>
-            <p class="reminder-summary"></p>
+            <span class="reminder-head-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="reminder-head-copy">
+              <span class="reminder-eyebrow">Notification plan</span>
+              <h4 class="reminder-title">Reminder timing</h4>
+              <p class="reminder-summary"></p>
+            </span>
           </div>
-          <label class="reminder-row">
+          <label class="reminder-row reminder-row-featured">
             <span class="reminder-copy">
-              <span class="reminder-label">Day before</span>
+              <span class="reminder-kicker">The night before</span>
+              <span class="reminder-label">Evening heads-up</span>
               <span class="reminder-help">Send a heads-up the evening before sweeping.</span>
             </span>
             <span class="reminder-controls">
-              <input class="reminder-toggle day-before-enabled" type="checkbox" />
-              <input class="time-input day-before-time" type="time" />
+              <span class="reminder-switch-wrap">
+                <input class="reminder-toggle day-before-enabled" type="checkbox" />
+                <span class="reminder-switch" aria-hidden="true"></span>
+              </span>
+              <span class="time-input-wrap">
+                <span class="time-input-icon" aria-hidden="true"></span>
+                <input class="time-input day-before-time" type="time" aria-label="Evening reminder time" />
+              </span>
             </span>
           </label>
           <div class="reminder-group">
             <div class="reminder-group-head">
-              <span class="reminder-label">Day of</span>
-              <span class="reminder-help">Choose up to three move-your-car reminders on sweep day.</span>
+              <span>
+                <span class="reminder-kicker">Sweep day</span>
+                <span class="reminder-label">Morning reminders</span>
+              </span>
+              <span class="reminder-count">Up to 3</span>
+              <span class="reminder-help">Choose when you want a nudge to move your car.</span>
             </div>
             <label class="reminder-row">
               <span class="reminder-copy">
-                <span class="reminder-slot-label">Reminder 1</span>
+                <span class="reminder-slot-number">01</span>
+                <span class="reminder-slot-label">First reminder</span>
               </span>
               <span class="reminder-controls">
-                <input class="reminder-toggle day-of-enabled" data-slot="0" type="checkbox" />
-                <input class="time-input day-of-time" data-slot="0" type="time" />
+                <span class="reminder-switch-wrap">
+                  <input class="reminder-toggle day-of-enabled" data-slot="0" type="checkbox" />
+                  <span class="reminder-switch" aria-hidden="true"></span>
+                </span>
+                <span class="time-input-wrap">
+                  <span class="time-input-icon" aria-hidden="true"></span>
+                  <input class="time-input day-of-time" data-slot="0" type="time" aria-label="First sweep day reminder time" />
+                </span>
               </span>
             </label>
             <label class="reminder-row">
               <span class="reminder-copy">
-                <span class="reminder-slot-label">Reminder 2</span>
+                <span class="reminder-slot-number">02</span>
+                <span class="reminder-slot-label">Second reminder</span>
               </span>
               <span class="reminder-controls">
-                <input class="reminder-toggle day-of-enabled" data-slot="1" type="checkbox" />
-                <input class="time-input day-of-time" data-slot="1" type="time" />
+                <span class="reminder-switch-wrap">
+                  <input class="reminder-toggle day-of-enabled" data-slot="1" type="checkbox" />
+                  <span class="reminder-switch" aria-hidden="true"></span>
+                </span>
+                <span class="time-input-wrap">
+                  <span class="time-input-icon" aria-hidden="true"></span>
+                  <input class="time-input day-of-time" data-slot="1" type="time" aria-label="Second sweep day reminder time" />
+                </span>
               </span>
             </label>
             <label class="reminder-row">
               <span class="reminder-copy">
-                <span class="reminder-slot-label">Reminder 3</span>
+                <span class="reminder-slot-number">03</span>
+                <span class="reminder-slot-label">Final reminder</span>
               </span>
               <span class="reminder-controls">
-                <input class="reminder-toggle day-of-enabled" data-slot="2" type="checkbox" />
-                <input class="time-input day-of-time" data-slot="2" type="time" />
+                <span class="reminder-switch-wrap">
+                  <input class="reminder-toggle day-of-enabled" data-slot="2" type="checkbox" />
+                  <span class="reminder-switch" aria-hidden="true"></span>
+                </span>
+                <span class="time-input-wrap">
+                  <span class="time-input-icon" aria-hidden="true"></span>
+                  <input class="time-input day-of-time" data-slot="2" type="time" aria-label="Final sweep day reminder time" />
+                </span>
               </span>
             </label>
           </div>

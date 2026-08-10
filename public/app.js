@@ -1566,6 +1566,7 @@ const state = {
 };
 
 const selectionList = document.querySelector("#selection-list");
+const currentSelectionSection = document.querySelector("#current-selection-section");
 const savedSetsList = document.querySelector("#saved-sets-list");
 const emptySelection = document.querySelector("#empty-selection");
 const emptySets = document.querySelector("#empty-sets");
@@ -1824,7 +1825,15 @@ function canUseWebPush() {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
+function hasServiceWorkerProtocol() {
+  return window.location.protocol === "http:" || window.location.protocol === "https:";
+}
+
 function isSecureHost() {
+  if (!hasServiceWorkerProtocol()) {
+    return false;
+  }
+
   return window.isSecureContext || window.location.protocol === "https:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
@@ -3213,6 +3222,7 @@ function renderCurrentSelection() {
 
   selectionList.innerHTML = "";
   emptySelection.style.display = selectedSegments.length ? "none" : "block";
+  currentSelectionSection.classList.toggle("is-empty", selectedSegments.length === 0);
   selectedCount.textContent = String(selectedSegments.length);
   liveSelectionCount.textContent = `${selectedSegments.length} selected`;
 
