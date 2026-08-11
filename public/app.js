@@ -1489,8 +1489,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v13";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=16";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v14";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=17";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -2557,6 +2557,7 @@ async function runInventoryLookups(tasks, onResult) {
 }
 
 function buildInventoryFromRouteMap(routeMap) {
+  addByronParkFrontageCoverage(routeMap);
   const summary = {
     address: "Sloan's Lake full neighborhood inventory",
     routeCount: routeMap.size,
@@ -2581,6 +2582,36 @@ function buildInventoryFromRouteMap(routeMap) {
     curbSegments: [...officialCurbSegments, ...missingEmbeddedSegments],
     context
   };
+}
+
+function addByronParkFrontageCoverage(routeMap) {
+  const coverageId = "coverage-w-byron-vrain-winona";
+  if (routeMap.has(coverageId)) return;
+
+  const adjacentByronRoute = routeMap.get(5508) || routeMap.get(29145);
+  if (!adjacentByronRoute) return;
+
+  const path = [
+    [39.7530522923091, -105.046292737183],
+    [39.753046, -105.04678],
+    [39.7530395949207, -105.047272668012]
+  ];
+  routeMap.set(coverageId, {
+    ...adjacentByronRoute,
+    id: coverageId,
+    streetName: "W BYRON PL / DENVER PARK RD",
+    from: "N VRAIN ST",
+    to: "N WINONA CT",
+    leftSweepingRule: "South side: The 3rd Thursday of the month. Matched to adjacent official Denver W Byron Pl routes.",
+    rightSweepingRule: "North side: The 3rd Friday of the month. Matched to adjacent official Denver W Byron Pl routes.",
+    isPosted: false,
+    map: {
+      staticMapUrl: "",
+      center: path[1],
+      path
+    },
+    sourceNote: "Denver's lookup returns no route for the park frontage; schedule matched to adjacent official W Byron Pl routes 5508 and 29145."
+  });
 }
 
 function showInventoryProgress(routeMap, completedCount, totalCount) {

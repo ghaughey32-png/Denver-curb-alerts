@@ -170,6 +170,36 @@ async function runPool(urls) {
   return results;
 }
 
+function addByronParkFrontageCoverage(routeMap) {
+  const coverageId = "coverage-w-byron-vrain-winona";
+  if (routeMap.has(coverageId)) return;
+
+  const adjacentByronRoute = routeMap.get(5508) || routeMap.get(29145);
+  if (!adjacentByronRoute) return;
+
+  const path = [
+    [39.7530522923091, -105.046292737183],
+    [39.753046, -105.04678],
+    [39.7530395949207, -105.047272668012]
+  ];
+  routeMap.set(coverageId, {
+    ...adjacentByronRoute,
+    id: coverageId,
+    streetName: "W BYRON PL / DENVER PARK RD",
+    from: "N VRAIN ST",
+    to: "N WINONA CT",
+    leftSweepingRule: "South side: The 3rd Thursday of the month. Matched to adjacent official Denver W Byron Pl routes.",
+    rightSweepingRule: "North side: The 3rd Friday of the month. Matched to adjacent official Denver W Byron Pl routes.",
+    isPosted: false,
+    map: {
+      staticMapUrl: "",
+      center: path[1],
+      path
+    },
+    sourceNote: "Denver's lookup returns no route for the park frontage; schedule matched to adjacent official W Byron Pl routes 5508 and 29145."
+  });
+}
+
 async function main() {
   const pointMap = new Map();
   REGIONS.forEach((region) => {
@@ -193,6 +223,7 @@ async function main() {
       }
     });
   });
+  addByronParkFrontageCoverage(routeMap);
 
   const payload = {
     version: 1,
