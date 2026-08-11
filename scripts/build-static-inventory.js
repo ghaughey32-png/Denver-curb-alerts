@@ -45,6 +45,8 @@ const REQUIRED_ROUTE_ANCHORS = [
   { latitude: 39.752579, longitude: -105.038138 },
   { latitude: 39.753474, longitude: -105.038144 },
   { latitude: 39.754395, longitude: -105.038145 },
+  // Winona Court, West Byron Place–West 25th Avenue.
+  { latitude: 39.75349, longitude: -105.04728 },
   // West 17th Avenue: Perry–Stuart and Tennyson–Utica.
   { latitude: 39.74396, longitude: -105.041 },
   { latitude: 39.743972, longitude: -105.04459 },
