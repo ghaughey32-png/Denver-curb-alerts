@@ -1489,8 +1489,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v12";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=15";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v13";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=16";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -1721,6 +1721,8 @@ const REQUIRED_ROUTE_ANCHORS = [
   { latitude: 39.754395, longitude: -105.038145 },
   // Winona Court, West Byron Place–West 25th Avenue.
   { latitude: 39.75349, longitude: -105.04728 },
+  // West Byron Place, Oak Street–Wolff Street.
+  { latitude: 39.753041, longitude: -105.048166 },
   // West 17th Avenue: Perry–Stuart and Tennyson–Utica.
   { latitude: 39.74396, longitude: -105.041 },
   { latitude: 39.743972, longitude: -105.04459 },
@@ -3409,6 +3411,26 @@ function renderSegments() {
   const selectedSegments = state.curbSegments.filter((segment) => isSelected(segment.id));
   const unselectedSegments = state.curbSegments.filter((segment) => !isSelected(segment.id));
 
+  // Add wide transparent hit targets first so Safari's canvas renderer paints
+  // the visible curb strokes above them instead of dimming or hiding short routes.
+  state.curbSegments.forEach((segment) => {
+    const selected = isSelected(segment.id);
+    const geometry = getSegmentRenderGeometry(segment, selectedStyle);
+    const touchTarget = L.polyline(geometry, {
+      color: "#000000",
+      weight: selected ? selectedStyle.touchWeight : 30,
+      opacity: 0,
+      lineCap: "round"
+    });
+    const nextSweepDate = getNextSweepDate(segment);
+    const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
+    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
+      sticky: true
+    });
+    touchTarget.on("click", () => toggleSegment(segment.id));
+    touchTarget.addTo(state.segmentLayerGroup);
+  });
+
   unselectedSegments.forEach((segment) => {
     L.polyline(segment.geometry, {
       color: "rgba(255, 255, 255, 0.28)",
@@ -3457,24 +3479,6 @@ function renderSegments() {
       lineCap: "round",
       interactive: false
     }).addTo(state.segmentLayerGroup);
-  });
-
-  state.curbSegments.forEach((segment) => {
-    const selected = isSelected(segment.id);
-    const geometry = getSegmentRenderGeometry(segment, selectedStyle);
-    const touchTarget = L.polyline(geometry, {
-      color: "#000000",
-      weight: selected ? selectedStyle.touchWeight : 30,
-      opacity: 0.01,
-      lineCap: "round"
-    });
-    const nextSweepDate = getNextSweepDate(segment);
-    const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
-    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
-      sticky: true
-    });
-    touchTarget.on("click", () => toggleSegment(segment.id));
-    touchTarget.addTo(state.segmentLayerGroup);
   });
 
   selectedSegments.forEach((segment) => {
