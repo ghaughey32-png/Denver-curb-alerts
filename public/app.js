@@ -1489,8 +1489,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v9";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=12";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v10";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=13";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -1546,7 +1546,7 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
-  activeAreaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+  activeAreaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
   activeGeometryLabel: "Full known sweeping inventory",
   activeMapTitle: "Sloan's Lake full neighborhood inventory",
   activeMapKicker: "Interactive map",
@@ -1654,6 +1654,12 @@ const WEST_26TH_TO_32ND_EXTENSION_BOUNDS = {
   west: -105.05325,
   east: -105.02475
 };
+const WEST_32ND_TO_38TH_EXTENSION_BOUNDS = {
+  north: 39.76965,
+  south: 39.7619,
+  west: -105.05325,
+  east: -105.02475
+};
 const SLOANS_LAKE_SAMPLE_ROWS = 6;
 const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
 const WEST_COLFAX_SAMPLE_ROWS = 4;
@@ -1662,6 +1668,8 @@ const WEST_23RD_TO_26TH_SAMPLE_ROWS = 4;
 const WEST_23RD_TO_26TH_SAMPLE_COLUMNS = 9;
 const WEST_26TH_TO_32ND_SAMPLE_ROWS = 8;
 const WEST_26TH_TO_32ND_SAMPLE_COLUMNS = 13;
+const WEST_32ND_TO_38TH_SAMPLE_ROWS = 8;
+const WEST_32ND_TO_38TH_SAMPLE_COLUMNS = 13;
 const INVENTORY_LOOKUP_CONCURRENCY = 4;
 const REQUIRED_ROUTE_ANCHORS = [
   { latitude: 39.741, longitude: -105.039315 },
@@ -1775,12 +1783,20 @@ const SLOANS_LAKE_SAMPLE_ADDRESSES = [
   "W 32nd Ave & Federal Blvd, Denver, CO",
   "W 29th Ave & Sheridan Blvd, Denver, CO",
   "W 32nd Ave & Sheridan Blvd, Denver, CO",
+  "W 35th Ave & Federal Blvd, Denver, CO",
+  "W 38th Ave & Federal Blvd, Denver, CO",
+  "W 35th Ave & Sheridan Blvd, Denver, CO",
+  "W 38th Ave & Sheridan Blvd, Denver, CO",
   "2500 Federal Blvd, Denver, CO",
   "2500 Sheridan Blvd, Denver, CO",
   "2800 Federal Blvd, Denver, CO",
   "2800 Sheridan Blvd, Denver, CO",
   "3100 Federal Blvd, Denver, CO",
-  "3100 Sheridan Blvd, Denver, CO"
+  "3100 Sheridan Blvd, Denver, CO",
+  "3400 Federal Blvd, Denver, CO",
+  "3400 Sheridan Blvd, Denver, CO",
+  "3700 Federal Blvd, Denver, CO",
+  "3700 Sheridan Blvd, Denver, CO"
 ];
 
 function canUseBrowserStorage() {
@@ -1874,7 +1890,7 @@ function restoreCachedSloansLakeInventory() {
   setMapDataset({
     streetWays: cached.streetWays,
     curbSegments: cached.curbSegments,
-    areaLabel: cached.areaLabel || "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+    areaLabel: cached.areaLabel || "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
     geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
     mapTitleText: cached.mapTitleText || "Sloan's Lake full neighborhood inventory",
     mapKickerText: cached.mapKickerText || "Interactive map",
@@ -2225,7 +2241,7 @@ function buildStreetData() {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
     geometryLabel: "Full known sweeping inventory",
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Interactive map",
@@ -2461,6 +2477,11 @@ function buildSloansLakeSamplePoints() {
       WEST_26TH_TO_32ND_EXTENSION_BOUNDS,
       WEST_26TH_TO_32ND_SAMPLE_ROWS,
       WEST_26TH_TO_32ND_SAMPLE_COLUMNS
+    ),
+    buildSamplePointsForBounds(
+      WEST_32ND_TO_38TH_EXTENSION_BOUNDS,
+      WEST_32ND_TO_38TH_SAMPLE_ROWS,
+      WEST_32ND_TO_38TH_SAMPLE_COLUMNS
     )
   ];
 
@@ -2542,7 +2563,7 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
     geometryLabel: `Loading official Denver routes (${completedCount} of ${totalCount} lookups checked)`,
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Official Denver full-area lookup",
@@ -2676,7 +2697,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     setMapDataset({
       streetWays,
       curbSegments,
-      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2689,7 +2710,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     saveSloansLakeInventoryCache({
       streetWays,
       curbSegments,
-      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2746,6 +2767,8 @@ function refreshMapViewport() {
   bounds.extend([WEST_23RD_TO_26TH_EXTENSION_BOUNDS.south, WEST_23RD_TO_26TH_EXTENSION_BOUNDS.east]);
   bounds.extend([WEST_26TH_TO_32ND_EXTENSION_BOUNDS.north, WEST_26TH_TO_32ND_EXTENSION_BOUNDS.west]);
   bounds.extend([WEST_26TH_TO_32ND_EXTENSION_BOUNDS.south, WEST_26TH_TO_32ND_EXTENSION_BOUNDS.east]);
+  bounds.extend([WEST_32ND_TO_38TH_EXTENSION_BOUNDS.north, WEST_32ND_TO_38TH_EXTENSION_BOUNDS.west]);
+  bounds.extend([WEST_32ND_TO_38TH_EXTENSION_BOUNDS.south, WEST_32ND_TO_38TH_EXTENSION_BOUNDS.east]);
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
