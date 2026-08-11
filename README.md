@@ -51,7 +51,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 
 ## Refresh the saved map inventory
 
-The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including every returned route between W 26th and W 46th Avenues from Sheridan to Federal. This avoids running hundreds of Denver lookups in each visitor's browser.
+The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including W 20th–W 26th from Federal to Bryant, W 26th–W 46th from Sheridan to Federal, and W 26th–W 46th from Federal to Pecos/I-25. This avoids running hundreds of Denver lookups in each visitor's browser.
 
 With the local server running, rebuild that snapshot using:
 

@@ -6,6 +6,9 @@ const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.jso
 const SCRIPT_OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.js");
 const CONCURRENCY = 8;
 const REQUIRED_ROUTE_ANCHORS = [
+  // West 16th Avenue, Federal Boulevard–Grove Street. The broader grid's
+  // nearest sample falls just outside Denver's lookup radius for this block.
+  { latitude: 39.742738, longitude: -105.0262 },
   { latitude: 39.741, longitude: -105.039315 },
   { latitude: 39.7422, longitude: -105.039315 },
   { latitude: 39.7435, longitude: -105.039315 },
@@ -70,13 +73,22 @@ const REGIONS = [
   { north: 39.7506, south: 39.7399, west: -105.0435, east: -105.0272, rows: 6, columns: 6 },
   { north: 39.74415, south: 39.7399, west: -105.05325, east: -105.04505, rows: 4, columns: 5 },
   { north: 39.7552, south: 39.7505, west: -105.05325, east: -105.02475, rows: 4, columns: 9 },
+  // W 20th Avenue / Mile High Stadium Circle–W 26th Avenue,
+  // Federal Boulevard–Bryant Street.
+  { north: 39.75535, south: 39.74845, west: -105.02515, east: -105.01835, rows: 7, columns: 6 },
   // W 26th–W 32nd Avenue, Sheridan Boulevard–Federal Boulevard.
   // The staggered grid produced by sampleRegion checks roughly every street block.
   { north: 39.7623, south: 39.75465, west: -105.05325, east: -105.02475, rows: 8, columns: 13 },
+  // W 26th–W 32nd Avenue, Federal Boulevard–Pecos Street / I-25.
+  { north: 39.7623, south: 39.75465, west: -105.02515, east: -105.00615, rows: 8, columns: 13 },
   // W 32nd–W 38th Avenue, Sheridan Boulevard–Federal Boulevard.
   { north: 39.76965, south: 39.7619, west: -105.05325, east: -105.02475, rows: 8, columns: 13 },
+  // W 32nd–W 38th Avenue, Federal Boulevard–Pecos Street.
+  { north: 39.76965, south: 39.7619, west: -105.02515, east: -105.00615, rows: 8, columns: 13 },
   // W 38th–W 46th Avenue, Sheridan Boulevard–Federal Boulevard.
-  { north: 39.78055, south: 39.76915, west: -105.05325, east: -105.02475, rows: 11, columns: 13 }
+  { north: 39.78055, south: 39.76915, west: -105.05325, east: -105.02475, rows: 11, columns: 13 },
+  // W 38th–W 46th Avenue, Federal Boulevard–Pecos Street.
+  { north: 39.78055, south: 39.76915, west: -105.02515, east: -105.00615, rows: 11, columns: 13 }
 ];
 
 const ADDRESSES = [
@@ -97,6 +109,8 @@ const ADDRESSES = [
   "W Colfax Ave & Sheridan Blvd, Denver, CO", "W 17th Ave & Sheridan Blvd, Denver, CO",
   "W Colfax Ave & Utica St, Denver, CO", "W 17th Ave & Utica St, Denver, CO",
   "W 23rd Ave & Federal Blvd, Denver, CO", "W 26th Ave & Federal Blvd, Denver, CO",
+  "W 20th Ave & Bryant St, Denver, CO", "W 23rd Ave & Bryant St, Denver, CO",
+  "W 26th Ave & Bryant St, Denver, CO", "Mile High Stadium Cir, Denver, CO",
   "W 23rd Ave & Sheridan Blvd, Denver, CO", "W 26th Ave & Sheridan Blvd, Denver, CO",
   "W 29th Ave & Federal Blvd, Denver, CO", "W 32nd Ave & Federal Blvd, Denver, CO",
   "W 29th Ave & Sheridan Blvd, Denver, CO", "W 32nd Ave & Sheridan Blvd, Denver, CO",
@@ -105,6 +119,9 @@ const ADDRESSES = [
   "W 41st Ave & Federal Blvd, Denver, CO", "W 44th Ave & Federal Blvd, Denver, CO",
   "W 46th Ave & Federal Blvd, Denver, CO", "W 41st Ave & Sheridan Blvd, Denver, CO",
   "W 44th Ave & Sheridan Blvd, Denver, CO", "W 46th Ave & Sheridan Blvd, Denver, CO",
+  "W 32nd Ave & Pecos St, Denver, CO", "W 35th Ave & Pecos St, Denver, CO",
+  "W 38th Ave & Pecos St, Denver, CO", "W 41st Ave & Pecos St, Denver, CO",
+  "W 44th Ave & Pecos St, Denver, CO", "W 46th Ave & Pecos St, Denver, CO",
   "2500 Federal Blvd, Denver, CO", "2500 Sheridan Blvd, Denver, CO",
   "2800 Federal Blvd, Denver, CO", "2800 Sheridan Blvd, Denver, CO",
   "3100 Federal Blvd, Denver, CO", "3100 Sheridan Blvd, Denver, CO",
@@ -259,7 +276,7 @@ async function main() {
   const payload = {
     version: 1,
     generatedAt: new Date().toISOString(),
-    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
+    areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
     routeCount: routeMap.size,
     routes: Array.from(routeMap.values())
   };
