@@ -70,7 +70,9 @@ const REGIONS = [
   // The staggered grid produced by sampleRegion checks roughly every street block.
   { north: 39.7623, south: 39.75465, west: -105.05325, east: -105.02475, rows: 8, columns: 13 },
   // W 32nd–W 38th Avenue, Sheridan Boulevard–Federal Boulevard.
-  { north: 39.76965, south: 39.7619, west: -105.05325, east: -105.02475, rows: 8, columns: 13 }
+  { north: 39.76965, south: 39.7619, west: -105.05325, east: -105.02475, rows: 8, columns: 13 },
+  // W 38th–W 46th Avenue, Sheridan Boulevard–Federal Boulevard.
+  { north: 39.78055, south: 39.76915, west: -105.05325, east: -105.02475, rows: 11, columns: 13 }
 ];
 
 const ADDRESSES = [
@@ -96,11 +98,17 @@ const ADDRESSES = [
   "W 29th Ave & Sheridan Blvd, Denver, CO", "W 32nd Ave & Sheridan Blvd, Denver, CO",
   "W 35th Ave & Federal Blvd, Denver, CO", "W 38th Ave & Federal Blvd, Denver, CO",
   "W 35th Ave & Sheridan Blvd, Denver, CO", "W 38th Ave & Sheridan Blvd, Denver, CO",
+  "W 41st Ave & Federal Blvd, Denver, CO", "W 44th Ave & Federal Blvd, Denver, CO",
+  "W 46th Ave & Federal Blvd, Denver, CO", "W 41st Ave & Sheridan Blvd, Denver, CO",
+  "W 44th Ave & Sheridan Blvd, Denver, CO", "W 46th Ave & Sheridan Blvd, Denver, CO",
   "2500 Federal Blvd, Denver, CO", "2500 Sheridan Blvd, Denver, CO",
   "2800 Federal Blvd, Denver, CO", "2800 Sheridan Blvd, Denver, CO",
   "3100 Federal Blvd, Denver, CO", "3100 Sheridan Blvd, Denver, CO",
   "3400 Federal Blvd, Denver, CO", "3400 Sheridan Blvd, Denver, CO",
-  "3700 Federal Blvd, Denver, CO", "3700 Sheridan Blvd, Denver, CO"
+  "3700 Federal Blvd, Denver, CO", "3700 Sheridan Blvd, Denver, CO",
+  "4000 Federal Blvd, Denver, CO", "4000 Sheridan Blvd, Denver, CO",
+  "4300 Federal Blvd, Denver, CO", "4300 Sheridan Blvd, Denver, CO",
+  "4500 Federal Blvd, Denver, CO", "4500 Sheridan Blvd, Denver, CO"
 ];
 
 function sampleRegion(region) {
@@ -185,7 +193,7 @@ async function main() {
   const payload = {
     version: 1,
     generatedAt: new Date().toISOString(),
-    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
     routeCount: routeMap.size,
     routes: Array.from(routeMap.values())
   };

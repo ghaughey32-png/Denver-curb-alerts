@@ -1489,8 +1489,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v10";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=13";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v11";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=14";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -1546,7 +1546,7 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
-  activeAreaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+  activeAreaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
   activeGeometryLabel: "Full known sweeping inventory",
   activeMapTitle: "Sloan's Lake full neighborhood inventory",
   activeMapKicker: "Interactive map",
@@ -1660,6 +1660,12 @@ const WEST_32ND_TO_38TH_EXTENSION_BOUNDS = {
   west: -105.05325,
   east: -105.02475
 };
+const WEST_38TH_TO_46TH_EXTENSION_BOUNDS = {
+  north: 39.78055,
+  south: 39.76915,
+  west: -105.05325,
+  east: -105.02475
+};
 const SLOANS_LAKE_SAMPLE_ROWS = 6;
 const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
 const WEST_COLFAX_SAMPLE_ROWS = 4;
@@ -1670,6 +1676,8 @@ const WEST_26TH_TO_32ND_SAMPLE_ROWS = 8;
 const WEST_26TH_TO_32ND_SAMPLE_COLUMNS = 13;
 const WEST_32ND_TO_38TH_SAMPLE_ROWS = 8;
 const WEST_32ND_TO_38TH_SAMPLE_COLUMNS = 13;
+const WEST_38TH_TO_46TH_SAMPLE_ROWS = 11;
+const WEST_38TH_TO_46TH_SAMPLE_COLUMNS = 13;
 const INVENTORY_LOOKUP_CONCURRENCY = 4;
 const REQUIRED_ROUTE_ANCHORS = [
   { latitude: 39.741, longitude: -105.039315 },
@@ -1787,6 +1795,12 @@ const SLOANS_LAKE_SAMPLE_ADDRESSES = [
   "W 38th Ave & Federal Blvd, Denver, CO",
   "W 35th Ave & Sheridan Blvd, Denver, CO",
   "W 38th Ave & Sheridan Blvd, Denver, CO",
+  "W 41st Ave & Federal Blvd, Denver, CO",
+  "W 44th Ave & Federal Blvd, Denver, CO",
+  "W 46th Ave & Federal Blvd, Denver, CO",
+  "W 41st Ave & Sheridan Blvd, Denver, CO",
+  "W 44th Ave & Sheridan Blvd, Denver, CO",
+  "W 46th Ave & Sheridan Blvd, Denver, CO",
   "2500 Federal Blvd, Denver, CO",
   "2500 Sheridan Blvd, Denver, CO",
   "2800 Federal Blvd, Denver, CO",
@@ -1796,7 +1810,13 @@ const SLOANS_LAKE_SAMPLE_ADDRESSES = [
   "3400 Federal Blvd, Denver, CO",
   "3400 Sheridan Blvd, Denver, CO",
   "3700 Federal Blvd, Denver, CO",
-  "3700 Sheridan Blvd, Denver, CO"
+  "3700 Sheridan Blvd, Denver, CO",
+  "4000 Federal Blvd, Denver, CO",
+  "4000 Sheridan Blvd, Denver, CO",
+  "4300 Federal Blvd, Denver, CO",
+  "4300 Sheridan Blvd, Denver, CO",
+  "4500 Federal Blvd, Denver, CO",
+  "4500 Sheridan Blvd, Denver, CO"
 ];
 
 function canUseBrowserStorage() {
@@ -1890,7 +1910,7 @@ function restoreCachedSloansLakeInventory() {
   setMapDataset({
     streetWays: cached.streetWays,
     curbSegments: cached.curbSegments,
-    areaLabel: cached.areaLabel || "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+    areaLabel: cached.areaLabel || "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
     geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
     mapTitleText: cached.mapTitleText || "Sloan's Lake full neighborhood inventory",
     mapKickerText: cached.mapKickerText || "Interactive map",
@@ -2241,7 +2261,7 @@ function buildStreetData() {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
     geometryLabel: "Full known sweeping inventory",
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Interactive map",
@@ -2482,6 +2502,11 @@ function buildSloansLakeSamplePoints() {
       WEST_32ND_TO_38TH_EXTENSION_BOUNDS,
       WEST_32ND_TO_38TH_SAMPLE_ROWS,
       WEST_32ND_TO_38TH_SAMPLE_COLUMNS
+    ),
+    buildSamplePointsForBounds(
+      WEST_38TH_TO_46TH_EXTENSION_BOUNDS,
+      WEST_38TH_TO_46TH_SAMPLE_ROWS,
+      WEST_38TH_TO_46TH_SAMPLE_COLUMNS
     )
   ];
 
@@ -2563,7 +2588,7 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
     geometryLabel: `Loading official Denver routes (${completedCount} of ${totalCount} lookups checked)`,
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Official Denver full-area lookup",
@@ -2697,7 +2722,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     setMapDataset({
       streetWays,
       curbSegments,
-      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2710,7 +2735,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     saveSloansLakeInventoryCache({
       streetWays,
       curbSegments,
-      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–38th",
+      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–46th",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2769,6 +2794,8 @@ function refreshMapViewport() {
   bounds.extend([WEST_26TH_TO_32ND_EXTENSION_BOUNDS.south, WEST_26TH_TO_32ND_EXTENSION_BOUNDS.east]);
   bounds.extend([WEST_32ND_TO_38TH_EXTENSION_BOUNDS.north, WEST_32ND_TO_38TH_EXTENSION_BOUNDS.west]);
   bounds.extend([WEST_32ND_TO_38TH_EXTENSION_BOUNDS.south, WEST_32ND_TO_38TH_EXTENSION_BOUNDS.east]);
+  bounds.extend([WEST_38TH_TO_46TH_EXTENSION_BOUNDS.north, WEST_38TH_TO_46TH_EXTENSION_BOUNDS.west]);
+  bounds.extend([WEST_38TH_TO_46TH_EXTENSION_BOUNDS.south, WEST_38TH_TO_46TH_EXTENSION_BOUNDS.east]);
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
