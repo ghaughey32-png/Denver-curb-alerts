@@ -49,6 +49,18 @@ npm start
 
 Then open [http://localhost:3000](http://localhost:3000).
 
+## Refresh the saved map inventory
+
+The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including every returned route between W 26th and W 32nd Avenues from Sheridan to Federal. This avoids running hundreds of Denver lookups in each visitor's browser.
+
+With the local server running, rebuild that snapshot using:
+
+```bash
+npm run build:inventory
+```
+
+Set `APP_ORIGIN` if the source server is not `http://127.0.0.1:3000`. The app keeps the saved inventory available offline and only runs a live full-area scan when explicitly requested.
+
 ## Turn it into an installable iPhone web app
 
 The easiest beginner-friendly path is:

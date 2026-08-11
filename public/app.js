@@ -1489,7 +1489,13 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v1";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v8";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=12";
+const REQUIRED_WEST_22ND_ROUTE_IDS = [27478, 27474, 28781, 27477, 28784, 27484, 27476, 27471, 27480, 27479, 27483];
+const REQUIRED_PERRY_ROUTE_IDS = [292];
+const REQUIRED_OSCEOLA_ROUTE_IDS = [26243, 25811, 26244, 26241];
+const REQUIRED_WEST_17TH_ROUTE_IDS = [5506, 27187];
+const REQUIRED_CONEJOS_ROUTE_IDS = [12416, 17416, 28632, 28627, 28630, 28631, 28629, 28513, 28633, 28512, 28628];
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -1545,7 +1551,7 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
-  activeAreaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+  activeAreaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
   activeGeometryLabel: "Full known sweeping inventory",
   activeMapTitle: "Sloan's Lake full neighborhood inventory",
   activeMapKicker: "Interactive map",
@@ -1635,8 +1641,89 @@ const SLOANS_LAKE_FULL_BOUNDS = {
   west: -105.0435,
   east: -105.0272
 };
-const SLOANS_LAKE_SAMPLE_ROWS = 10;
-const SLOANS_LAKE_SAMPLE_COLUMNS = 10;
+const WEST_COLFAX_EXTENSION_BOUNDS = {
+  north: 39.74415,
+  south: 39.7399,
+  west: -105.05325,
+  east: -105.04505
+};
+const WEST_23RD_TO_26TH_EXTENSION_BOUNDS = {
+  north: 39.7552,
+  south: 39.7505,
+  west: -105.05325,
+  east: -105.02475
+};
+const WEST_26TH_TO_32ND_EXTENSION_BOUNDS = {
+  north: 39.7623,
+  south: 39.75465,
+  west: -105.05325,
+  east: -105.02475
+};
+const SLOANS_LAKE_SAMPLE_ROWS = 6;
+const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
+const WEST_COLFAX_SAMPLE_ROWS = 4;
+const WEST_COLFAX_SAMPLE_COLUMNS = 5;
+const WEST_23RD_TO_26TH_SAMPLE_ROWS = 4;
+const WEST_23RD_TO_26TH_SAMPLE_COLUMNS = 9;
+const WEST_26TH_TO_32ND_SAMPLE_ROWS = 8;
+const WEST_26TH_TO_32ND_SAMPLE_COLUMNS = 13;
+const INVENTORY_LOOKUP_CONCURRENCY = 4;
+const REQUIRED_ROUTE_ANCHORS = [
+  { latitude: 39.741, longitude: -105.039315 },
+  { latitude: 39.7422, longitude: -105.039315 },
+  { latitude: 39.7435, longitude: -105.039315 },
+  { latitude: 39.741, longitude: -105.04283 },
+  { latitude: 39.7422, longitude: -105.04283 },
+  { latitude: 39.7435, longitude: -105.04283 },
+  // Lowell Boulevard, 19th–26th Avenues. The final point also guarantees
+  // both West 26th Avenue curb sections beside Lowell are returned.
+  { latitude: 39.746397, longitude: -105.03459 },
+  { latitude: 39.747582, longitude: -105.0346 },
+  { latitude: 39.748796, longitude: -105.03461 },
+  { latitude: 39.749997, longitude: -105.03461 },
+  { latitude: 39.751217, longitude: -105.03462 },
+  { latitude: 39.752119, longitude: -105.03462 },
+  { latitude: 39.753005, longitude: -105.03463 },
+  { latitude: 39.753943, longitude: -105.03463 },
+  { latitude: 39.754863, longitude: -105.03463 },
+  // West 22nd Avenue, Eliot Street–Stuart Street.
+  { latitude: 39.750003, longitude: -105.024417 },
+  { latitude: 39.75, longitude: -105.026039 },
+  { latitude: 39.75, longitude: -105.027481 },
+  { latitude: 39.749996, longitude: -105.029356 },
+  { latitude: 39.749996, longitude: -105.030741 },
+  { latitude: 39.749999, longitude: -105.032188 },
+  { latitude: 39.749999, longitude: -105.03403 },
+  { latitude: 39.749994, longitude: -105.035206 },
+  { latitude: 39.749991, longitude: -105.036384 },
+  { latitude: 39.74999, longitude: -105.037559 },
+  { latitude: 39.749986, longitude: -105.038728 },
+  { latitude: 39.749972, longitude: -105.039896 },
+  { latitude: 39.749966, longitude: -105.041075 },
+  { latitude: 39.74997, longitude: -105.04224 },
+  // Perry Street, West 20th–West 21st Avenues.
+  { latitude: 39.7481, longitude: -105.03931 },
+  // Osceola Street, West 23rd–West 26th Avenues.
+  { latitude: 39.751673, longitude: -105.038143 },
+  { latitude: 39.752579, longitude: -105.038138 },
+  { latitude: 39.753474, longitude: -105.038144 },
+  { latitude: 39.754395, longitude: -105.038145 },
+  // West 17th Avenue: Perry–Stuart and Tennyson–Utica.
+  { latitude: 39.74396, longitude: -105.041 },
+  { latitude: 39.743972, longitude: -105.04459 },
+  // West Conejos Place official city-scheduled blocks.
+  { latitude: 39.74153, longitude: -105.04224 },
+  { latitude: 39.74153, longitude: -105.04342 },
+  { latitude: 39.74152, longitude: -105.0399 },
+  { latitude: 39.74152, longitude: -105.03873 },
+  { latitude: 39.741514, longitude: -105.03757 },
+  { latitude: 39.741518, longitude: -105.03641 },
+  { latitude: 39.741522, longitude: -105.03524 },
+  { latitude: 39.741524, longitude: -105.034 },
+  { latitude: 39.741519, longitude: -105.03213 },
+  { latitude: 39.74152, longitude: -105.02932 },
+  { latitude: 39.74152, longitude: -105.02744 }
+];
 const SLOANS_LAKE_COVERAGE_THRESHOLD = 0.00085;
 const SLOANS_LAKE_SAMPLE_ADDRESSES = [
   "2500 Hooker St, Denver, CO",
@@ -1672,7 +1759,33 @@ const SLOANS_LAKE_SAMPLE_ADDRESSES = [
   "1450 Perry St, Denver, CO",
   "1450 Raleigh St, Denver, CO",
   "1450 Stuart St, Denver, CO",
-  "1450 Tennyson St, Denver, CO"
+  "1450 Tennyson St, Denver, CO",
+  "1450 Utica St, Denver, CO",
+  "1450 Vrain St, Denver, CO",
+  "1450 Winona Ct, Denver, CO",
+  "1450 Wolff St, Denver, CO",
+  "1450 Xavier St, Denver, CO",
+  "1450 Yates St, Denver, CO",
+  "1450 Zenobia St, Denver, CO",
+  "1450 Sheridan Blvd, Denver, CO",
+  "W Colfax Ave & Sheridan Blvd, Denver, CO",
+  "W 17th Ave & Sheridan Blvd, Denver, CO",
+  "W Colfax Ave & Utica St, Denver, CO",
+  "W 17th Ave & Utica St, Denver, CO",
+  "W 23rd Ave & Federal Blvd, Denver, CO",
+  "W 26th Ave & Federal Blvd, Denver, CO",
+  "W 23rd Ave & Sheridan Blvd, Denver, CO",
+  "W 26th Ave & Sheridan Blvd, Denver, CO",
+  "W 29th Ave & Federal Blvd, Denver, CO",
+  "W 32nd Ave & Federal Blvd, Denver, CO",
+  "W 29th Ave & Sheridan Blvd, Denver, CO",
+  "W 32nd Ave & Sheridan Blvd, Denver, CO",
+  "2500 Federal Blvd, Denver, CO",
+  "2500 Sheridan Blvd, Denver, CO",
+  "2800 Federal Blvd, Denver, CO",
+  "2800 Sheridan Blvd, Denver, CO",
+  "3100 Federal Blvd, Denver, CO",
+  "3100 Sheridan Blvd, Denver, CO"
 ];
 
 function canUseBrowserStorage() {
@@ -1766,7 +1879,7 @@ function restoreCachedSloansLakeInventory() {
   setMapDataset({
     streetWays: cached.streetWays,
     curbSegments: cached.curbSegments,
-    areaLabel: cached.areaLabel || "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+    areaLabel: cached.areaLabel || "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
     geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
     mapTitleText: cached.mapTitleText || "Sloan's Lake full neighborhood inventory",
     mapKickerText: cached.mapKickerText || "Interactive map",
@@ -2117,7 +2230,7 @@ function buildStreetData() {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
     geometryLabel: "Full known sweeping inventory",
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Interactive map",
@@ -2294,49 +2407,237 @@ function buildAddressLookupUrl(address) {
   return buildApiUrl(`/api/denver/sweeping?address=${encodeURIComponent(address)}`);
 }
 
-function buildSloansLakeSamplePoints() {
+function buildSamplePointsForBounds(bounds, rows, columns) {
   const pointMap = new Map();
-  const latStep = (SLOANS_LAKE_FULL_BOUNDS.north - SLOANS_LAKE_FULL_BOUNDS.south) / (SLOANS_LAKE_SAMPLE_ROWS - 1);
-  const lonStep = (SLOANS_LAKE_FULL_BOUNDS.east - SLOANS_LAKE_FULL_BOUNDS.west) / (SLOANS_LAKE_SAMPLE_COLUMNS - 1);
+  const latStep = (bounds.north - bounds.south) / (rows - 1);
+  const lonStep = (bounds.east - bounds.west) / (columns - 1);
   const addPoint = (latitude, longitude) => {
     const lat = Number(latitude.toFixed(6));
     const lon = Number(longitude.toFixed(6));
     pointMap.set(`${lat},${lon}`, { latitude: lat, longitude: lon });
   };
 
-  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS; row += 1) {
-    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - row * latStep;
-    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS; column += 1) {
-      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + column * lonStep;
+  for (let row = 0; row < rows; row += 1) {
+    const latitude = bounds.north - row * latStep;
+    for (let column = 0; column < columns; column += 1) {
+      const longitude = bounds.west + column * lonStep;
       addPoint(latitude, longitude);
     }
   }
 
-  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS - 1; row += 1) {
-    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - (row + 0.5) * latStep;
-    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS - 1; column += 1) {
-      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + (column + 0.5) * lonStep;
+  for (let row = 0; row < rows - 1; row += 1) {
+    const latitude = bounds.north - (row + 0.5) * latStep;
+    for (let column = 0; column < columns - 1; column += 1) {
+      const longitude = bounds.west + (column + 0.5) * lonStep;
       addPoint(latitude, longitude);
     }
   }
 
-  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS - 1; row += 1) {
-    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - (row + 0.5) * latStep;
-    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS; column += 1) {
-      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + column * lonStep;
+  for (let row = 0; row < rows - 1; row += 1) {
+    const latitude = bounds.north - (row + 0.5) * latStep;
+    for (let column = 0; column < columns; column += 1) {
+      const longitude = bounds.west + column * lonStep;
       addPoint(latitude, longitude);
     }
   }
 
-  for (let row = 0; row < SLOANS_LAKE_SAMPLE_ROWS; row += 1) {
-    const latitude = SLOANS_LAKE_FULL_BOUNDS.north - row * latStep;
-    for (let column = 0; column < SLOANS_LAKE_SAMPLE_COLUMNS - 1; column += 1) {
-      const longitude = SLOANS_LAKE_FULL_BOUNDS.west + (column + 0.5) * lonStep;
+  for (let row = 0; row < rows; row += 1) {
+    const latitude = bounds.north - row * latStep;
+    for (let column = 0; column < columns - 1; column += 1) {
+      const longitude = bounds.west + (column + 0.5) * lonStep;
       addPoint(latitude, longitude);
     }
   }
 
   return Array.from(pointMap.values());
+}
+
+function buildSloansLakeSamplePoints() {
+  const pointMap = new Map();
+  const regions = [
+    buildSamplePointsForBounds(SLOANS_LAKE_FULL_BOUNDS, SLOANS_LAKE_SAMPLE_ROWS, SLOANS_LAKE_SAMPLE_COLUMNS),
+    buildSamplePointsForBounds(WEST_COLFAX_EXTENSION_BOUNDS, WEST_COLFAX_SAMPLE_ROWS, WEST_COLFAX_SAMPLE_COLUMNS),
+    buildSamplePointsForBounds(
+      WEST_23RD_TO_26TH_EXTENSION_BOUNDS,
+      WEST_23RD_TO_26TH_SAMPLE_ROWS,
+      WEST_23RD_TO_26TH_SAMPLE_COLUMNS
+    ),
+    buildSamplePointsForBounds(
+      WEST_26TH_TO_32ND_EXTENSION_BOUNDS,
+      WEST_26TH_TO_32ND_SAMPLE_ROWS,
+      WEST_26TH_TO_32ND_SAMPLE_COLUMNS
+    )
+  ];
+
+  const largestRegionSize = Math.max(...regions.map((region) => region.length));
+  for (let pointIndex = 0; pointIndex < largestRegionSize; pointIndex += 1) {
+    regions.forEach((region) => {
+      const point = region[pointIndex];
+      if (point) {
+        pointMap.set(`${point.latitude},${point.longitude}`, point);
+      }
+    });
+  }
+  REQUIRED_ROUTE_ANCHORS.forEach((point) => pointMap.set(`${point.latitude},${point.longitude}`, point));
+  return Array.from(pointMap.values());
+}
+
+async function runInventoryLookups(tasks, onResult) {
+  const results = new Array(tasks.length).fill(null);
+  let nextTaskIndex = 0;
+  let completedTaskCount = 0;
+
+  async function worker() {
+    while (nextTaskIndex < tasks.length) {
+      const taskIndex = nextTaskIndex;
+      nextTaskIndex += 1;
+
+      try {
+        const response = await fetch(tasks[taskIndex]);
+        if (response.ok) {
+          results[taskIndex] = await response.json();
+        }
+      } catch {
+        results[taskIndex] = null;
+      }
+
+      completedTaskCount += 1;
+      onResult?.(results[taskIndex], completedTaskCount, tasks.length);
+    }
+  }
+
+  const workerCount = Math.min(INVENTORY_LOOKUP_CONCURRENCY, tasks.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+function buildInventoryFromRouteMap(routeMap) {
+  const summary = {
+    address: "Sloan's Lake full neighborhood inventory",
+    routeCount: routeMap.size,
+    scheduledCount: Array.from(routeMap.values()).filter((route) => route.sweepType === "Scheduled").length,
+    routes: Array.from(routeMap.values())
+  };
+  const { streetWays: officialStreetWays, curbSegments: officialCurbSegments, context } = buildLookupStreetData(
+    summary,
+    "Sloan's Lake full inventory"
+  );
+  const { streetWays: embeddedStreetWays, curbSegments: embeddedCurbSegments } = buildEmbeddedDataset();
+  const missingEmbeddedWays = getMissingEmbeddedWays(embeddedStreetWays, officialStreetWays);
+  const missingEmbeddedWayIds = new Set(missingEmbeddedWays.map((way) => way.id));
+  const missingEmbeddedSegments = embeddedCurbSegments.filter((segment) => {
+    const [wayId] = String(segment.id).split(":");
+    return missingEmbeddedWayIds.has(Number(wayId));
+  });
+
+  return {
+    summary,
+    streetWays: [...officialStreetWays, ...missingEmbeddedWays],
+    curbSegments: [...officialCurbSegments, ...missingEmbeddedSegments],
+    context
+  };
+}
+
+function showInventoryProgress(routeMap, completedCount, totalCount) {
+  const { summary, streetWays, curbSegments, context } = buildInventoryFromRouteMap(routeMap);
+  if (!summary.routeCount || !streetWays.length || !curbSegments.length) {
+    return;
+  }
+
+  setMapDataset({
+    streetWays,
+    curbSegments,
+    areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
+    geometryLabel: `Loading official Denver routes (${completedCount} of ${totalCount} lookups checked)`,
+    mapTitleText: "Sloan's Lake full neighborhood inventory",
+    mapKickerText: "Official Denver full-area lookup",
+    sourceLabel: "Sloan's Lake full inventory",
+    context,
+    mapNoteText:
+      "Official Denver curb routes are appearing as they load. You can use the map now while the remaining streets fill in."
+  });
+  refreshMapViewport();
+  renderAll();
+  if (lookupStatus) {
+    lookupStatus.textContent = `Loading official Denver curb routes: ${completedCount} of ${totalCount} area checks complete.`;
+  }
+}
+
+async function loadStaticRouteInventory() {
+  try {
+    let payload = window.DENVER_WEST_ROUTE_INVENTORY;
+    if (!payload) {
+      const response = await fetch(STATIC_ROUTE_INVENTORY_URL, { cache: "reload" });
+      if (!response.ok) {
+        throw new Error("The saved Denver route inventory could not be loaded.");
+      }
+      payload = await response.json();
+    }
+    const routeMap = new Map();
+    (Array.isArray(payload.routes) ? payload.routes : []).forEach((route) => {
+      if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
+        routeMap.set(route.id, route);
+      }
+    });
+
+    const missingWest22ndRoutes = REQUIRED_WEST_22ND_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
+    const missingPerryRoutes = REQUIRED_PERRY_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
+    const missingOsceolaRoutes = REQUIRED_OSCEOLA_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
+    const missingWest17thRoutes = REQUIRED_WEST_17TH_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
+    const missingConejosRoutes = REQUIRED_CONEJOS_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
+    if (missingWest22ndRoutes.length || missingPerryRoutes.length || missingOsceolaRoutes.length || missingWest17thRoutes.length || missingConejosRoutes.length) {
+      throw new Error("The saved inventory is missing required mapped blocks.");
+    }
+
+    const { summary, streetWays, curbSegments, context } = buildInventoryFromRouteMap(routeMap);
+    if (!summary.routeCount || !streetWays.length || !curbSegments.length) {
+      throw new Error("The saved Denver route inventory is empty.");
+    }
+
+    const generatedDate = payload.generatedAt ? new Date(payload.generatedAt) : null;
+    const generatedLabel = generatedDate && !Number.isNaN(generatedDate.getTime())
+      ? generatedDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+      : "recently";
+    const inventoryDataset = {
+      streetWays,
+      curbSegments,
+      areaLabel: payload.areaLabel || "Sloan's Lake expanded inventory",
+      geometryLabel: `Saved official Denver inventory (${summary.routeCount} routes; built ${generatedLabel})`,
+      mapTitleText: "Sloan's Lake full neighborhood inventory",
+      mapKickerText: "Instant saved inventory",
+      sourceLabel: "Saved Denver route inventory",
+      context,
+      mapNoteText:
+        "This complete saved inventory loads immediately. Use Refresh full inventory only when you want to check Denver for updated routes and schedules."
+    };
+
+    setMapDataset(inventoryDataset);
+    saveSloansLakeInventoryCache(inventoryDataset);
+    refreshMapViewport();
+    renderAll();
+    hideMapLoadingOverlay();
+    if (lookupStatus) {
+      lookupStatus.innerHTML = `<strong>${summary.routeCount} saved Denver routes loaded.</strong> The map is ready without waiting for a live city scan.`;
+    }
+    if (returnToPilotButton) {
+      returnToPilotButton.disabled = false;
+    }
+    if (lookupAddressButton) {
+      lookupAddressButton.disabled = false;
+    }
+    return true;
+  } catch (error) {
+    if (!state.streetWays.length || !state.curbSegments.length) {
+      buildStreetData();
+      refreshMapViewport();
+      renderAll();
+    }
+    hideMapLoadingOverlay();
+    if (lookupStatus) {
+      lookupStatus.textContent = `${error.message} The cached or built-in map is ready. Use Refresh full inventory if you want to retry Denver's live service.`;
+    }
+    return false;
+  }
 }
 
 async function loadSloansLakeFullInventory(options = {}) {
@@ -2361,70 +2662,26 @@ async function loadSloansLakeFullInventory(options = {}) {
 
   try {
     const samplePoints = buildSloansLakeSamplePoints();
-    const coordinateResponses = await Promise.all(
-      samplePoints.map(async ({ latitude, longitude }) => {
-        try {
-          const response = await fetch(buildCoordinateLookupUrl(latitude, longitude));
-          if (!response.ok) {
-            return null;
-          }
-
-          return response.json();
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    const addressResponses = await Promise.all(
-      SLOANS_LAKE_SAMPLE_ADDRESSES.map(async (address) => {
-        try {
-          const response = await fetch(buildAddressLookupUrl(address));
-          if (!response.ok) {
-            return null;
-          }
-
-          return response.json();
-        } catch {
-          return null;
-        }
-      })
-    );
-
+    const coordinateTasks = samplePoints.map(({ latitude, longitude }) => buildCoordinateLookupUrl(latitude, longitude));
+    const addressTasks = SLOANS_LAKE_SAMPLE_ADDRESSES.map((address) => buildAddressLookupUrl(address));
     const routeMap = new Map();
-    [...coordinateResponses, ...addressResponses]
-      .filter(Boolean)
-      .forEach((summary) => {
-        const routes = Array.isArray(summary.routes) ? summary.routes : [];
-        routes.forEach((route) => {
-          if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
-            routeMap.set(route.id, route);
-          }
-        });
+    const ingestSummary = (lookupSummary) => {
+      const routes = Array.isArray(lookupSummary?.routes) ? lookupSummary.routes : [];
+      routes.forEach((route) => {
+        if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
+          routeMap.set(route.id, route);
+        }
       });
-
-    const summary = {
-      address: "Sloan's Lake full neighborhood inventory",
-      routeCount: routeMap.size,
-      scheduledCount: Array.from(routeMap.values()).filter((route) => route.sweepType === "Scheduled").length,
-      routes: Array.from(routeMap.values())
     };
-
-    const { streetWays: officialStreetWays, curbSegments: officialCurbSegments, context } = buildLookupStreetData(
-      summary,
-      "Sloan's Lake full inventory"
-    );
-
-    const { streetWays: embeddedStreetWays, curbSegments: embeddedCurbSegments } = buildEmbeddedDataset();
-    const missingEmbeddedWays = getMissingEmbeddedWays(embeddedStreetWays, officialStreetWays);
-    const missingEmbeddedWayIds = new Set(missingEmbeddedWays.map((way) => way.id));
-    const missingEmbeddedSegments = embeddedCurbSegments.filter((segment) => {
-      const [wayId] = String(segment.id).split(":");
-      return missingEmbeddedWayIds.has(Number(wayId));
+    const lookupTasks = [...coordinateTasks, ...addressTasks];
+    await runInventoryLookups(lookupTasks, (lookupSummary, completedCount, totalCount) => {
+      ingestSummary(lookupSummary);
+      if (completedCount === INVENTORY_LOOKUP_CONCURRENCY || completedCount % 12 === 0) {
+        showInventoryProgress(routeMap, completedCount, totalCount);
+      }
     });
 
-    const streetWays = [...officialStreetWays, ...missingEmbeddedWays];
-    const curbSegments = [...officialCurbSegments, ...missingEmbeddedSegments];
+    const { summary, streetWays, curbSegments, context } = buildInventoryFromRouteMap(routeMap);
 
     if (!streetWays.length || !curbSegments.length) {
       throw new Error("Denver did not return enough Sloan's Lake route geometry to draw the full neighborhood yet.");
@@ -2433,7 +2690,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     setMapDataset({
       streetWays,
       curbSegments,
-      areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2446,7 +2703,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     saveSloansLakeInventoryCache({
       streetWays,
       curbSegments,
-      areaLabel: "Sloan's Lake: Lowell to Hooker, Colfax to 18th",
+      areaLabel: "Sloan's Lake expanded: Utica–Sheridan at Colfax–17th; Federal–Sheridan at 23rd–32nd",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2497,6 +2754,12 @@ function refreshMapViewport() {
 
   bounds.extend([39.7506, -105.0435]);
   bounds.extend([39.7399, -105.0272]);
+  bounds.extend([WEST_COLFAX_EXTENSION_BOUNDS.north, WEST_COLFAX_EXTENSION_BOUNDS.west]);
+  bounds.extend([WEST_COLFAX_EXTENSION_BOUNDS.south, WEST_COLFAX_EXTENSION_BOUNDS.east]);
+  bounds.extend([WEST_23RD_TO_26TH_EXTENSION_BOUNDS.north, WEST_23RD_TO_26TH_EXTENSION_BOUNDS.west]);
+  bounds.extend([WEST_23RD_TO_26TH_EXTENSION_BOUNDS.south, WEST_23RD_TO_26TH_EXTENSION_BOUNDS.east]);
+  bounds.extend([WEST_26TH_TO_32ND_EXTENSION_BOUNDS.north, WEST_26TH_TO_32ND_EXTENSION_BOUNDS.west]);
+  bounds.extend([WEST_26TH_TO_32ND_EXTENSION_BOUNDS.south, WEST_26TH_TO_32ND_EXTENSION_BOUNDS.east]);
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
@@ -4679,11 +4942,11 @@ let restoredCachedSloansLakeInventory = false;
 try {
   restoredCachedSloansLakeInventory = restoreCachedSloansLakeInventory();
   if (!restoredCachedSloansLakeInventory) {
-    showMapLoadingOverlay(
-      "Loading Sloan's Lake",
-      "We're filling in the full neighborhood curb inventory now so the map opens complete instead of partial."
-    );
     buildStreetData();
+    showMapLoadingOverlay(
+      "Loading the saved map",
+      "Preparing the complete saved curb inventory. This does not run a live neighborhood scan."
+    );
   } else {
     hideMapLoadingOverlay();
   }
@@ -4704,7 +4967,7 @@ try {
 
 renderAll();
 initializePushFeatures();
-loadSloansLakeFullInventory({ hasCachedInventory: restoredCachedSloansLakeInventory });
+loadStaticRouteInventory();
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);

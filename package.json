@@ -4,7 +4,8 @@
   "private": true,
   "description": "Denver street sweeping alert prototype with a live city data proxy, route map, and reminder builder.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:inventory": "node scripts/build-static-inventory.js"
   },
   "dependencies": {
     "pg": "^8.13.1",
