@@ -1489,13 +1489,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v8";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v9";
 const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=12";
-const REQUIRED_WEST_22ND_ROUTE_IDS = [27478, 27474, 28781, 27477, 28784, 27484, 27476, 27471, 27480, 27479, 27483];
-const REQUIRED_PERRY_ROUTE_IDS = [292];
-const REQUIRED_OSCEOLA_ROUTE_IDS = [26243, 25811, 26244, 26241];
-const REQUIRED_WEST_17TH_ROUTE_IDS = [5506, 27187];
-const REQUIRED_CONEJOS_ROUTE_IDS = [12416, 17416, 28632, 28627, 28630, 28631, 28629, 28513, 28633, 28512, 28628];
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -2579,15 +2574,6 @@ async function loadStaticRouteInventory() {
         routeMap.set(route.id, route);
       }
     });
-
-    const missingWest22ndRoutes = REQUIRED_WEST_22ND_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
-    const missingPerryRoutes = REQUIRED_PERRY_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
-    const missingOsceolaRoutes = REQUIRED_OSCEOLA_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
-    const missingWest17thRoutes = REQUIRED_WEST_17TH_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
-    const missingConejosRoutes = REQUIRED_CONEJOS_ROUTE_IDS.filter((routeId) => !routeMap.has(routeId));
-    if (missingWest22ndRoutes.length || missingPerryRoutes.length || missingOsceolaRoutes.length || missingWest17thRoutes.length || missingConejosRoutes.length) {
-      throw new Error("The saved inventory is missing required mapped blocks.");
-    }
 
     const { summary, streetWays, curbSegments, context } = buildInventoryFromRouteMap(routeMap);
     if (!summary.routeCount || !streetWays.length || !curbSegments.length) {
