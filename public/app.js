@@ -1489,8 +1489,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v14";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=17";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v15";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=18";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -2558,6 +2558,7 @@ async function runInventoryLookups(tasks, onResult) {
 
 function buildInventoryFromRouteMap(routeMap) {
   addByronParkFrontageCoverage(routeMap);
+  addWest46ParkFrontageCoverage(routeMap);
   const summary = {
     address: "Sloan's Lake full neighborhood inventory",
     routeCount: routeMap.size,
@@ -2611,6 +2612,36 @@ function addByronParkFrontageCoverage(routeMap) {
       path
     },
     sourceNote: "Denver's lookup returns no route for the park frontage; schedule matched to adjacent official W Byron Pl routes 5508 and 29145."
+  });
+}
+
+function addWest46ParkFrontageCoverage(routeMap) {
+  const coverageId = "coverage-w-46th-xavier-yates";
+  if (routeMap.has(coverageId)) return;
+
+  const adjacentWest46Route = routeMap.get(28251) || routeMap.get(28170);
+  if (!adjacentWest46Route) return;
+
+  const path = [
+    [39.7802293122093, -105.049758431725],
+    [39.780221, -105.05034],
+    [39.7802121338296, -105.050921113208]
+  ];
+  routeMap.set(coverageId, {
+    ...adjacentWest46Route,
+    id: coverageId,
+    streetName: "W 46TH AVE / DENVER PARK RD",
+    from: "N XAVIER ST",
+    to: "N YATES ST",
+    leftSweepingRule: "South side: The 4th Friday of the month. Matched to adjacent official Denver W 46th Ave routes.",
+    rightSweepingRule: "North side: The 4th Thursday of the month. Matched to adjacent official Denver W 46th Ave routes.",
+    isPosted: false,
+    map: {
+      staticMapUrl: "",
+      center: path[1],
+      path
+    },
+    sourceNote: "Denver's lookup returns no route for the park frontage; schedule matched to adjacent official W 46th Ave routes 28251 and 28170."
   });
 }
 
