@@ -4861,7 +4861,7 @@ async function initializePushFeatures() {
   }
 
   try {
-    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js");
+    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=71");
     state.serviceWorkerRegistration.update?.();
     const configResponse = await fetch(buildApiUrl("/api/push/config"));
     if (configResponse.ok) {
@@ -5058,7 +5058,7 @@ async function requestBrowserNotifications() {
     }
 
     if (!state.serviceWorkerRegistration) {
-      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js");
+      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=71");
     }
 
     let subscription = await state.serviceWorkerRegistration.pushManager.getSubscription();
