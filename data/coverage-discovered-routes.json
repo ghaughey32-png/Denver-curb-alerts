@@ -1,0 +1,3334 @@
+{
+  "generatedAt": "2026-08-12T22:57:47.059Z",
+  "routes": [
+    {
+      "id": 5113,
+      "streetId": 411,
+      "streetName": "N STUART ST",
+      "from": "W CONEJOS PL",
+      "to": "W 16TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427404861443,-105.042845140325&size=300x150&zoom=16&path=39.7415239442059,-105.042831734847|39.7427404861443,-105.042845140325",
+        "center": [
+          39.7427404861443,
+          -105.042845140325
+        ],
+        "path": [
+          [
+            39.7415239442059,
+            -105.042831734847
+          ],
+          [
+            39.7427404861443,
+            -105.042845140325
+          ]
+        ]
+      }
+    },
+    {
+      "id": 20045,
+      "streetId": 411,
+      "streetName": "N STUART ST",
+      "from": "W COLFAX AVE",
+      "to": "W CONEJOS PL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7415239442059,-105.042831734847&size=300x150&zoom=16&path=39.7403459053947,-105.042837635974|39.7415239442059,-105.042831734847",
+        "center": [
+          39.7415239442059,
+          -105.042831734847
+        ],
+        "path": [
+          [
+            39.7403459053947,
+            -105.042837635974
+          ],
+          [
+            39.7415239442059,
+            -105.042831734847
+          ]
+        ]
+      }
+    },
+    {
+      "id": 12416,
+      "streetId": 561,
+      "streetName": "W CONEJOS PL",
+      "from": "PRIVATE RD/N RALEIGH ST/SUBDIVISION RD",
+      "to": "N STUART ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7415239442059,-105.042831734847&size=300x150&zoom=16&path=39.7415358846273,-105.041667057246|39.7415239442059,-105.042831734847",
+        "center": [
+          39.7415239442059,
+          -105.042831734847
+        ],
+        "path": [
+          [
+            39.7415358846273,
+            -105.041667057246
+          ],
+          [
+            39.7415239442059,
+            -105.042831734847
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17416,
+      "streetId": 561,
+      "streetName": "W CONEJOS PL",
+      "from": "N STUART ST",
+      "to": "N TENNYSON ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7415340356592,-105.044017608758&size=300x150&zoom=16&path=39.7415239442059,-105.042831734847|39.7415340356592,-105.044017608758",
+        "center": [
+          39.7415340356592,
+          -105.044017608758
+        ],
+        "path": [
+          [
+            39.7415239442059,
+            -105.042831734847
+          ],
+          [
+            39.7415340356592,
+            -105.044017608758
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27653,
+      "streetId": 558,
+      "streetName": "W 16TH AVE",
+      "from": "N KING ST",
+      "to": "N LOWELL BLVD",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427387033159,-105.033991372598&size=300x150&zoom=16&path=39.7427378504794,-105.033083683412|39.7427386172597,-105.033709546735|39.7427387033159,-105.033991372598|39.742739423099,-105.03460657294",
+        "center": [
+          39.7427387033159,
+          -105.033991372598
+        ],
+        "path": [
+          [
+            39.7427378504794,
+            -105.033083683412
+          ],
+          [
+            39.7427386172597,
+            -105.033709546735
+          ],
+          [
+            39.7427387033159,
+            -105.033991372598
+          ],
+          [
+            39.742739423099,
+            -105.03460657294
+          ]
+        ]
+      }
+    },
+    {
+      "id": 13836,
+      "streetId": 558,
+      "streetName": "W 16TH AVE",
+      "from": "N LOWELL BLVD",
+      "to": "END",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427306077827,-105.035240156611&size=300x150&zoom=16&path=39.742739423099,-105.03460657294|39.7427306077827,-105.035240156611",
+        "center": [
+          39.7427306077827,
+          -105.035240156611
+        ],
+        "path": [
+          [
+            39.742739423099,
+            -105.03460657294
+          ],
+          [
+            39.7427306077827,
+            -105.035240156611
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7081,
+      "streetId": 385,
+      "streetName": "N LOWELL BLVD",
+      "from": "W 16TH AVE",
+      "to": "W 17TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439524760755,-105.034604743702&size=300x150&zoom=16&path=39.742739423099,-105.03460657294|39.7439524760755,-105.034604743702",
+        "center": [
+          39.7439524760755,
+          -105.034604743702
+        ],
+        "path": [
+          [
+            39.742739423099,
+            -105.03460657294
+          ],
+          [
+            39.7439524760755,
+            -105.034604743702
+          ]
+        ]
+      }
+    },
+    {
+      "id": 25528,
+      "streetId": 385,
+      "streetName": "N LOWELL BLVD",
+      "from": "W CONEJOS PL",
+      "to": "W 16TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7420060720248,-105.034600771631&size=300x150&zoom=16&path=39.7415263238667,-105.034596843421|39.7420060720248,-105.034600771631|39.742739423099,-105.03460657294",
+        "center": [
+          39.7420060720248,
+          -105.034600771631
+        ],
+        "path": [
+          [
+            39.7415263238667,
+            -105.034596843421
+          ],
+          [
+            39.7420060720248,
+            -105.034600771631
+          ],
+          [
+            39.742739423099,
+            -105.03460657294
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27655,
+      "streetId": 558,
+      "streetName": "W 16TH AVE",
+      "from": "N MEADE ST/NMCHG",
+      "to": "N NEWTON ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427338477094,-105.036411326825&size=300x150&zoom=16&path=39.7427223148204,-105.035836205056|39.7427338477094,-105.036411326825|39.7427450425385,-105.036988228979",
+        "center": [
+          39.7427338477094,
+          -105.036411326825
+        ],
+        "path": [
+          [
+            39.7427223148204,
+            -105.035836205056
+          ],
+          [
+            39.7427338477094,
+            -105.036411326825
+          ],
+          [
+            39.7427450425385,
+            -105.036988228979
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17224,
+      "streetId": 405,
+      "streetName": "N MEADE ST",
+      "from": "W CONEJOS PL",
+      "to": "W 16TH AVE/NMCHG",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427223148204,-105.035836205056&size=300x150&zoom=16&path=39.741518446179,-105.03581750342|39.7427223148204,-105.035836205056",
+        "center": [
+          39.7427223148204,
+          -105.035836205056
+        ],
+        "path": [
+          [
+            39.741518446179,
+            -105.03581750342
+          ],
+          [
+            39.7427223148204,
+            -105.035836205056
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8860,
+      "streetId": 2003,
+      "streetName": "W LAKESHORE DR",
+      "from": "N RALEIGH ST",
+      "to": "N STUART ST/NMCHG",
+      "sweepType": "Weekly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd week of the month.",
+      "rightSweepingRule": "North side: The 3rd week of the month.",
+      "schedules": [],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7479678844519,-105.042250938219&size=300x150&zoom=16&path=39.7478331035412,-105.041654349566|39.7479281530591,-105.042093827591|39.7479678844519,-105.042250938219|39.7480002931511,-105.042377868846|39.7481165267894,-105.042618052292",
+        "center": [
+          39.7479678844519,
+          -105.042250938219
+        ],
+        "path": [
+          [
+            39.7478331035412,
+            -105.041654349566
+          ],
+          [
+            39.7479281530591,
+            -105.042093827591
+          ],
+          [
+            39.7479678844519,
+            -105.042250938219
+          ],
+          [
+            39.7480002931511,
+            -105.042377868846
+          ],
+          [
+            39.7481165267894,
+            -105.042618052292
+          ]
+        ]
+      }
+    },
+    {
+      "id": 11691,
+      "streetId": 411,
+      "streetName": "N STUART ST",
+      "from": "W LAKESHORE DR/NMCHG",
+      "to": "W 21ST AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7484074049393,-105.042765522264&size=300x150&zoom=16&path=39.7481165267894,-105.042618052292|39.7484074049393,-105.042765522264|39.7487528913106,-105.042834399602",
+        "center": [
+          39.7484074049393,
+          -105.042765522264
+        ],
+        "path": [
+          [
+            39.7481165267894,
+            -105.042618052292
+          ],
+          [
+            39.7484074049393,
+            -105.042765522264
+          ],
+          [
+            39.7487528913106,
+            -105.042834399602
+          ]
+        ]
+      }
+    },
+    {
+      "id": 28451,
+      "streetId": 2003,
+      "streetName": "W LAKESHORE DR",
+      "from": "N QUITMAN ST/W 20TH AVE",
+      "to": "N RALEIGH ST",
+      "sweepType": "Weekly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd week of the month.",
+      "rightSweepingRule": "North side: The 3rd week of the month.",
+      "schedules": [],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7477028558458,-105.04107640596&size=300x150&zoom=16&path=39.7475708626662,-105.040492254863|39.7475422827748,-105.040606859657|39.7477028558458,-105.04107640596|39.7478331035412,-105.041654349566",
+        "center": [
+          39.7477028558458,
+          -105.04107640596
+        ],
+        "path": [
+          [
+            39.7475708626662,
+            -105.040492254863
+          ],
+          [
+            39.7475422827748,
+            -105.040606859657
+          ],
+          [
+            39.7477028558458,
+            -105.04107640596
+          ],
+          [
+            39.7478331035412,
+            -105.041654349566
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3201,
+      "streetId": 410,
+      "streetName": "N RALEIGH ST",
+      "from": "W LAKESHORE DR",
+      "to": "W 21ST AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7487483058223,-105.041655480258&size=300x150&zoom=16&path=39.7478331035412,-105.041654349566|39.7487483058223,-105.041655480258",
+        "center": [
+          39.7487483058223,
+          -105.041655480258
+        ],
+        "path": [
+          [
+            39.7478331035412,
+            -105.041654349566
+          ],
+          [
+            39.7487483058223,
+            -105.041655480258
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27382,
+      "streetId": 555,
+      "streetName": "W 20TH AVE",
+      "from": "N PERRY ST",
+      "to": "N QUITMAN ST/W LAKESHORE DR",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7475743502765,-105.039892987616&size=300x150&zoom=16&path=39.747577206219,-105.039306175793|39.7475743502765,-105.039892987616|39.7475708626662,-105.040492254863",
+        "center": [
+          39.7475743502765,
+          -105.039892987616
+        ],
+        "path": [
+          [
+            39.747577206219,
+            -105.039306175793
+          ],
+          [
+            39.7475743502765,
+            -105.039892987616
+          ],
+          [
+            39.7475708626662,
+            -105.040492254863
+          ]
+        ]
+      }
+    },
+    {
+      "id": 1813,
+      "streetId": 2003,
+      "streetName": "W LAKESHORE DR",
+      "from": "W 18TH AVE",
+      "to": "N QUITMAN ST/W 20TH AVE",
+      "sweepType": "Weekly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd week of the month.",
+      "rightSweepingRule": "North side: The 3rd week of the month.",
+      "schedules": [],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7470723321093,-105.038974467635&size=300x150&zoom=16&path=39.7451497396883,-105.036602505563|39.7454296209279,-105.036742904837|39.745668483112,-105.036881899659|39.7460349158661,-105.03726278925|39.7465758302825,-105.038121667183|39.7469331994783,-105.03870706181|39.7470723321093,-105.038974467635|39.7471569182671,-105.039165567024|39.7472068837866,-105.039331340512|39.7472569454934,-105.039522667394|39.7473324692471,-105.039918267203|39.7474875881631,-105.040492223217|39.7475708626662,-105.040492254863",
+        "center": [
+          39.7470723321093,
+          -105.038974467635
+        ],
+        "path": [
+          [
+            39.7451497396883,
+            -105.036602505563
+          ],
+          [
+            39.7454296209279,
+            -105.036742904837
+          ],
+          [
+            39.745668483112,
+            -105.036881899659
+          ],
+          [
+            39.7460349158661,
+            -105.03726278925
+          ],
+          [
+            39.7465758302825,
+            -105.038121667183
+          ],
+          [
+            39.7469331994783,
+            -105.03870706181
+          ],
+          [
+            39.7470723321093,
+            -105.038974467635
+          ],
+          [
+            39.7471569182671,
+            -105.039165567024
+          ],
+          [
+            39.7472068837866,
+            -105.039331340512
+          ],
+          [
+            39.7472569454934,
+            -105.039522667394
+          ],
+          [
+            39.7473324692471,
+            -105.039918267203
+          ],
+          [
+            39.7474875881631,
+            -105.040492223217
+          ],
+          [
+            39.7475708626662,
+            -105.040492254863
+          ]
+        ]
+      }
+    },
+    {
+      "id": 11904,
+      "streetId": 409,
+      "streetName": "N QUITMAN ST",
+      "from": "W 20TH AVE/W LAKESHORE DR",
+      "to": "W 21ST AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7487547236826,-105.040484497422&size=300x150&zoom=16&path=39.7475708626662,-105.040492254863|39.7487547236826,-105.040484497422",
+        "center": [
+          39.7487547236826,
+          -105.040484497422
+        ],
+        "path": [
+          [
+            39.7475708626662,
+            -105.040492254863
+          ],
+          [
+            39.7487547236826,
+            -105.040484497422
+          ]
+        ]
+      }
+    },
+    {
+      "id": 6109,
+      "streetId": 555,
+      "streetName": "W 20TH AVE",
+      "from": "N JULIAN WAY",
+      "to": "N KING ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/21/2026",
+          "Description": "South & North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South & North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.747520844942,-105.032617171701&size=300x150&zoom=16&path=39.7475825207863,-105.032301042958|39.7475692545701,-105.032468739807|39.7475485566752,-105.032544449565|39.747520844942,-105.032617171701|39.747490729665,-105.032671786997|39.7474724591637,-105.032771658017|39.7474699122285,-105.033047959837",
+        "center": [
+          39.747520844942,
+          -105.032617171701
+        ],
+        "path": [
+          [
+            39.7475825207863,
+            -105.032301042958
+          ],
+          [
+            39.7475692545701,
+            -105.032468739807
+          ],
+          [
+            39.7475485566752,
+            -105.032544449565
+          ],
+          [
+            39.747520844942,
+            -105.032617171701
+          ],
+          [
+            39.747490729665,
+            -105.032671786997
+          ],
+          [
+            39.7474724591637,
+            -105.032771658017
+          ],
+          [
+            39.7474699122285,
+            -105.033047959837
+          ]
+        ]
+      }
+    },
+    {
+      "id": 4341,
+      "streetId": 555,
+      "streetName": "W 20TH AVE",
+      "from": "N KING WAY",
+      "to": "N KING WAY",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7475792520472,-105.033812505313&size=300x150&zoom=16&path=39.7475799668236,-105.033472873164|39.7475792520472,-105.033812505313",
+        "center": [
+          39.7475792520472,
+          -105.033812505313
+        ],
+        "path": [
+          [
+            39.7475799668236,
+            -105.033472873164
+          ],
+          [
+            39.7475792520472,
+            -105.033812505313
+          ]
+        ]
+      }
+    },
+    {
+      "id": 25519,
+      "streetId": 564,
+      "streetName": "N KING WAY",
+      "from": "W 20TH AVE",
+      "to": "W 20TH PL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7478912054501,-105.033472580707&size=300x150&zoom=16&path=39.7475799668236,-105.033472873164|39.7478912054501,-105.033472580707|39.7481825404561,-105.03347152929",
+        "center": [
+          39.7478912054501,
+          -105.033472580707
+        ],
+        "path": [
+          [
+            39.7475799668236,
+            -105.033472873164
+          ],
+          [
+            39.7478912054501,
+            -105.033472580707
+          ],
+          [
+            39.7481825404561,
+            -105.03347152929
+          ]
+        ]
+      }
+    },
+    {
+      "id": 6070,
+      "streetId": 555,
+      "streetName": "W 20TH AVE",
+      "from": "N JULIAN WAY",
+      "to": "N KING WAY",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South & North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South & North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7476165770267,-105.033221085269&size=300x150&zoom=16&path=39.7475825207863,-105.032301042958|39.7475970982907,-105.032429260338|39.7476090428335,-105.03249869773|39.7476162211393,-105.032543998521|39.7476165770267,-105.033221085269|39.7476144936858,-105.033284579847|39.7476007814279,-105.033357213217|39.7475799668236,-105.033472873164",
+        "center": [
+          39.7476165770267,
+          -105.033221085269
+        ],
+        "path": [
+          [
+            39.7475825207863,
+            -105.032301042958
+          ],
+          [
+            39.7475970982907,
+            -105.032429260338
+          ],
+          [
+            39.7476090428335,
+            -105.03249869773
+          ],
+          [
+            39.7476162211393,
+            -105.032543998521
+          ],
+          [
+            39.7476165770267,
+            -105.033221085269
+          ],
+          [
+            39.7476144936858,
+            -105.033284579847
+          ],
+          [
+            39.7476007814279,
+            -105.033357213217
+          ],
+          [
+            39.7475799668236,
+            -105.033472873164
+          ]
+        ]
+      }
+    },
+    {
+      "id": 21135,
+      "streetId": 555,
+      "streetName": "W 20TH AVE",
+      "from": "N KING ST",
+      "to": "N KING WAY",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/21/2026",
+          "Description": "South & North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South & North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7474959157007,-105.033391163868&size=300x150&zoom=16&path=39.7474699122285,-105.033047959837|39.7474675682768,-105.033303689712|39.7474959157007,-105.033391163868|39.7475799668236,-105.033472873164",
+        "center": [
+          39.7474959157007,
+          -105.033391163868
+        ],
+        "path": [
+          [
+            39.7474699122285,
+            -105.033047959837
+          ],
+          [
+            39.7474675682768,
+            -105.033303689712
+          ],
+          [
+            39.7474959157007,
+            -105.033391163868
+          ],
+          [
+            39.7475799668236,
+            -105.033472873164
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26878,
+      "streetId": 394,
+      "streetName": "N KING ST",
+      "from": "BGN",
+      "to": "W 20TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7474699122285,-105.033047959837&size=300x150&zoom=16&path=39.7465154996576,-105.03304863428|39.7474699122285,-105.033047959837",
+        "center": [
+          39.7474699122285,
+          -105.033047959837
+        ],
+        "path": [
+          [
+            39.7465154996576,
+            -105.03304863428
+          ],
+          [
+            39.7474699122285,
+            -105.033047959837
+          ]
+        ]
+      }
+    },
+    {
+      "id": 8036,
+      "streetId": 567,
+      "streetName": "W 19TH AVE",
+      "from": "N JULIAN ST",
+      "to": "N LOWELL BLVD",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7463864991232,-105.033048721971&size=300x150&zoom=16&path=39.7463755841771,-105.031511590953|39.7463811872751,-105.032316167246|39.7463811943411,-105.032317945274|39.7463864991232,-105.033048721971|39.7463915486761,-105.033803511392|39.7463970341195,-105.034582299705",
+        "center": [
+          39.7463864991232,
+          -105.033048721971
+        ],
+        "path": [
+          [
+            39.7463755841771,
+            -105.031511590953
+          ],
+          [
+            39.7463811872751,
+            -105.032316167246
+          ],
+          [
+            39.7463811943411,
+            -105.032317945274
+          ],
+          [
+            39.7463864991232,
+            -105.033048721971
+          ],
+          [
+            39.7463915486761,
+            -105.033803511392
+          ],
+          [
+            39.7463970341195,
+            -105.034582299705
+          ]
+        ]
+      }
+    },
+    {
+      "id": 32687,
+      "streetId": 559,
+      "streetName": "W COLFAX AVE",
+      "from": "EB COLFAX TO SB FEDERAL RAMP",
+      "to": "N IRVING ST/TRAFFIC SIGNAL",
+      "sweepType": "Nightly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: Night Sweeps",
+      "rightSweepingRule": "North side: Night Sweeps",
+      "schedules": [],
+      "isPosted": false,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7402843240167,-105.02949656015&size=300x150&zoom=16&path=39.7402902250864,-105.028277665519|39.7402843240167,-105.02949656015|39.7403301207934,-105.029860223596",
+        "center": [
+          39.7402843240167,
+          -105.02949656015
+        ],
+        "path": [
+          [
+            39.7402902250864,
+            -105.028277665519
+          ],
+          [
+            39.7402843240167,
+            -105.02949656015
+          ],
+          [
+            39.7403301207934,
+            -105.029860223596
+          ]
+        ]
+      }
+    },
+    {
+      "id": 32650,
+      "streetId": 559,
+      "streetName": "W COLFAX AVE",
+      "from": "SB FEDERAL TO WB COLFAX RAMP",
+      "to": "N IRVING ST/TRAFFIC SIGNAL",
+      "sweepType": "Nightly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: Night Sweeps",
+      "rightSweepingRule": "North side: Night Sweeps",
+      "schedules": [],
+      "isPosted": false,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7403906759925,-105.029505512112&size=300x150&zoom=16&path=39.7404001785992,-105.027921391951|39.7403906759925,-105.029505512112|39.7403301207934,-105.029860223596",
+        "center": [
+          39.7403906759925,
+          -105.029505512112
+        ],
+        "path": [
+          [
+            39.7404001785992,
+            -105.027921391951
+          ],
+          [
+            39.7403906759925,
+            -105.029505512112
+          ],
+          [
+            39.7403301207934,
+            -105.029860223596
+          ]
+        ]
+      }
+    },
+    {
+      "id": 32660,
+      "streetId": 559,
+      "streetName": "W COLFAX AVE",
+      "from": "N IRVING ST/TRAFFIC SIGNAL",
+      "to": "N JULIAN ST",
+      "sweepType": "Nightly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: Night Sweeps",
+      "rightSweepingRule": "North side: Night Sweeps",
+      "schedules": [],
+      "isPosted": false,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7403254429351,-105.030493218268&size=300x150&zoom=16&path=39.7403301207934,-105.029860223596|39.7403254429351,-105.030493218268|39.7403244945225,-105.03111640702",
+        "center": [
+          39.7403254429351,
+          -105.030493218268
+        ],
+        "path": [
+          [
+            39.7403301207934,
+            -105.029860223596
+          ],
+          [
+            39.7403254429351,
+            -105.030493218268
+          ],
+          [
+            39.7403244945225,
+            -105.03111640702
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17244,
+      "streetId": 391,
+      "streetName": "N IRVING ST",
+      "from": "W 14TH AVE",
+      "to": "W COLFAX AVE/TRAFFIC SIGNAL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 2nd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 2nd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/12/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/08/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/09/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7403301207934,-105.029860223596&size=300x150&zoom=16&path=39.7392354082965,-105.029850674149|39.7403301207934,-105.029860223596",
+        "center": [
+          39.7403301207934,
+          -105.029860223596
+        ],
+        "path": [
+          [
+            39.7392354082965,
+            -105.029850674149
+          ],
+          [
+            39.7403301207934,
+            -105.029860223596
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26608,
+      "streetId": 391,
+      "streetName": "N IRVING ST",
+      "from": "W COLFAX AVE/TRAFFIC SIGNAL",
+      "to": "W CONEJOS PL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7408049593371,-105.029923715356&size=300x150&zoom=16&path=39.7403301207934,-105.029860223596|39.7404682870086,-105.029914417716|39.7408049593371,-105.029923715356|39.7415263535936,-105.029942884758",
+        "center": [
+          39.7408049593371,
+          -105.029923715356
+        ],
+        "path": [
+          [
+            39.7403301207934,
+            -105.029860223596
+          ],
+          [
+            39.7404682870086,
+            -105.029914417716
+          ],
+          [
+            39.7408049593371,
+            -105.029923715356
+          ],
+          [
+            39.7415263535936,
+            -105.029942884758
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27109,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N LOWELL BLVD",
+      "to": "N MEADE ST/TRAFFIC SIGNAL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439520464935,-105.035190627382&size=300x150&zoom=16&path=39.7439524760755,-105.034604743702|39.7439520464935,-105.035190627382|39.7439515683102,-105.03576583404",
+        "center": [
+          39.7439520464935,
+          -105.035190627382
+        ],
+        "path": [
+          [
+            39.7439524760755,
+            -105.034604743702
+          ],
+          [
+            39.7439520464935,
+            -105.035190627382
+          ],
+          [
+            39.7439515683102,
+            -105.03576583404
+          ]
+        ]
+      }
+    },
+    {
+      "id": 16669,
+      "streetId": 385,
+      "streetName": "N LOWELL BLVD",
+      "from": "W 17TH AVE",
+      "to": "W 18TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7451702111027,-105.034572661191&size=300x150&zoom=16&path=39.7439524760755,-105.034604743702|39.7451702111027,-105.034572661191",
+        "center": [
+          39.7451702111027,
+          -105.034572661191
+        ],
+        "path": [
+          [
+            39.7439524760755,
+            -105.034604743702
+          ],
+          [
+            39.7451702111027,
+            -105.034572661191
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27106,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N KING ST",
+      "to": "N LOWELL BLVD",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439498971646,-105.033953098106&size=300x150&zoom=16&path=39.7439463941793,-105.033069411761|39.7439498971646,-105.033953098106|39.7439524760755,-105.034604743702",
+        "center": [
+          39.7439498971646,
+          -105.033953098106
+        ],
+        "path": [
+          [
+            39.7439463941793,
+            -105.033069411761
+          ],
+          [
+            39.7439498971646,
+            -105.033953098106
+          ],
+          [
+            39.7439524760755,
+            -105.034604743702
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27197,
+      "streetId": 568,
+      "streetName": "W 18TH AVE",
+      "from": "N KING ST",
+      "to": "N LOWELL BLVD",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7451695087367,-105.03396188221&size=300x150&zoom=16&path=39.7451687297571,-105.033072832846|39.7451695087367,-105.03396188221|39.7451702111027,-105.034572661191",
+        "center": [
+          39.7451695087367,
+          -105.03396188221
+        ],
+        "path": [
+          [
+            39.7451687297571,
+            -105.033072832846
+          ],
+          [
+            39.7451695087367,
+            -105.03396188221
+          ],
+          [
+            39.7451702111027,
+            -105.034572661191
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27198,
+      "streetId": 568,
+      "streetName": "W 18TH AVE",
+      "from": "N LOWELL BLVD",
+      "to": "N MEADE ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7451664995687,-105.035195911109&size=300x150&zoom=16&path=39.7451702111027,-105.034572661191|39.7451664995687,-105.035195911109|39.7451629375476,-105.035772039473",
+        "center": [
+          39.7451664995687,
+          -105.035195911109
+        ],
+        "path": [
+          [
+            39.7451702111027,
+            -105.034572661191
+          ],
+          [
+            39.7451664995687,
+            -105.035195911109
+          ],
+          [
+            39.7451629375476,
+            -105.035772039473
+          ]
+        ]
+      }
+    },
+    {
+      "id": 28629,
+      "streetId": 561,
+      "streetName": "W CONEJOS PL",
+      "from": "N LOWELL BLVD",
+      "to": "N MEADE ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7415220188878,-105.035244956213&size=300x150&zoom=16&path=39.7415263238667,-105.034596843421|39.7415220188878,-105.035244956213|39.741518446179,-105.03581750342",
+        "center": [
+          39.7415220188878,
+          -105.035244956213
+        ],
+        "path": [
+          [
+            39.7415263238667,
+            -105.034596843421
+          ],
+          [
+            39.7415220188878,
+            -105.035244956213
+          ],
+          [
+            39.741518446179,
+            -105.03581750342
+          ]
+        ]
+      }
+    },
+    {
+      "id": 28513,
+      "streetId": 561,
+      "streetName": "W CONEJOS PL",
+      "from": "N KING ST",
+      "to": "N LOWELL BLVD",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.741522860955,-105.033722081725&size=300x150&zoom=16&path=39.741520287727,-105.033073123284|39.7415227059632,-105.033682967812|39.741522860955,-105.033722081725|39.741523977262,-105.034003891238|39.7415263238667,-105.034596843421",
+        "center": [
+          39.741522860955,
+          -105.033722081725
+        ],
+        "path": [
+          [
+            39.741520287727,
+            -105.033073123284
+          ],
+          [
+            39.7415227059632,
+            -105.033682967812
+          ],
+          [
+            39.741522860955,
+            -105.033722081725
+          ],
+          [
+            39.741523977262,
+            -105.034003891238
+          ],
+          [
+            39.7415263238667,
+            -105.034596843421
+          ]
+        ]
+      }
+    },
+    {
+      "id": 25699,
+      "streetId": 385,
+      "streetName": "N LOWELL BLVD",
+      "from": "W COLFAX AVE",
+      "to": "W CONEJOS PL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7408067295385,-105.034598949414&size=300x150&zoom=16&path=39.7403348952845,-105.034600302531|39.7408067295385,-105.034598949414|39.7415263238667,-105.034596843421",
+        "center": [
+          39.7408067295385,
+          -105.034598949414
+        ],
+        "path": [
+          [
+            39.7403348952845,
+            -105.034600302531
+          ],
+          [
+            39.7408067295385,
+            -105.034598949414
+          ],
+          [
+            39.7415263238667,
+            -105.034596843421
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27113,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N STUART ST",
+      "to": "N TENNYSON ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439728720242,-105.044023087763&size=300x150&zoom=16&path=39.7439682708075,-105.042837136823|39.7439728720242,-105.044023087763",
+        "center": [
+          39.7439728720242,
+          -105.044023087763
+        ],
+        "path": [
+          [
+            39.7439682708075,
+            -105.042837136823
+          ],
+          [
+            39.7439728720242,
+            -105.044023087763
+          ]
+        ]
+      }
+    },
+    {
+      "id": 19401,
+      "streetId": 411,
+      "streetName": "N STUART ST",
+      "from": "W 16TH AVE",
+      "to": "W 17TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439682708075,-105.042837136823&size=300x150&zoom=16&path=39.7427404861443,-105.042845140325|39.7439682708075,-105.042837136823",
+        "center": [
+          39.7439682708075,
+          -105.042837136823
+        ],
+        "path": [
+          [
+            39.7427404861443,
+            -105.042845140325
+          ],
+          [
+            39.7439682708075,
+            -105.042837136823
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5506,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N PERRY ST",
+      "to": "N STUART ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439682708075,-105.042837136823&size=300x150&zoom=16&path=39.7439545103426,-105.039308632946|39.7439682708075,-105.042837136823",
+        "center": [
+          39.7439682708075,
+          -105.042837136823
+        ],
+        "path": [
+          [
+            39.7439545103426,
+            -105.039308632946
+          ],
+          [
+            39.7439682708075,
+            -105.042837136823
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26782,
+      "streetId": 392,
+      "streetName": "N JULIAN ST",
+      "from": "W 16TH AVE",
+      "to": "W 17TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439356837425,-105.031497668524&size=300x150&zoom=16&path=39.7427456465569,-105.031505618383|39.7439356837425,-105.031497668524",
+        "center": [
+          39.7439356837425,
+          -105.031497668524
+        ],
+        "path": [
+          [
+            39.7427456465569,
+            -105.031505618383
+          ],
+          [
+            39.7439356837425,
+            -105.031497668524
+          ]
+        ]
+      }
+    },
+    {
+      "id": 28509,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N JULIAN ST",
+      "to": "N KING ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439421837685,-105.032442673905&size=300x150&zoom=16&path=39.7439356837425,-105.031497668524|39.7439399027084,-105.032126188873|39.7439421837685,-105.032442673905|39.7439463941793,-105.033069411761",
+        "center": [
+          39.7439421837685,
+          -105.032442673905
+        ],
+        "path": [
+          [
+            39.7439356837425,
+            -105.031497668524
+          ],
+          [
+            39.7439399027084,
+            -105.032126188873
+          ],
+          [
+            39.7439421837685,
+            -105.032442673905
+          ],
+          [
+            39.7439463941793,
+            -105.033069411761
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27114,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N IRVING ST/TRAFFIC SIGNAL",
+      "to": "N JULIAN ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439422200154,-105.030898411197&size=300x150&zoom=16&path=39.7439525309768,-105.029956849228|39.7439449709359,-105.030641458274|39.7439422200154,-105.030898411197|39.7439356837425,-105.031497668524",
+        "center": [
+          39.7439422200154,
+          -105.030898411197
+        ],
+        "path": [
+          [
+            39.7439525309768,
+            -105.029956849228
+          ],
+          [
+            39.7439449709359,
+            -105.030641458274
+          ],
+          [
+            39.7439422200154,
+            -105.030898411197
+          ],
+          [
+            39.7439356837425,
+            -105.031497668524
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26786,
+      "streetId": 392,
+      "streetName": "N JULIAN ST",
+      "from": "W 17TH AVE",
+      "to": "W 18TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.745162532334,-105.031513473757&size=300x150&zoom=16&path=39.7439356837425,-105.031497668524|39.745162532334,-105.031513473757",
+        "center": [
+          39.745162532334,
+          -105.031513473757
+        ],
+        "path": [
+          [
+            39.7439356837425,
+            -105.031497668524
+          ],
+          [
+            39.745162532334,
+            -105.031513473757
+          ]
+        ]
+      }
+    },
+    {
+      "id": 28508,
+      "streetId": 568,
+      "streetName": "W 18TH AVE",
+      "from": "N IRVING ST",
+      "to": "N JULIAN ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7451638392668,-105.030893795724&size=300x150&zoom=16&path=39.7451655584898,-105.029948718851|39.7451641908919,-105.030637745714|39.7451638392668,-105.030893795724|39.745162532334,-105.031513473757",
+        "center": [
+          39.7451638392668,
+          -105.030893795724
+        ],
+        "path": [
+          [
+            39.7451655584898,
+            -105.029948718851
+          ],
+          [
+            39.7451641908919,
+            -105.030637745714
+          ],
+          [
+            39.7451638392668,
+            -105.030893795724
+          ],
+          [
+            39.745162532334,
+            -105.031513473757
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27196,
+      "streetId": 568,
+      "streetName": "W 18TH AVE",
+      "from": "N JULIAN ST",
+      "to": "N KING ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7451662977756,-105.032460291946&size=300x150&zoom=16&path=39.745162532334,-105.031513473757|39.7451650222688,-105.03213935188|39.7451662977756,-105.032460291946|39.7451687297571,-105.033072832846",
+        "center": [
+          39.7451662977756,
+          -105.032460291946
+        ],
+        "path": [
+          [
+            39.745162532334,
+            -105.031513473757
+          ],
+          [
+            39.7451650222688,
+            -105.03213935188
+          ],
+          [
+            39.7451662977756,
+            -105.032460291946
+          ],
+          [
+            39.7451687297571,
+            -105.033072832846
+          ]
+        ]
+      }
+    },
+    {
+      "id": 7312,
+      "streetId": 392,
+      "streetName": "N JULIAN ST",
+      "from": "W 18TH AVE",
+      "to": "W 19TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7463755841771,-105.031511590953&size=300x150&zoom=16&path=39.745162532334,-105.031513473757|39.7463755841771,-105.031511590953",
+        "center": [
+          39.7463755841771,
+          -105.031511590953
+        ],
+        "path": [
+          [
+            39.745162532334,
+            -105.031513473757
+          ],
+          [
+            39.7463755841771,
+            -105.031511590953
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26515,
+      "streetId": 390,
+      "streetName": "N HOOKER ST",
+      "from": "BGN",
+      "to": "W CONEJOS PL",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7409225877941,-105.028360955984&size=300x150&zoom=16&path=39.7407976685122,-105.028358240183|39.7409225877941,-105.028360955984|39.7415152626916,-105.028371193894",
+        "center": [
+          39.7409225877941,
+          -105.028360955984
+        ],
+        "path": [
+          [
+            39.7407976685122,
+            -105.028358240183
+          ],
+          [
+            39.7409225877941,
+            -105.028360955984
+          ],
+          [
+            39.7415152626916,
+            -105.028371193894
+          ]
+        ]
+      }
+    },
+    {
+      "id": 32607,
+      "streetId": 559,
+      "streetName": "W COLFAX AVE",
+      "from": "SB FEDERAL TO EB COLFAX RAMP",
+      "to": "EB COLFAX TO SB FEDERAL RAMP",
+      "sweepType": "Nightly",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: Night Sweeps",
+      "rightSweepingRule": "North side: Night Sweeps",
+      "schedules": [],
+      "isPosted": false,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7402932428334,-105.026749990477&size=300x150&zoom=16&path=39.7403429920953,-105.025612546136|39.7403264937754,-105.025946352994|39.7402932428334,-105.026749990477|39.7403081922667,-105.027443025135|39.7402902250864,-105.028277665519",
+        "center": [
+          39.7402932428334,
+          -105.026749990477
+        ],
+        "path": [
+          [
+            39.7403429920953,
+            -105.025612546136
+          ],
+          [
+            39.7403264937754,
+            -105.025946352994
+          ],
+          [
+            39.7402932428334,
+            -105.026749990477
+          ],
+          [
+            39.7403081922667,
+            -105.027443025135
+          ],
+          [
+            39.7402902250864,
+            -105.028277665519
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27654,
+      "streetId": 558,
+      "streetName": "W 16TH AVE",
+      "from": "N JULIAN ST",
+      "to": "N KING ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.742740880469,-105.0324640154&size=300x150&zoom=16&path=39.7427456465569,-105.031505618383|39.7427426039323,-105.03212083933|39.742740880469,-105.0324640154|39.7427378504794,-105.033083683412",
+        "center": [
+          39.742740880469,
+          -105.0324640154
+        ],
+        "path": [
+          [
+            39.7427456465569,
+            -105.031505618383
+          ],
+          [
+            39.7427426039323,
+            -105.03212083933
+          ],
+          [
+            39.742740880469,
+            -105.0324640154
+          ],
+          [
+            39.7427378504794,
+            -105.033083683412
+          ]
+        ]
+      }
+    },
+    {
+      "id": 1701,
+      "streetId": 394,
+      "streetName": "N KING ST",
+      "from": "W 16TH AVE",
+      "to": "W 17TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439463941793,-105.033069411761&size=300x150&zoom=16&path=39.7427378504794,-105.033083683412|39.7439463941793,-105.033069411761",
+        "center": [
+          39.7439463941793,
+          -105.033069411761
+        ],
+        "path": [
+          [
+            39.7427378504794,
+            -105.033083683412
+          ],
+          [
+            39.7439463941793,
+            -105.033069411761
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26874,
+      "streetId": 394,
+      "streetName": "N KING ST",
+      "from": "W CONEJOS PL",
+      "to": "W 16TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.742000035937,-105.03307704107&size=300x150&zoom=16&path=39.741520287727,-105.033073123284|39.742000035937,-105.03307704107|39.7427378504794,-105.033083683412",
+        "center": [
+          39.742000035937,
+          -105.03307704107
+        ],
+        "path": [
+          [
+            39.741520287727,
+            -105.033073123284
+          ],
+          [
+            39.742000035937,
+            -105.03307704107
+          ],
+          [
+            39.7427378504794,
+            -105.033083683412
+          ]
+        ]
+      }
+    },
+    {
+      "id": 26872,
+      "streetId": 394,
+      "streetName": "N KING ST",
+      "from": "W 17TH AVE",
+      "to": "W 18TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7444323060449,-105.033070623887&size=300x150&zoom=16&path=39.7439463941793,-105.033069411761|39.7444323060449,-105.033070623887|39.7451687297571,-105.033072832846",
+        "center": [
+          39.7444323060449,
+          -105.033070623887
+        ],
+        "path": [
+          [
+            39.7439463941793,
+            -105.033069411761
+          ],
+          [
+            39.7444323060449,
+            -105.033070623887
+          ],
+          [
+            39.7451687297571,
+            -105.033072832846
+          ]
+        ]
+      }
+    },
+    {
+      "id": 3124,
+      "streetId": 558,
+      "streetName": "W 16TH AVE",
+      "from": "N IRVING ST/TRAFFIC SIGNAL",
+      "to": "N JULIAN ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Friday of the month.",
+      "rightSweepingRule": "North side: The 3rd Thursday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "South"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427456465569,-105.031505618383&size=300x150&zoom=16&path=39.7427394283252,-105.029946304074|39.7427456465569,-105.031505618383",
+        "center": [
+          39.7427456465569,
+          -105.031505618383
+        ],
+        "path": [
+          [
+            39.7427394283252,
+            -105.029946304074
+          ],
+          [
+            39.7427456465569,
+            -105.031505618383
+          ]
+        ]
+      }
+    },
+    {
+      "id": 17825,
+      "streetId": 392,
+      "streetName": "N JULIAN ST",
+      "from": "W CONEJOS PL",
+      "to": "W 16TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Tuesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Wednesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "East"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7427456465569,-105.031505618383&size=300x150&zoom=16&path=39.7415185041573,-105.031502256834|39.7427456465569,-105.031505618383",
+        "center": [
+          39.7427456465569,
+          -105.031505618383
+        ],
+        "path": [
+          [
+            39.7415185041573,
+            -105.031502256834
+          ],
+          [
+            39.7427456465569,
+            -105.031505618383
+          ]
+        ]
+      }
+    },
+    {
+      "id": 27189,
+      "streetId": 557,
+      "streetName": "W 17TH AVE",
+      "from": "N OSCEOLA ST",
+      "to": "N PERRY ST",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "South",
+      "rightSweepDirection": "North",
+      "leftSweepingRule": "South side: The 3rd Thursday of the month.",
+      "rightSweepingRule": "North side: The 3rd Friday of the month.",
+      "schedules": [
+        {
+          "Date": "08/20/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "08/21/2026",
+          "Description": "North"
+        },
+        {
+          "Date": "09/17/2026",
+          "Description": "South"
+        },
+        {
+          "Date": "09/18/2026",
+          "Description": "North"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439508776619,-105.038731670809&size=300x150&zoom=16&path=39.7439582329704,-105.03815730568|39.7439508776619,-105.038731670809|39.7439545103426,-105.039308632946",
+        "center": [
+          39.7439508776619,
+          -105.038731670809
+        ],
+        "path": [
+          [
+            39.7439582329704,
+            -105.03815730568
+          ],
+          [
+            39.7439508776619,
+            -105.038731670809
+          ],
+          [
+            39.7439545103426,
+            -105.039308632946
+          ]
+        ]
+      }
+    },
+    {
+      "id": 5005,
+      "streetId": 408,
+      "streetName": "N PERRY ST",
+      "from": "W 16TH AVE",
+      "to": "W 17TH AVE",
+      "sweepType": "Scheduled",
+      "leftSweepDirection": "West",
+      "rightSweepDirection": "East",
+      "leftSweepingRule": "West side: The 3rd Wednesday of the month.",
+      "rightSweepingRule": "East side: The 3rd Tuesday of the month.",
+      "schedules": [
+        {
+          "Date": "08/18/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "08/19/2026",
+          "Description": "West"
+        },
+        {
+          "Date": "09/15/2026",
+          "Description": "East"
+        },
+        {
+          "Date": "09/16/2026",
+          "Description": "West"
+        }
+      ],
+      "isPosted": true,
+      "subscriptions": {
+        "emailLeft": false,
+        "emailRight": false,
+        "textLeft": false,
+        "textRight": false,
+        "pushLeft": false,
+        "pushRight": false
+      },
+      "map": {
+        "staticMapUrl": "https://maps.googleapis.com/maps/api/staticmap?center=39.7439545103426,-105.039308632946&size=300x150&zoom=16&path=39.7427531914345,-105.039330738996|39.7439545103426,-105.039308632946",
+        "center": [
+          39.7439545103426,
+          -105.039308632946
+        ],
+        "path": [
+          [
+            39.7427531914345,
+            -105.039330738996
+          ],
+          [
+            39.7439545103426,
+            -105.039308632946
+          ]
+        ]
+      }
+    }
+  ]
+}

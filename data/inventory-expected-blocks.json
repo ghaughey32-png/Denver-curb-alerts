@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "description": "Atomic public-road blocks that must never disappear from the mapped inventory. Add every block in each new area before publishing it.",
+  "blocks": [
+    {
+      "id": "west-regis-university-frontage",
+      "streetName": "W REGIS BLVD",
+      "from": "REGIS UNIVERSITY RD",
+      "to": "PRIVATE RD/N GROVE ST",
+      "geometry": [
+        [
+          39.7875309105346,
+          -105.033082387858
+        ],
+        [
+          39.787528,
+          -105.03125
+        ],
+        [
+          39.787526,
+          -105.0294
+        ],
+        [
+          39.7875246979453,
+          -105.027566078125
+        ]
+      ]
+    },
+    {
+      "id": "rino-31st-end-blake",
+      "streetName": "31ST ST",
+      "from": "END",
+      "to": "BLAKE ST",
+      "geometry": [
+        [
+          39.7635741115873,
+          -104.979767941308
+        ],
+        [
+          39.7638844223947,
+          -104.980178436626
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-25-26",
+      "streetName": "LARIMER ST",
+      "from": "25TH ST",
+      "to": "26TH ST",
+      "geometry": [
+        [
+          39.7576202,
+          -104.9865479
+        ],
+        [
+          39.7585552407673,
+          -104.98533900067
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-26-27",
+      "streetName": "LARIMER ST",
+      "from": "26TH ST",
+      "to": "27TH ST",
+      "geometry": [
+        [
+          39.7585552407673,
+          -104.98533900067
+        ],
+        [
+          39.7595021964107,
+          -104.984128022484
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-27-28",
+      "streetName": "LARIMER ST",
+      "from": "27TH ST",
+      "to": "28TH ST",
+      "geometry": [
+        [
+          39.7595021964107,
+          -104.984128022484
+        ],
+        [
+          39.7604265567974,
+          -104.982931405626
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-28-29",
+      "streetName": "LARIMER ST",
+      "from": "28TH ST",
+      "to": "29TH ST",
+      "geometry": [
+        [
+          39.7604265567974,
+          -104.982931405626
+        ],
+        [
+          39.7613543146548,
+          -104.981730283549
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-29-30",
+      "streetName": "LARIMER ST",
+      "from": "29TH ST",
+      "to": "30TH ST",
+      "geometry": [
+        [
+          39.7613543146548,
+          -104.981730283549
+        ],
+        [
+          39.7622816549047,
+          -104.980514904814
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-30-31",
+      "streetName": "LARIMER ST",
+      "from": "30TH ST",
+      "to": "31ST ST",
+      "geometry": [
+        [
+          39.7622816549047,
+          -104.980514904814
+        ],
+        [
+          39.7632168516104,
+          -104.97929409996
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-31-32",
+      "streetName": "LARIMER ST",
+      "from": "31ST ST",
+      "to": "32ND ST",
+      "geometry": [
+        [
+          39.7632168516104,
+          -104.97929409996
+        ],
+        [
+          39.7641672632269,
+          -104.978102492644
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-32-33",
+      "streetName": "LARIMER ST",
+      "from": "32ND ST",
+      "to": "33RD ST",
+      "geometry": [
+        [
+          39.7641672632269,
+          -104.978102492644
+        ],
+        [
+          39.76511,
+          -104.9769
+        ]
+      ]
+    },
+    {
+      "id": "rino-larimer-broadway-25",
+      "streetName": "LARIMER ST",
+      "from": "N BROADWAY/TRAFFIC SIGNAL",
+      "to": "25TH ST",
+      "geometry": [
+        [
+          39.7570071603778,
+          -104.987359972638
+        ],
+        [
+          39.7576202,
+          -104.9865479
+        ]
+      ]
+    }
+  ]
+}

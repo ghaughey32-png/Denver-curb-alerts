@@ -1545,8 +1545,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v20";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=22";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v31";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=29";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -1564,7 +1564,8 @@ const colors = {
   north: "#2f9e44",
   south: "#e07a1f",
   east: "#d64545",
-  west: "#2f6fed"
+  west: "#2f6fed",
+  unavailable: "#ff2d8d"
 };
 
 const contextMarkers = [
@@ -1602,7 +1603,7 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
-  activeAreaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
+  activeAreaLabel: "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
   activeGeometryLabel: "Full known sweeping inventory",
   activeMapTitle: "Sloan's Lake full neighborhood inventory",
   activeMapKicker: "Interactive map",
@@ -1615,6 +1616,7 @@ const state = {
     "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it.",
   pendingApplySetId: "",
   map: null,
+  boundaryLayerGroup: null,
   baseLayerGroup: null,
   segmentLayerGroup: null,
   contextLayerGroup: null,
@@ -1686,6 +1688,8 @@ const DENVER_MAP_BOUNDS = {
   west: -105.1095,
   east: -104.5995
 };
+const DENVER_BOUNDARY_GEOJSON_URL =
+  "https://services7.arcgis.com/BRS1jOwmVPgFs2NE/ArcGIS/rest/services/Analyze_Traffic_Regina18_WFL1/FeatureServer/4/query?where=1%3D1&outFields=OBJECTID&returnGeometry=true&outSR=4326&f=geojson";
 const SLOANS_LAKE_FULL_BOUNDS = {
   north: 39.7506,
   south: 39.7399,
@@ -1746,6 +1750,24 @@ const WEST_38TH_TO_46TH_EAST_EXTENSION_BOUNDS = {
   west: -105.02515,
   east: -105.00615
 };
+const WEST_33RD_TO_46TH_OSAGE_INCA_BOUNDS = {
+  north: 39.78055,
+  south: 39.763,
+  west: -105.00615,
+  east: -104.99715
+};
+const WEST_47TH_TO_48TH_SOUTH_DR_BOUNDS = {
+  north: 39.7862,
+  south: 39.7802,
+  west: -105.05325,
+  east: -105.00615
+};
+const RINO_27TH_TO_33RD_BOUNDS = {
+  north: 39.768,
+  south: 39.7545,
+  west: -104.989,
+  east: -104.968
+};
 const SLOANS_LAKE_SAMPLE_ROWS = 6;
 const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
 const WEST_COLFAX_SAMPLE_ROWS = 4;
@@ -1766,8 +1788,24 @@ const WEST_38TH_TO_46TH_SAMPLE_ROWS = 11;
 const WEST_38TH_TO_46TH_SAMPLE_COLUMNS = 13;
 const WEST_38TH_TO_46TH_EAST_SAMPLE_ROWS = 11;
 const WEST_38TH_TO_46TH_EAST_SAMPLE_COLUMNS = 13;
+const WEST_33RD_TO_46TH_OSAGE_INCA_SAMPLE_ROWS = 17;
+const WEST_33RD_TO_46TH_OSAGE_INCA_SAMPLE_COLUMNS = 11;
+const WEST_47TH_TO_48TH_SOUTH_DR_SAMPLE_ROWS = 7;
+const WEST_47TH_TO_48TH_SOUTH_DR_SAMPLE_COLUMNS = 21;
+const RINO_27TH_TO_33RD_SAMPLE_ROWS = 12;
+const RINO_27TH_TO_33RD_SAMPLE_COLUMNS = 12;
 const INVENTORY_LOOKUP_CONCURRENCY = 4;
 const REQUIRED_ROUTE_ANCHORS = [
+  // RiNo: Blake Street–Arapahoe Street, 27th–33rd Streets.
+  { latitude: 39.7585, longitude: -104.9865 },
+  { latitude: 39.7605, longitude: -104.9835 },
+  { latitude: 39.7625, longitude: -104.9805 },
+  { latitude: 39.7645, longitude: -104.9775 },
+  { latitude: 39.7665, longitude: -104.9745 },
+  { latitude: 39.7565, longitude: -104.9805 },
+  { latitude: 39.7585, longitude: -104.9775 },
+  { latitude: 39.7605, longitude: -104.9745 },
+  { latitude: 39.7625, longitude: -104.9715 },
   // West 16th Avenue, Federal Boulevard–Grove Street.
   { latitude: 39.742738, longitude: -105.0262 },
   { latitude: 39.741, longitude: -105.039315 },
@@ -1905,6 +1943,30 @@ const SLOANS_LAKE_SAMPLE_ADDRESSES = [
   "W 41st Ave & Pecos St, Denver, CO",
   "W 44th Ave & Pecos St, Denver, CO",
   "W 46th Ave & Pecos St, Denver, CO",
+  "W 33rd Ave & Osage St, Denver, CO",
+  "W 35th Ave & Osage St, Denver, CO",
+  "W 38th Ave & Osage St, Denver, CO",
+  "W 41st Ave & Osage St, Denver, CO",
+  "W 44th Ave & Osage St, Denver, CO",
+  "W 46th Ave & Osage St, Denver, CO",
+  "W 33rd Ave & Inca St, Denver, CO",
+  "W 35th Ave & Inca St, Denver, CO",
+  "W 38th Ave & Inca St, Denver, CO",
+  "W 41st Ave & Inca St, Denver, CO",
+  "W 44th Ave & Inca St, Denver, CO",
+  "W 46th Ave & Inca St, Denver, CO",
+  "W 47th Ave & Sheridan Blvd, Denver, CO",
+  "W 48th Ave South Dr & Sheridan Blvd, Denver, CO",
+  "W 47th Ave & Lowell Blvd, Denver, CO",
+  "W 48th Ave South Dr & Lowell Blvd, Denver, CO",
+  "W 47th Ave & Tennyson St, Denver, CO",
+  "W 48th Ave South Dr & Tennyson St, Denver, CO",
+  "W 47th Ave & Federal Blvd, Denver, CO",
+  "W 48th Ave South Dr & Federal Blvd, Denver, CO",
+  "W 47th Ave & Zuni St, Denver, CO",
+  "W 48th Ave South Dr & Zuni St, Denver, CO",
+  "W 47th Ave & Quivas St, Denver, CO",
+  "W 48th Ave South Dr & Quivas St, Denver, CO",
   "2500 Federal Blvd, Denver, CO",
   "2500 Sheridan Blvd, Denver, CO",
   "2800 Federal Blvd, Denver, CO",
@@ -2014,7 +2076,7 @@ function restoreCachedSloansLakeInventory() {
   setMapDataset({
     streetWays: cached.streetWays,
     curbSegments: cached.curbSegments,
-    areaLabel: cached.areaLabel || "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
+    areaLabel: cached.areaLabel || "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
     geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
     mapTitleText: cached.mapTitleText || "Sloan's Lake full neighborhood inventory",
     mapKickerText: cached.mapKickerText || "Interactive map",
@@ -2153,11 +2215,7 @@ function buildDayOfReminderSlots(reminders = {}) {
 }
 
 function getStreetOrientation(points) {
-  const [firstLat, firstLon] = points[0];
-  const [lastLat, lastLon] = points[points.length - 1];
-  const latDiff = Math.abs(lastLat - firstLat);
-  const lonDiff = Math.abs(lastLon - firstLon);
-  return lonDiff >= latDiff ? "east-west" : "north-south";
+  return CurbGeometry.getStreetOrientation(points);
 }
 
 function normalizeToken(text) {
@@ -2267,7 +2325,7 @@ function buildEmbeddedDataset() {
         street: way.name,
         sideKey: sideDef.sideKey,
         sideLabel: `${capitalize(sideDef.sideKey)} curb`,
-        color: sideDef.color,
+        color: scheduleInfo ? sideDef.color : colors.unavailable,
         geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
         highway: way.highway,
         schedule: scheduleInfo
@@ -2370,7 +2428,7 @@ function buildStreetData() {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
+    areaLabel: "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
     geometryLabel: "Full known sweeping inventory",
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Interactive map",
@@ -2412,7 +2470,8 @@ function getScheduleInfoForSide(way, sideKey, schedule) {
     };
   }
 
-  const fallback = sideKey === "north" || sideKey === "east" ? schedule.right : schedule.left;
+  const routeSide = CurbGeometry.getRouteSideForCurb(way.geometry, sideKey);
+  const fallback = routeSide === "left" ? schedule.left : routeSide === "right" ? schedule.right : null;
   return fallback
     ? {
         routeId: schedule.routeId,
@@ -2463,6 +2522,17 @@ function buildRouteScheduleDates(route, desiredDirection) {
 }
 
 function buildLiveScheduleInfoForSide(route, sideKey) {
+  if (route.dataUnavailable) {
+    return {
+      routeId: route.id,
+      sweepType: "Unavailable",
+      direction: sideKey,
+      rule: "Denver route data unavailable — check posted signs.",
+      relocationRequired: null,
+      nextDate: "",
+      allDates: []
+    };
+  }
   const desiredDirection = sideKey === "north" ? "North" : sideKey === "south" ? "South" : sideKey === "east" ? "East" : "West";
   const leftDirection = normalizeToken(route.leftSweepDirection);
   const rightDirection = normalizeToken(route.rightSweepDirection);
@@ -2478,6 +2548,15 @@ function buildLiveScheduleInfoForSide(route, sideKey) {
       sweepType: route.sweepType,
       direction: direction || desiredDirection,
       rule: rule || `${desiredDirection} side schedule returned by Denver.`,
+      // Weekly-window routes such as Lyle Court do not assign a move day.
+      // Official unposted scheduled routes likewise do not require relocation.
+      // Hand-filled coverage routes remain unknown instead of being presented
+      // as a confirmed no-move route.
+      relocationRequired:
+        route.sweepType === "Weekly" ||
+        (route.sweepType === "Scheduled" && route.isPosted === false && !route.sourceNote)
+          ? false
+          : null,
       nextDate: scheduleDates.nextDate,
       allDates: scheduleDates.allDates
     };
@@ -2491,11 +2570,14 @@ function buildLiveScheduleInfoForSide(route, sideKey) {
     return buildPayload(route.rightSweepDirection, route.rightSweepingRule);
   }
 
-  if (sideKey === "north" || sideKey === "east") {
+  const routeSide = CurbGeometry.getRouteSideForCurb(route.map?.path, sideKey);
+  if (routeSide === "left") {
+    return buildPayload(route.leftSweepDirection, route.leftSweepingRule);
+  }
+  if (routeSide === "right") {
     return buildPayload(route.rightSweepDirection, route.rightSweepingRule);
   }
-
-  return buildPayload(route.leftSweepDirection, route.leftSweepingRule);
+  return null;
 }
 
 function buildLookupStreetData(summary, sourceLabel) {
@@ -2512,16 +2594,19 @@ function buildLookupStreetData(summary, sourceLabel) {
     }));
 
   const curbSegments = streetWays.flatMap((way) =>
-    buildSegmentSideDefinitions(way.orientation).map((sideDef) => ({
-      id: `route-${way.routeId}:${sideDef.sideKey}`,
-      street: way.name,
-      sideKey: sideDef.sideKey,
-      sideLabel: `${capitalize(sideDef.sideKey)} curb`,
-      color: sideDef.color,
-      geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
-      highway: way.highway,
-      schedule: buildLiveScheduleInfoForSide(way.route, sideDef.sideKey)
-    }))
+    buildSegmentSideDefinitions(way.orientation).map((sideDef) => {
+      const schedule = buildLiveScheduleInfoForSide(way.route, sideDef.sideKey);
+      return {
+        id: `route-${way.routeId}:${sideDef.sideKey}`,
+        street: way.name,
+        sideKey: sideDef.sideKey,
+        sideLabel: `${capitalize(sideDef.sideKey)} curb`,
+        color: schedule && schedule.sweepType !== "Unavailable" ? sideDef.color : colors.unavailable,
+        geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
+        highway: way.highway,
+        schedule
+      };
+    })
   );
 
   const firstCenter = streetWays.find((way) => Array.isArray(way.route.map?.center) && way.route.map.center.length === 2)?.route.map.center;
@@ -2595,6 +2680,7 @@ function buildSamplePointsForBounds(bounds, rows, columns) {
 function buildSloansLakeSamplePoints() {
   const pointMap = new Map();
   const regions = [
+    buildSamplePointsForBounds(RINO_27TH_TO_33RD_BOUNDS, RINO_27TH_TO_33RD_SAMPLE_ROWS, RINO_27TH_TO_33RD_SAMPLE_COLUMNS),
     buildSamplePointsForBounds(SLOANS_LAKE_FULL_BOUNDS, SLOANS_LAKE_SAMPLE_ROWS, SLOANS_LAKE_SAMPLE_COLUMNS),
     buildSamplePointsForBounds(WEST_COLFAX_EXTENSION_BOUNDS, WEST_COLFAX_SAMPLE_ROWS, WEST_COLFAX_SAMPLE_COLUMNS),
     buildSamplePointsForBounds(
@@ -2636,6 +2722,16 @@ function buildSloansLakeSamplePoints() {
       WEST_38TH_TO_46TH_EAST_EXTENSION_BOUNDS,
       WEST_38TH_TO_46TH_EAST_SAMPLE_ROWS,
       WEST_38TH_TO_46TH_EAST_SAMPLE_COLUMNS
+    ),
+    buildSamplePointsForBounds(
+      WEST_33RD_TO_46TH_OSAGE_INCA_BOUNDS,
+      WEST_33RD_TO_46TH_OSAGE_INCA_SAMPLE_ROWS,
+      WEST_33RD_TO_46TH_OSAGE_INCA_SAMPLE_COLUMNS
+    ),
+    buildSamplePointsForBounds(
+      WEST_47TH_TO_48TH_SOUTH_DR_BOUNDS,
+      WEST_47TH_TO_48TH_SOUTH_DR_SAMPLE_ROWS,
+      WEST_47TH_TO_48TH_SOUTH_DR_SAMPLE_COLUMNS
     )
   ];
 
@@ -2681,9 +2777,32 @@ async function runInventoryLookups(tasks, onResult) {
   return results;
 }
 
+function preserveKnownWeeklyRoutes(routeMap) {
+  const knownRoutes = Array.isArray(window.DENVER_WEST_ROUTE_INVENTORY?.routes)
+    ? window.DENVER_WEST_ROUTE_INVENTORY.routes
+    : [];
+
+  knownRoutes.forEach((route) => {
+    const hasUsableGeometry = Array.isArray(route.map?.path) && route.map.path.length >= 2;
+    if (route.sweepType === "Weekly" && route.id != null && hasUsableGeometry && !routeMap.has(route.id)) {
+      routeMap.set(route.id, route);
+    }
+  });
+}
+
 function buildInventoryFromRouteMap(routeMap) {
+  // Small weekly-window streets are easy for the sampled Denver lookup to
+  // miss. Preserve every known official Weekly route so they remain colored,
+  // clickable, and consistent after a live inventory refresh.
+  preserveKnownWeeklyRoutes(routeMap);
+  addUnavailableLarimerCoverage(routeMap);
+  ensureRinoOfficialRouteCoverage(routeMap);
   addByronParkFrontageCoverage(routeMap);
   addWest46ParkFrontageCoverage(routeMap);
+  addWest48FederalEliotCoverage(routeMap);
+  addWest11FederalDecaturCoverage(routeMap);
+  ensureWest10FederalDecaturCoverage(routeMap);
+  applyLocalStreetNameOverrides(routeMap);
   const summary = {
     address: "Sloan's Lake full neighborhood inventory",
     routeCount: routeMap.size,
@@ -2708,6 +2827,128 @@ function buildInventoryFromRouteMap(routeMap) {
     curbSegments: [...officialCurbSegments, ...missingEmbeddedSegments],
     context
   };
+}
+
+function addUnavailableLarimerCoverage(routeMap) {
+  const intersections = [
+    ["N BROADWAY/TRAFFIC SIGNAL", 39.7570071603778, -104.987359972638],
+    ["25TH ST", 39.7576202, -104.9865479],
+    ["26TH ST", 39.7585552407673, -104.98533900067],
+    ["27TH ST", 39.7595021964107, -104.984128022484],
+    ["28TH ST", 39.7604265567974, -104.982931405626],
+    ["29TH ST", 39.7613543146548, -104.981730283549],
+    ["30TH ST", 39.7622816549047, -104.980514904814],
+    ["31ST ST", 39.7632168516104, -104.97929409996],
+    ["32ND ST", 39.7641672632269, -104.978102492644],
+    ["33RD ST", 39.76511, -104.9769]
+  ];
+
+  for (let index = 0; index < intersections.length - 1; index += 1) {
+    const [from, fromLat, fromLon] = intersections[index];
+    const [to, toLat, toLon] = intersections[index + 1];
+    const alreadyCovered = Array.from(routeMap.values()).some(
+      (route) => route.dataUnavailable && route.streetName === "LARIMER ST" && route.from === from && route.to === to
+    );
+    if (alreadyCovered) continue;
+    const id = `unavailable-larimer-${from.toLowerCase().replace(/\s/g, "-")}`;
+    if (routeMap.has(id)) continue;
+    const path = [[fromLat, fromLon], [toLat, toLon]];
+    routeMap.set(id, {
+      id,
+      streetName: "LARIMER ST",
+      from,
+      to,
+      sweepType: "Unavailable",
+      leftSweepDirection: "Left",
+      rightSweepDirection: "Right",
+      leftSweepingRule: "Denver route data unavailable — check posted signs.",
+      rightSweepingRule: "Denver route data unavailable — check posted signs.",
+      schedules: [],
+      isPosted: false,
+      dataUnavailable: true,
+      map: { staticMapUrl: "", center: path[0], path },
+      sourceNote: "Clickable coverage only; Denver returned no route-level sweeping record for this Larimer block."
+    });
+  }
+}
+
+function applyLocalStreetNameOverrides(routeMap) {
+  const lakeshoreRoute = routeMap.get(28451);
+  if (!lakeshoreRoute || !Array.isArray(lakeshoreRoute.map?.path) || lakeshoreRoute.map.path.length < 4) return;
+  const [quitman, bend, alley, raleigh] = lakeshoreRoute.map.path;
+  routeMap.delete(28451);
+  routeMap.set("28451-w-20th", {
+    ...lakeshoreRoute, id: "28451-w-20th", officialRouteId: 28451,
+    streetName: "W 20TH AVE", from: "N QUITMAN ST", to: "ALLEY BETWEEN N QUITMAN ST AND N RALEIGH ST",
+    map: { ...lakeshoreRoute.map, staticMapUrl: "", center: bend, path: [quitman, bend, alley] }
+  });
+  routeMap.set("28451-w-lakeshore", {
+    ...lakeshoreRoute, id: "28451-w-lakeshore", officialRouteId: 28451,
+    from: "ALLEY BETWEEN N QUITMAN ST AND N RALEIGH ST", to: "N RALEIGH ST",
+    map: { ...lakeshoreRoute.map, staticMapUrl: "", center: alley, path: [alley, raleigh] }
+  });
+}
+
+function ensureRinoOfficialRouteCoverage(routeMap) {
+  const addConfirmedRoute = ({ id, adjacentId, streetName, from, to, path }) => {
+    if (routeMap.has(id)) return;
+    const adjacent = routeMap.get(adjacentId);
+    if (!adjacent) return;
+    routeMap.set(id, {
+      ...adjacent,
+      id,
+      streetName,
+      from,
+      to,
+      map: { staticMapUrl: "", center: path[Math.floor(path.length / 2)], path },
+      sourceNote: "Denver's exact-address lookup confirms this scheduled route; geometry joins its official Larimer and Blake endpoints."
+    });
+  };
+
+  addConfirmedRoute({
+    id: 23947, adjacentId: 23948, streetName: "26TH ST", from: "LARIMER ST", to: "BLAKE ST",
+    path: [[39.7585552407673, -104.98533900067], [39.758900704267, -104.985788196374], [39.7592327014274, -104.986218819592]]
+  });
+  addConfirmedRoute({
+    id: 24031, adjacentId: 24033, streetName: "28TH ST", from: "LARIMER ST", to: "BLAKE ST",
+    path: [[39.7604265567974, -104.982931405626], [39.760762, -104.983369], [39.7610978334174, -104.983805935064]]
+  });
+  [
+    [24034, 24037, "29TH ST", [[39.7613543146548, -104.981730283549], [39.761694, -104.982164], [39.7620331112184, -104.982594973694]]],
+    [22697, 22700, "30TH ST", [[39.7622816549047, -104.980514904814], [39.7626191924194, -104.98095259692], [39.7629605231865, -104.981394709113]]],
+    [22708, 22707, "32ND ST", [[39.7641672632269, -104.978102492644], [39.7644896411491, -104.978525182445], [39.7648272054731, -104.978967327292]]],
+    [22784, 22714, "33RD ST", [[39.7650922531457, -104.976907494732], [39.7654239322604, -104.97733722494], [39.7657652802023, -104.977780228784]]]
+  ].forEach(([id, adjacentId, streetName, path]) => addConfirmedRoute({ id, adjacentId, streetName, from: "LARIMER ST", to: "BLAKE ST", path }));
+  addConfirmedRoute({
+    id: 12099, adjacentId: 22701, streetName: "31ST ST", from: "LARIMER ST", to: "END",
+    path: [[39.7632168516104, -104.97929409996], [39.7635675526233, -104.979759263696], [39.7635741115873, -104.979767941308]]
+  });
+  if (!routeMap.has("unavailable-31st-end-blake")) {
+    const adjacent = routeMap.get(22701);
+    const path = [[39.7635741115873, -104.979767941308], [39.7638844223947, -104.980178436626]];
+    routeMap.set("unavailable-31st-end-blake", {
+      ...adjacent, id: "unavailable-31st-end-blake", streetName: "31ST ST", from: "END", to: "BLAKE ST",
+      sweepType: "Unavailable", leftSweepingRule: "Denver route data unavailable — check posted signs.",
+      rightSweepingRule: "Denver route data unavailable — check posted signs.", schedules: [], dataUnavailable: true,
+      map: { staticMapUrl: "", center: path[0], path }
+    });
+  }
+
+  const route = routeMap.get(24018);
+  if (!route) return;
+
+  const path = [
+    [39.7595021964107, -104.984128022484],
+    [39.7601570134517, -104.985007116449],
+    [39.7605007632197, -104.985456328745],
+    [39.7608300127708, -104.985886980374]
+  ];
+  routeMap.set(24018, {
+    ...route,
+    from: "LARIMER ST",
+    to: "WALNUT ST",
+    map: { ...route.map, center: path[1], path }
+  });
 }
 
 function addByronParkFrontageCoverage(routeMap) {
@@ -2770,6 +3011,101 @@ function addWest46ParkFrontageCoverage(routeMap) {
   });
 }
 
+function addWest48FederalEliotCoverage(routeMap) {
+  const coverageId = "coverage-w-48th-south-dr-west-end-eliot";
+  if (routeMap.has(coverageId)) return;
+
+  const adjacentWest48Route = routeMap.get(22688);
+  if (!adjacentWest48Route) return;
+
+  // Denver's route inventory stops at Eliot even though W 48th South Drive
+  // continues west to the frontage-road dead end. Bridge that omitted piece
+  // so both curb sides remain selectable across the whole visible roadway.
+  const path = [
+    [39.783794, -105.02458],
+    [39.783795, -105.02426],
+    [39.7837967821555, -105.023951191204]
+  ];
+  routeMap.set(coverageId, {
+    ...adjacentWest48Route,
+    id: coverageId,
+    streetName: "W 48TH SOUTH DR",
+    from: "WEST END",
+    to: "N ELIOT ST/NMCHG",
+    isPosted: false,
+    map: {
+      staticMapUrl: "",
+      center: path[1],
+      path
+    },
+    sourceNote: "Denver's lookup omits the frontage-road west end; schedule matched to adjacent official W 48th South Dr route 22688."
+  });
+}
+
+function addWest11FederalDecaturCoverage(routeMap) {
+  const coverageId = "coverage-w-11th-federal-decatur";
+  if (routeMap.has(coverageId)) return;
+
+  const westRoute = routeMap.get(5187);
+  const eastRoute = routeMap.get(18240);
+  const adjacentWest11Route = westRoute || eastRoute;
+  if (!adjacentWest11Route) return;
+
+  // Denver's two adjacent W 11th records use matching schedules but leave
+  // the continuous Gateway North block west of Decatur without geometry.
+  const path = [
+    [39.7338791010489, -105.023379744091],
+    [39.7338784, -105.02256],
+    [39.7338776268528, -105.021747711029]
+  ];
+  routeMap.set(coverageId, {
+    ...adjacentWest11Route,
+    id: coverageId,
+    streetName: "W 11TH AVE",
+    from: "WEST GATEWAY NORTH ENTRANCE",
+    to: "N DECATUR ST",
+    isPosted: false,
+    map: {
+      staticMapUrl: "",
+      center: path[1],
+      path
+    },
+    sourceNote: "Denver omits geometry for the continuous Gateway North block; schedule matched to adjacent official W 11th Ave routes 5187 and 18240."
+  });
+}
+
+function ensureWest10FederalDecaturCoverage(routeMap) {
+  const coverageId = "coverage-w-10th-federal-east-end";
+  if (routeMap.has(coverageId)) return;
+
+  const officialRoute = routeMap.get(17891) || window.DENVER_WEST_ROUTE_INVENTORY?.routes?.find((route) => route.id === 17891);
+  if (!officialRoute) return;
+
+  // These official east-of-Federal blocks can disappear from sampled/cached
+  // datasets together. Preserve their exact junctions as one continuous curb
+  // layer through Decatur, Bryant, and Alcott to the roadway's east end.
+  routeMap.set(coverageId, {
+    ...officialRoute,
+    id: coverageId,
+    map: {
+      ...officialRoute.map,
+      staticMapUrl: "",
+      center: [39.7329895, -105.020162726271],
+      path: [
+        [39.7329892955418, -105.025162700528],
+        [39.7329895172622, -105.02174399127],
+        [39.7329895, -105.020162726271],
+        [39.7329895, -105.019308487678],
+        [39.7329894, -105.01851384253],
+        [39.7329893, -105.017428487905]
+      ]
+    },
+    from: "N FEDERAL BLVD/TRAFFIC SIGNAL",
+    to: "EAST END",
+    sourceNote: "Denver's east-of-Decatur records reuse W 11th latitude geometry; their official junction longitudes and schedule are aligned to the continuous W 10th roadway."
+  });
+}
+
 function showInventoryProgress(routeMap, completedCount, totalCount) {
   const { summary, streetWays, curbSegments, context } = buildInventoryFromRouteMap(routeMap);
   if (!summary.routeCount || !streetWays.length || !curbSegments.length) {
@@ -2779,7 +3115,7 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
   setMapDataset({
     streetWays,
     curbSegments,
-    areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
+    areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
     geometryLabel: `Loading official Denver routes (${completedCount} of ${totalCount} lookups checked)`,
     mapTitleText: "Sloan's Lake full neighborhood inventory",
     mapKickerText: "Official Denver full-area lookup",
@@ -2913,7 +3249,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     setMapDataset({
       streetWays,
       curbSegments,
-      areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
+      areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2926,7 +3262,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     saveSloansLakeInventoryCache({
       streetWays,
       curbSegments,
-      areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th",
+      areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
       mapTitleText: "Sloan's Lake full neighborhood inventory",
       mapKickerText: "Official Denver full-area lookup",
@@ -2993,6 +3329,12 @@ function refreshMapViewport() {
   bounds.extend([WEST_38TH_TO_46TH_EXTENSION_BOUNDS.south, WEST_38TH_TO_46TH_EXTENSION_BOUNDS.east]);
   bounds.extend([WEST_38TH_TO_46TH_EAST_EXTENSION_BOUNDS.north, WEST_38TH_TO_46TH_EAST_EXTENSION_BOUNDS.west]);
   bounds.extend([WEST_38TH_TO_46TH_EAST_EXTENSION_BOUNDS.south, WEST_38TH_TO_46TH_EAST_EXTENSION_BOUNDS.east]);
+  bounds.extend([WEST_33RD_TO_46TH_OSAGE_INCA_BOUNDS.north, WEST_33RD_TO_46TH_OSAGE_INCA_BOUNDS.west]);
+  bounds.extend([WEST_33RD_TO_46TH_OSAGE_INCA_BOUNDS.south, WEST_33RD_TO_46TH_OSAGE_INCA_BOUNDS.east]);
+  bounds.extend([WEST_47TH_TO_48TH_SOUTH_DR_BOUNDS.north, WEST_47TH_TO_48TH_SOUTH_DR_BOUNDS.west]);
+  bounds.extend([WEST_47TH_TO_48TH_SOUTH_DR_BOUNDS.south, WEST_47TH_TO_48TH_SOUTH_DR_BOUNDS.east]);
+  bounds.extend([RINO_27TH_TO_33RD_BOUNDS.north, RINO_27TH_TO_33RD_BOUNDS.west]);
+  bounds.extend([RINO_27TH_TO_33RD_BOUNDS.south, RINO_27TH_TO_33RD_BOUNDS.east]);
   state.map.fitBounds(bounds, { padding: [28, 28] });
 }
 
@@ -3405,11 +3747,86 @@ function initializeMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(state.map);
 
+  state.map.createPane("denverBoundaryMask");
+  state.map.getPane("denverBoundaryMask").style.zIndex = "250";
+  state.map.createPane("denverBoundaryOutline");
+  state.map.getPane("denverBoundaryOutline").style.zIndex = "450";
+  state.map.getPane("denverBoundaryOutline").style.pointerEvents = "none";
+
+  state.boundaryLayerGroup = L.layerGroup().addTo(state.map);
   state.baseLayerGroup = L.layerGroup().addTo(state.map);
   state.segmentLayerGroup = L.layerGroup().addTo(state.map);
   state.contextLayerGroup = L.layerGroup().addTo(state.map);
   state.map.on("zoomend", renderSegments);
+  loadDenverBoundary();
   refreshMapViewport();
+}
+
+function getDenverBoundaryRings(geoJson) {
+  return (geoJson?.features || []).flatMap((feature) => {
+    const geometry = feature?.geometry;
+    if (geometry?.type === "Polygon") {
+      return geometry.coordinates || [];
+    }
+    if (geometry?.type === "MultiPolygon") {
+      return (geometry.coordinates || []).flat();
+    }
+    return [];
+  });
+}
+
+async function loadDenverBoundary() {
+  if (!state.map || !state.boundaryLayerGroup) {
+    return;
+  }
+
+  try {
+    const response = await fetch(DENVER_BOUNDARY_GEOJSON_URL);
+    if (!response.ok) {
+      throw new Error("Denver boundary data was unavailable.");
+    }
+
+    const geoJson = await response.json();
+    const denverRings = getDenverBoundaryRings(geoJson);
+    if (!denverRings.length) {
+      throw new Error("Denver boundary data was empty.");
+    }
+
+    const outsideRing = [
+      [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.west - 1],
+      [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.west - 1],
+      [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.east + 1],
+      [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.east + 1]
+    ];
+    const boundaryLatLngRings = denverRings.map((ring) =>
+      ring.map(([longitude, latitude]) => [latitude, longitude])
+    );
+
+    state.boundaryLayerGroup.clearLayers();
+    L.polygon([outsideRing, ...boundaryLatLngRings], {
+      pane: "denverBoundaryMask",
+      stroke: false,
+      fillColor: "#ef7777",
+      fillOpacity: 0.24,
+      fillRule: "evenodd",
+      interactive: false
+    }).addTo(state.boundaryLayerGroup);
+
+    L.geoJSON(geoJson, {
+      pane: "denverBoundaryOutline",
+      interactive: false,
+      style: {
+        color: "#9f1d2f",
+        weight: 5,
+        opacity: 0.95,
+        fill: false,
+        lineCap: "round",
+        lineJoin: "round"
+      }
+    }).addTo(state.boundaryLayerGroup);
+  } catch (error) {
+    console.warn("Unable to draw the Denver city boundary.", error);
+  }
 }
 
 function renderMapFailure(message) {
@@ -3617,7 +4034,10 @@ function renderSegments() {
     });
     const nextSweepDate = getNextSweepDate(segment);
     const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
-    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}`, {
+    const unavailableText = !segment.schedule || segment.schedule.sweepType === "Unavailable"
+      ? " | Denver route data unavailable — check posted signs"
+      : "";
+    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${unavailableText}`, {
       sticky: true
     });
     touchTarget.on("click", () => toggleSegment(segment.id));
@@ -3730,6 +4150,10 @@ function renderCurrentSelection() {
     item.querySelector(".selection-pill").style.background = segment.color;
     item.querySelector(".selection-title").textContent = segment.street;
     item.querySelector(".selection-meta").innerHTML = buildSelectionMeta(segment);
+    const noMoveNotice = item.querySelector(".no-move-notice");
+    if (noMoveNotice && segment.schedule?.relocationRequired === false) {
+      noMoveNotice.hidden = false;
+    }
     item.querySelector(".remove-button").addEventListener("click", () => toggleSegment(segment.id));
     selectionList.appendChild(item);
   });
@@ -3737,11 +4161,19 @@ function renderCurrentSelection() {
 
 function buildSelectionMeta(segment) {
   if (!segment.schedule) {
-    return `${segment.sideLabel} of ${segment.street} | Denver schedule not mapped yet`;
+    return `${segment.sideLabel} of ${segment.street} | Denver route data unavailable — check posted signs`;
   }
 
   if (segment.schedule.sweepType === "Nightly") {
     return `${segment.sideLabel} of ${segment.street} | Nightly sweep route | ${segment.schedule.rule}`;
+  }
+
+  if (segment.schedule.sweepType === "Unavailable") {
+    return `${segment.sideLabel} of ${segment.street} | Denver route data unavailable — check posted signs`;
+  }
+
+  if (segment.schedule.sweepType === "Weekly") {
+    return `${segment.sideLabel} of ${segment.street} | Sweep window: ${segment.schedule.rule} | No specific move day`;
   }
 
   const nextSweepDate = getNextSweepDate(segment);

@@ -1,0 +1,1164 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-12T22:57:47.059Z",
+  "area": {
+    "id": "sloans-core-pilot",
+    "label": "Sloan's Lake core pilot",
+    "north": 39.7506,
+    "south": 39.7399,
+    "west": -105.0435,
+    "east": -105.0272
+  },
+  "summary": {
+    "expectedBlocks": 249,
+    "initiallyCovered": 221,
+    "candidatesRetried": 28,
+    "resolvedByRetries": 14,
+    "needsHumanReview": 3,
+    "automatedRetryPending": 11,
+    "lookupFailures": 67
+  },
+  "items": [
+    {
+      "id": "candidate-25672755-176087355-5145540598",
+      "areaId": "sloans-core-pilot",
+      "status": "needs-human-review",
+      "publishAsPink": false,
+      "streetName": "West 16th Avenue",
+      "from": "OSM node 176087355",
+      "to": "OSM node 5145540598",
+      "geometry": [
+        [
+          39.7427332,
+          -105.0346038
+        ],
+        [
+          39.742732,
+          -105.0347261
+        ],
+        [
+          39.7427302,
+          -105.0349013
+        ],
+        [
+          39.7427268,
+          -105.0352439
+        ],
+        [
+          39.7427261,
+          -105.035311
+        ],
+        [
+          39.7427222,
+          -105.0357109
+        ]
+      ],
+      "osm": {
+        "wayId": 25672755,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.74273272,
+            -105.03465272
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            27653,
+            13836,
+            7081,
+            25528
+          ]
+        },
+        {
+          "point": [
+            39.742731549999995,
+            -105.0347699
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            27653,
+            13836,
+            7081,
+            25528
+          ]
+        },
+        {
+          "point": [
+            39.7427285,
+            -105.0350726
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            27653,
+            13836,
+            7081,
+            25528
+          ]
+        },
+        {
+          "point": [
+            39.742726274999995,
+            -105.035294225
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            27655,
+            13836,
+            17224
+          ]
+        },
+        {
+          "point": [
+            39.742723760000004,
+            -105.03555094
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            27655,
+            13836,
+            17224
+          ]
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-25673118-176067159-176103799",
+      "areaId": "sloans-core-pilot",
+      "status": "needs-human-review",
+      "publishAsPink": false,
+      "streetName": "West 20th Avenue",
+      "from": "OSM node 176067159",
+      "to": "OSM node 176103799",
+      "geometry": [
+        [
+          39.7481336,
+          -105.0425879
+        ],
+        [
+          39.7480707,
+          -105.04251
+        ],
+        [
+          39.7480213,
+          -105.0424213
+        ],
+        [
+          39.747986,
+          -105.042341
+        ],
+        [
+          39.7479612,
+          -105.042258
+        ],
+        [
+          39.7479202,
+          -105.0420824
+        ],
+        [
+          39.7478778,
+          -105.0418821
+        ],
+        [
+          39.7478681,
+          -105.0418363
+        ],
+        [
+          39.7478355,
+          -105.0416724
+        ]
+      ],
+      "osm": {
+        "wayId": 25673118,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.748093344,
+            -105.042538044
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            8860,
+            11691
+          ]
+        },
+        {
+          "point": [
+            39.7480213,
+            -105.0424213
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            8860,
+            11691
+          ]
+        },
+        {
+          "point": [
+            39.7479612,
+            -105.042258
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            8860,
+            11691
+          ]
+        },
+        {
+          "point": [
+            39.7478778,
+            -105.0418821
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            8860,
+            3201
+          ]
+        },
+        {
+          "point": [
+            39.747856364,
+            -105.04177729599999
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            8860,
+            3201
+          ]
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-25673118-176103799-279882561",
+      "areaId": "sloans-core-pilot",
+      "status": "needs-human-review",
+      "publishAsPink": false,
+      "streetName": "West 20th Avenue",
+      "from": "OSM node 176103799",
+      "to": "OSM node 279882561",
+      "geometry": [
+        [
+          39.7478355,
+          -105.0416724
+        ],
+        [
+          39.7477813,
+          -105.0413993
+        ],
+        [
+          39.7477044,
+          -105.0410701
+        ],
+        [
+          39.747689,
+          -105.0410202
+        ],
+        [
+          39.7476312,
+          -105.0408512
+        ],
+        [
+          39.7475366,
+          -105.0406184
+        ],
+        [
+          39.7474372,
+          -105.0403526
+        ]
+      ],
+      "osm": {
+        "wayId": 25673118,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.747809484,
+            -105.04154131199999
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            8860,
+            3201
+          ]
+        },
+        {
+          "point": [
+            39.74774285,
+            -105.04123469999999
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            8860,
+            3201
+          ]
+        },
+        {
+          "point": [
+            39.747689,
+            -105.0410202
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            27382,
+            1813,
+            11904
+          ]
+        },
+        {
+          "point": [
+            39.747583899999995,
+            -105.0407348
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            27382,
+            1813,
+            11904
+          ]
+        },
+        {
+          "point": [
+            39.747484912,
+            -105.040480184
+          ],
+          "ok": true,
+          "returnedRouteIds": [
+            28451,
+            27382,
+            1813,
+            11904
+          ]
+        }
+      ],
+      "reviewDecision": null
+    }
+  ],
+  "retryPending": [
+    {
+      "id": "candidate-16985047-176074255-176093699",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "West Conejos Place",
+      "from": "OSM node 176074255",
+      "to": "OSM node 176093699",
+      "geometry": [
+        [
+          39.7415258,
+          -105.0404998
+        ],
+        [
+          39.7415259,
+          -105.0405893
+        ],
+        [
+          39.7415266,
+          -105.0410847
+        ],
+        [
+          39.7415272,
+          -105.041535
+        ],
+        [
+          39.7415272,
+          -105.0415789
+        ],
+        [
+          39.7415273,
+          -105.0416721
+        ]
+      ],
+      "osm": {
+        "wayId": 16985047,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.74152584,
+            -105.0405356
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.741526074999996,
+            -105.04071314999999
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7415269,
+            -105.04130985
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7415272,
+            -105.04156792500001
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74152726,
+            -105.04163482
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-480136417-176093699-6575551273",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Raleigh Street",
+      "from": "OSM node 176093699",
+      "to": "OSM node 6575551273",
+      "geometry": [
+        [
+          39.7415273,
+          -105.0416721
+        ],
+        [
+          39.7416073,
+          -105.0416719
+        ],
+        [
+          39.7420118,
+          -105.0416711
+        ]
+      ],
+      "osm": {
+        "wayId": 480136417,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.7415401,
+            -105.041672068
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7415673,
+            -105.041672
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7416073,
+            -105.0416719
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74180955,
+            -105.0416715
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74194708,
+            -105.041671228
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-549569431-176104308-4753868247",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "West 16th Avenue",
+      "from": "OSM node 176104308",
+      "to": "OSM node 4753868247",
+      "geometry": [
+        [
+          39.7427345,
+          -105.0393268
+        ],
+        [
+          39.7427346,
+          -105.0393945
+        ],
+        [
+          39.7427346,
+          -105.0394321
+        ],
+        [
+          39.7427347,
+          -105.0397454
+        ],
+        [
+          39.7427348,
+          -105.0404284
+        ],
+        [
+          39.7427349,
+          -105.040501
+        ]
+      ],
+      "osm": {
+        "wayId": 549569431,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.74273454,
+            -105.03935388
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7427346,
+            -105.0394039
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74273465,
+            -105.03958875000001
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742734775,
+            -105.04025765
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74273486,
+            -105.04047196
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-549569431-4753868247-4753868246",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "West 16th Avenue",
+      "from": "OSM node 4753868247",
+      "to": "OSM node 4753868246",
+      "geometry": [
+        [
+          39.7427349,
+          -105.040501
+        ],
+        [
+          39.7427349,
+          -105.0405851
+        ],
+        [
+          39.7427352,
+          -105.0415577
+        ],
+        [
+          39.7427352,
+          -105.0415969
+        ],
+        [
+          39.7427352,
+          -105.0416696
+        ]
+      ],
+      "osm": {
+        "wayId": 549569431,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.7427349,
+            -105.040527912
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7427349,
+            -105.0405851
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7427352,
+            -105.0415577
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7427352,
+            -105.0415969
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7427352,
+            -105.041646336
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-552383291-176074255-4753868247",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Quitman Street",
+      "from": "OSM node 176074255",
+      "to": "OSM node 4753868247",
+      "geometry": [
+        [
+          39.7415258,
+          -105.0404998
+        ],
+        [
+          39.7416061,
+          -105.0404999
+        ],
+        [
+          39.7426353,
+          -105.0405
+        ],
+        [
+          39.7426693,
+          -105.0405009
+        ],
+        [
+          39.7427349,
+          -105.040501
+        ]
+      ],
+      "osm": {
+        "wayId": 552383291,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.741551496,
+            -105.04049983200001
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7416061,
+            -105.0404999
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7426353,
+            -105.0405
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7426693,
+            -105.0405009
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742713908,
+            -105.040500968
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-552383291-4753868247-4731575342",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Quitman Street",
+      "from": "OSM node 4753868247",
+      "to": "OSM node 4731575342",
+      "geometry": [
+        [
+          39.7427349,
+          -105.040501
+        ],
+        [
+          39.7428565,
+          -105.0405004
+        ],
+        [
+          39.742889,
+          -105.0405005
+        ],
+        [
+          39.7438989,
+          -105.0405021
+        ],
+        [
+          39.7439134,
+          -105.0405021
+        ],
+        [
+          39.7439702,
+          -105.0405021
+        ]
+      ],
+      "osm": {
+        "wayId": 552383291,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.742783540000005,
+            -105.04050076
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742864625,
+            -105.040500425
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74339395,
+            -105.04050129999999
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.743909775,
+            -105.0405021
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.743947479999996,
+            -105.0405021
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-700220287-6575551273-6575551274",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Raleigh Street",
+      "from": "OSM node 6575551273",
+      "to": "OSM node 6575551274",
+      "geometry": [
+        [
+          39.7420118,
+          -105.0416711
+        ],
+        [
+          39.742039,
+          -105.0416711
+        ]
+      ],
+      "osm": {
+        "wayId": 700220287,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.742013976,
+            -105.0416711
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7420186,
+            -105.0416711
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7420254,
+            -105.0416711
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7420322,
+            -105.0416711
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742036823999996,
+            -105.0416711
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-700220288-6575551274-6575551275",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Raleigh Street",
+      "from": "OSM node 6575551274",
+      "to": "OSM node 6575551275",
+      "geometry": [
+        [
+          39.742039,
+          -105.0416711
+        ],
+        [
+          39.7425276,
+          -105.0416701
+        ]
+      ],
+      "osm": {
+        "wayId": 700220288,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.742078088,
+            -105.04167102
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74216115,
+            -105.04167085
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7422833,
+            -105.0416706
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74240545,
+            -105.04167035
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742488512,
+            -105.04167018000001
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-700220289-6575551275-6575551276",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Raleigh Street",
+      "from": "OSM node 6575551275",
+      "to": "OSM node 6575551276",
+      "geometry": [
+        [
+          39.7425276,
+          -105.0416701
+        ],
+        [
+          39.7425598,
+          -105.04167
+        ]
+      ],
+      "osm": {
+        "wayId": 700220289,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.742530176,
+            -105.041670092
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74253565,
+            -105.041670075
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7425437,
+            -105.04167005
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742551750000004,
+            -105.041670025
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742557224,
+            -105.041670008
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-700220290-6575551276-4753868246",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Raleigh Street",
+      "from": "OSM node 6575551276",
+      "to": "OSM node 4753868246",
+      "geometry": [
+        [
+          39.7425598,
+          -105.04167
+        ],
+        [
+          39.7426674,
+          -105.0416698
+        ],
+        [
+          39.7427352,
+          -105.0416696
+        ]
+      ],
+      "osm": {
+        "wayId": 700220290,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.742577016000006,
+            -105.041669968
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7426136,
+            -105.04166989999999
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7426674,
+            -105.0416698
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7427013,
+            -105.0416697
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742724351999996,
+            -105.04166963200001
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    },
+    {
+      "id": "candidate-700220290-4753868246-176067126",
+      "areaId": "sloans-core-pilot",
+      "status": "automated-retry-pending",
+      "publishAsPink": false,
+      "streetName": "Raleigh Street",
+      "from": "OSM node 4753868246",
+      "to": "OSM node 176067126",
+      "geometry": [
+        [
+          39.7427352,
+          -105.0416696
+        ],
+        [
+          39.7428396,
+          -105.0416694
+        ],
+        [
+          39.7439141,
+          -105.0416671
+        ],
+        [
+          39.7439721,
+          -105.0416671
+        ]
+      ],
+      "osm": {
+        "wayId": 700220290,
+        "highway": "residential"
+      },
+      "automatedChecks": [
+        {
+          "point": [
+            39.742760256,
+            -105.041669552
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.742813500000004,
+            -105.04166945
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.743376850000004,
+            -105.04166825
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.7439286,
+            -105.0416671
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        },
+        {
+          "point": [
+            39.74395818,
+            -105.0416671
+          ],
+          "ok": false,
+          "returnedRouteIds": []
+        }
+      ],
+      "reviewDecision": null
+    }
+  ]
+}
