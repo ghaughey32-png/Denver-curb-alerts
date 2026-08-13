@@ -3,6 +3,55 @@
   "description": "Atomic public-road blocks that must never disappear from the mapped inventory. Add every block in each new area before publishing it.",
   "blocks": [
     {
+      "id": "tennyson-46-47",
+      "streetName": "N TENNYSON ST",
+      "from": "W 46TH AVE",
+      "to": "W 47TH AVE",
+      "geometry": [[39.780226875473, -105.043953583003], [39.7820854164897, -105.043961946409]]
+    },
+    {
+      "id": "tennyson-47-48-south",
+      "streetName": "N TENNYSON ST",
+      "from": "W 47TH AVE",
+      "to": "W 48TH SOUTH DR",
+      "geometry": [[39.7820854164897, -105.043961946409], [39.7831769162091, -105.043944170563]]
+    },
+    {
+      "id": "tennyson-48-south-48",
+      "streetName": "N TENNYSON ST",
+      "from": "W 48TH SOUTH DR",
+      "to": "W 48TH AVE",
+      "geometry": [[39.7831769162091, -105.043944170563], [39.7838834481926, -105.043939573313]]
+    },
+    {
+      "id": "tennyson-48-49",
+      "streetName": "N TENNYSON ST",
+      "from": "W 48TH AVE",
+      "to": "W 49TH AVE",
+      "geometry": [[39.7838834481926, -105.043939573313], [39.7856280672087, -105.043949569891]]
+    },
+    {
+      "id": "tennyson-49-50",
+      "streetName": "N TENNYSON ST",
+      "from": "W 49TH AVE",
+      "to": "W 50TH AVE",
+      "geometry": [[39.7856280672087, -105.043949569891], [39.7874385248503, -105.043947576612]]
+    },
+    {
+      "id": "tennyson-50-51",
+      "streetName": "N TENNYSON ST",
+      "from": "W 50TH AVE",
+      "to": "W 51ST AVE",
+      "geometry": [[39.7874385248503, -105.043947576612], [39.789245, -105.043944]]
+    },
+    {
+      "id": "tennyson-51-52",
+      "streetName": "N TENNYSON ST",
+      "from": "W 51ST AVE",
+      "to": "W 52ND AVE",
+      "geometry": [[39.789245, -105.043944], [39.7911039955945, -105.043940128417]]
+    },
+    {
       "id": "west-regis-university-frontage",
       "streetName": "W REGIS BLVD",
       "from": "REGIS UNIVERSITY RD",

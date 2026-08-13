@@ -1545,8 +1545,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v32";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=30";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v33";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=31";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -2795,6 +2795,7 @@ function buildInventoryFromRouteMap(routeMap) {
   // miss. Preserve every known official Weekly route so they remain colored,
   // clickable, and consistent after a live inventory refresh.
   preserveKnownWeeklyRoutes(routeMap);
+  ensureUnavailableTennysonCoverage(routeMap);
   addUnavailableLarimerCoverage(routeMap);
   ensureRinoOfficialRouteCoverage(routeMap);
   addByronParkFrontageCoverage(routeMap);
@@ -2827,6 +2828,43 @@ function buildInventoryFromRouteMap(routeMap) {
     curbSegments: [...officialCurbSegments, ...missingEmbeddedSegments],
     context
   };
+}
+
+function ensureUnavailableTennysonCoverage(routeMap) {
+  const intersections = [
+    ["W 46TH AVE", 39.780226875473, -105.043953583003, "tennyson-46-47"],
+    ["W 47TH AVE", 39.7820854164897, -105.043961946409, "tennyson-47-48-south"],
+    ["W 48TH SOUTH DR", 39.7831769162091, -105.043944170563, "tennyson-48-south-48"],
+    ["W 48TH AVE", 39.7838834481926, -105.043939573313, "tennyson-48-49"],
+    ["W 49TH AVE", 39.7856280672087, -105.043949569891, "tennyson-49-50"],
+    ["W 50TH AVE", 39.7874385248503, -105.043947576612, "tennyson-50-51"],
+    ["W 51ST AVE", 39.789245, -105.043944, "tennyson-51-52"],
+    ["W 52ND AVE", 39.7911039955945, -105.043940128417, null]
+  ];
+
+  for (let index = 0; index < intersections.length - 1; index += 1) {
+    const [from, fromLat, fromLon, blockId] = intersections[index];
+    const [to, toLat, toLon] = intersections[index + 1];
+    const id = `unavailable-${blockId}`;
+    if (routeMap.has(id)) continue;
+    const path = [[fromLat, fromLon], [toLat, toLon]];
+    routeMap.set(id, {
+      id,
+      streetName: "N TENNYSON ST",
+      from,
+      to,
+      sweepType: "Unavailable",
+      leftSweepDirection: "Left",
+      rightSweepDirection: "Right",
+      leftSweepingRule: "Denver route data unavailable — check posted signs.",
+      rightSweepingRule: "Denver route data unavailable — check posted signs.",
+      schedules: [],
+      isPosted: false,
+      dataUnavailable: true,
+      map: { staticMapUrl: "", center: path[0], path },
+      sourceNote: "Clickable coverage only; Denver returned no route-level sweeping record for this Tennyson block."
+    });
+  }
 }
 
 function addUnavailableLarimerCoverage(routeMap) {
@@ -4861,7 +4899,7 @@ async function initializePushFeatures() {
   }
 
   try {
-    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=71");
+    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=72");
     state.serviceWorkerRegistration.update?.();
     const configResponse = await fetch(buildApiUrl("/api/push/config"));
     if (configResponse.ok) {
@@ -5058,7 +5096,7 @@ async function requestBrowserNotifications() {
     }
 
     if (!state.serviceWorkerRegistration) {
-      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=71");
+      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=72");
     }
 
     let subscription = await state.serviceWorkerRegistration.pushManager.getSubscription();
