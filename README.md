@@ -51,7 +51,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 
 ## Refresh the saved map inventory
 
-The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including W 20th–W 26th from Federal to Bryant, W 26th–W 46th from Sheridan to Federal, and W 26th–W 46th from Federal to Pecos/I-25. This avoids running hundreds of Denver lookups in each visitor's browser.
+The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including W 6th–W 12th from Sheridan to I-25, W 13th–W Colfax from Sheridan to Julian, W 20th–W 26th from Federal to Bryant, W 26th–W 46th from Sheridan to Federal, W 26th–W 46th from Federal to Pecos/I-25, W 33rd–W 46th from Osage to Inca, W 47th–W 48th Avenue South Drive from Sheridan to Quivas, and W 50th–W 52nd from Tennyson to Lowell and Federal to Pecos. This avoids running hundreds of Denver lookups in each visitor's browser.
 
 With the local server running, rebuild that snapshot using:
 
@@ -60,6 +60,28 @@ npm run build:inventory
 ```
 
 Set `APP_ORIGIN` if the source server is not `http://127.0.0.1:3000`. The app keeps the saved inventory available offline and only runs a live full-area scan when explicitly requested.
+
+### Coverage gate for every mapped area
+
+Before adding or expanding an area, add each atomic public street block to `data/inventory-expected-blocks.json` using its road geometry. Mark alleys, private drives, pedestrian-only paths, and out-of-boundary roads with `"excluded": true` and an `exclusionReason`.
+
+The inventory build now compares every declared block with Denver's returned route geometry. A block becomes either scheduled coverage or a conspicuous pink `dataUnavailable` route for manual verification; an invalid or otherwise unexplained public-road gap fails the build. The build writes the detailed result to `data/inventory-coverage-report.json`. Run the regression gate without contacting Denver using:
+
+```bash
+npm run audit:inventory
+```
+
+The durable publishing rule is: no mapped public street block may render blank. When starting a new neighborhood, obtain its road/block geometry first (for example from OpenStreetMap), add those blocks to the manifest, then run the builder.
+
+### Staged gap review pilot
+
+Candidate road gaps must not be published directly. Generate a private review queue from an OpenStreetMap Overpass JSON export with:
+
+```bash
+npm run build:review-queue -- path/to/overpass.json sloans-core-pilot
+```
+
+The pilot boundary is configured in `data/coverage-pilot-areas.json`. The command checks the saved inventory, retries each candidate at five block locations with throttling and backoff, and writes unresolved successful checks to `data/coverage-review-queue.json`. Failed Denver requests are kept separately as `retryPending`. The command never changes the public route inventory and never creates pink map sections.
 
 ## Turn it into an installable iPhone web app
 

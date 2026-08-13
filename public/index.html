@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260811d" />
+    <link rel="stylesheet" href="./styles.css?v=20260812g" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
@@ -215,6 +215,7 @@
             <span class="legend-item"><span class="legend-dot orange"></span> South curb of east-west streets</span>
             <span class="legend-item"><span class="legend-dot red"></span> East curb of north-south streets</span>
             <span class="legend-item"><span class="legend-dot blue"></span> West curb of north-south streets</span>
+            <span class="legend-item"><span class="legend-dot pink"></span> Pink: needs verification — Denver route data unavailable</span>
           </div>
 
           <div class="map-frame">
@@ -641,6 +642,11 @@
         </div>
         <h3 class="selection-title"></h3>
         <p class="selection-meta"></p>
+        <aside class="no-move-notice" hidden>
+          <strong>No car relocation required</strong>
+          <span>Street sweeping is scheduled, but vehicles do not need to be moved on this street.</span>
+          <a href="https://www.denvergov.org/Online-Services-Hub/Street-Sweeping-Schedules" target="_blank" rel="noopener noreferrer">Verify on the official city website</a>
+        </aside>
       </article>
     </template>
 
@@ -772,7 +778,8 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./denver-west-routes.js?v=20260811p"></script>
-    <script src="./app.js?v=20260813a"></script>
+    <script src="./denver-west-routes.js?v=20260813b"></script>
+    <script src="./curb-geometry.js?v=20260813b"></script>
+    <script src="./app.js?v=20260813b"></script>
   </body>
 </html>

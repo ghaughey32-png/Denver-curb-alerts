@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "areas": [
+    {
+      "id": "sloans-core-pilot",
+      "label": "Sloan's Lake core pilot",
+      "north": 39.7506,
+      "south": 39.7399,
+      "west": -105.0435,
+      "east": -105.0272
+    }
+  ]
+}
