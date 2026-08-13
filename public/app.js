@@ -1546,7 +1546,7 @@ const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
 const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v20";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=22";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=23";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -2797,13 +2797,20 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
 
 async function loadStaticRouteInventory() {
   try {
-    let payload = window.DENVER_WEST_ROUTE_INVENTORY;
-    if (!payload) {
+    let payload;
+    try {
       const response = await fetch(STATIC_ROUTE_INVENTORY_URL, { cache: "reload" });
       if (!response.ok) {
         throw new Error("The saved Denver route inventory could not be loaded.");
       }
       payload = await response.json();
+    } catch (error) {
+      // Keep the generated script as an offline fallback, but prefer the JSON
+      // inventory so a stale fallback cannot hide newly mapped curb routes.
+      payload = window.DENVER_WEST_ROUTE_INVENTORY;
+      if (!payload) {
+        throw error;
+      }
     }
     const routeMap = new Map();
     (Array.isArray(payload.routes) ? payload.routes : []).forEach((route) => {
