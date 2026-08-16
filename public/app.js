@@ -1545,8 +1545,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v33";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=31";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v38";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=43";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -1565,7 +1565,8 @@ const colors = {
   south: "#e07a1f",
   east: "#d64545",
   west: "#2f6fed",
-  unavailable: "#ff2d8d"
+  unavailable: "#ff2d8d",
+  notMaintained: "#7b8790"
 };
 
 const contextMarkers = [
@@ -1603,7 +1604,7 @@ const state = {
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
-  activeAreaLabel: "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
+  activeAreaLabel: "West Denver expanded: W Exposition–W Nevada from Federal–I-25, W Alameda (CO 26)–W 5th from Federal–I-25, plus the existing West Denver inventory",
   activeGeometryLabel: "Full known sweeping inventory",
   activeMapTitle: "Sloan's Lake full neighborhood inventory",
   activeMapKicker: "Interactive map",
@@ -1696,6 +1697,12 @@ const SLOANS_LAKE_FULL_BOUNDS = {
   west: -105.0435,
   east: -105.0272
 };
+const W5_TO_ALAMEDA_EAST_BOUNDS = {
+  north: 39.7244,
+  south: 39.7104,
+  west: -105.0254,
+  east: -105.005
+};
 const WEST_COLFAX_EXTENSION_BOUNDS = {
   north: 39.74415,
   south: 39.7399,
@@ -1770,6 +1777,8 @@ const RINO_27TH_TO_33RD_BOUNDS = {
 };
 const SLOANS_LAKE_SAMPLE_ROWS = 6;
 const SLOANS_LAKE_SAMPLE_COLUMNS = 6;
+const W5_TO_ALAMEDA_EAST_SAMPLE_ROWS = 15;
+const W5_TO_ALAMEDA_EAST_SAMPLE_COLUMNS = 13;
 const WEST_COLFAX_SAMPLE_ROWS = 4;
 const WEST_COLFAX_SAMPLE_COLUMNS = 5;
 const WEST_23RD_TO_26TH_SAMPLE_ROWS = 4;
@@ -2534,6 +2543,9 @@ function buildLiveScheduleInfoForSide(route, sideKey) {
     };
   }
   const desiredDirection = sideKey === "north" ? "North" : sideKey === "south" ? "South" : sideKey === "east" ? "East" : "West";
+  const notMaintained = route.sweepType === "Private" && /not maintained by the City and County of Denver/i.test(
+    `${route.leftSweepingRule || ""} ${route.rightSweepingRule || ""}`
+  );
   const leftDirection = normalizeToken(route.leftSweepDirection);
   const rightDirection = normalizeToken(route.rightSweepDirection);
 
@@ -2545,9 +2557,10 @@ function buildLiveScheduleInfoForSide(route, sideKey) {
     const scheduleDates = buildRouteScheduleDates(route, direction || desiredDirection);
     return {
       routeId: route.id,
-      sweepType: route.sweepType,
+      sweepType: notMaintained ? "NotMaintained" : route.sweepType,
       direction: direction || desiredDirection,
       rule: rule || `${desiredDirection} side schedule returned by Denver.`,
+      remindersAllowed: !notMaintained,
       // Weekly-window routes such as Lyle Court do not assign a move day.
       // Official unposted scheduled routes likewise do not require relocation.
       // Hand-filled coverage routes remain unknown instead of being presented
@@ -2581,7 +2594,14 @@ function buildLiveScheduleInfoForSide(route, sideKey) {
 }
 
 function buildLookupStreetData(summary, sourceLabel) {
+  const suppressedFallbackRouteIds = new Set([
+    "unavailable-florida-evans-sheridan-federal-osm-16984766-176091629-176076121-0",
+    "unavailable-evans-yale-sheridan-federal-osm-16985383-11429256142-176095986-0"
+  ]);
   const streetWays = (Array.isArray(summary.routes) ? summary.routes : [])
+    // Suppress invalid or duplicate unavailable-data overlays. Confirmed
+    // official curb routes remain visible underneath them.
+    .filter((route) => !suppressedFallbackRouteIds.has(route.id))
     .filter((route) => Array.isArray(route.map?.path) && route.map.path.length >= 2)
     .map((route) => ({
       id: `route-${route.id}`,
@@ -2601,7 +2621,11 @@ function buildLookupStreetData(summary, sourceLabel) {
         street: way.name,
         sideKey: sideDef.sideKey,
         sideLabel: `${capitalize(sideDef.sideKey)} curb`,
-        color: schedule && schedule.sweepType !== "Unavailable" ? sideDef.color : colors.unavailable,
+        color: schedule?.sweepType === "NotMaintained"
+          ? colors.notMaintained
+          : schedule && schedule.sweepType !== "Unavailable"
+            ? sideDef.color
+            : colors.unavailable,
         geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
         highway: way.highway,
         schedule
@@ -2682,6 +2706,11 @@ function buildSloansLakeSamplePoints() {
   const regions = [
     buildSamplePointsForBounds(RINO_27TH_TO_33RD_BOUNDS, RINO_27TH_TO_33RD_SAMPLE_ROWS, RINO_27TH_TO_33RD_SAMPLE_COLUMNS),
     buildSamplePointsForBounds(SLOANS_LAKE_FULL_BOUNDS, SLOANS_LAKE_SAMPLE_ROWS, SLOANS_LAKE_SAMPLE_COLUMNS),
+    buildSamplePointsForBounds(
+      W5_TO_ALAMEDA_EAST_BOUNDS,
+      W5_TO_ALAMEDA_EAST_SAMPLE_ROWS,
+      W5_TO_ALAMEDA_EAST_SAMPLE_COLUMNS
+    ),
     buildSamplePointsForBounds(WEST_COLFAX_EXTENSION_BOUNDS, WEST_COLFAX_SAMPLE_ROWS, WEST_COLFAX_SAMPLE_COLUMNS),
     buildSamplePointsForBounds(
       WEST_23RD_TO_26TH_EXTENSION_BOUNDS,
@@ -2795,6 +2824,12 @@ function buildInventoryFromRouteMap(routeMap) {
   // miss. Preserve every known official Weekly route so they remain colored,
   // clickable, and consistent after a live inventory refresh.
   preserveKnownWeeklyRoutes(routeMap);
+  confirmSouthOsceolaWayYaleNewtonCoverage(routeMap);
+  removeSupersededSouthIrvingFallbacks(routeMap);
+  confirmSouthHazelBarrMexicoCoverage(routeMap);
+  addConfirmedSouthJulianWayCoverage(routeMap);
+  addConfirmedSouthPattonWyeCoverage(routeMap);
+  applySouthKnoxAlamedaInterchangeGeometry(routeMap);
   ensureUnavailableTennysonCoverage(routeMap);
   addUnavailableLarimerCoverage(routeMap);
   ensureRinoOfficialRouteCoverage(routeMap);
@@ -2828,6 +2863,161 @@ function buildInventoryFromRouteMap(routeMap) {
     curbSegments: [...officialCurbSegments, ...missingEmbeddedSegments],
     context
   };
+}
+
+function confirmSouthOsceolaWayYaleNewtonCoverage(routeMap) {
+  const route = routeMap.get(3244);
+  if (!route) return;
+
+  routeMap.set(3244, {
+    ...route,
+    streetName: "S OSCEOLA WAY",
+    from: "S OSCEOLA ST/W YALE AVE",
+    to: "S NEWTON ST",
+    sweepType: "Weekly",
+    leftSweepDirection: "East",
+    rightSweepDirection: "West",
+    leftSweepingRule: "East side: The 2nd week of the month.",
+    rightSweepingRule: "West side: The 2nd week of the month.",
+    schedules: [],
+    isPosted: false,
+    dataUnavailable: false,
+    sourceNote: "Schedule and endpoints confirmed from Denver Street Sweeping Schedules and Alerts screenshot, August 16, 2026; no vehicle relocation required during sweeping week."
+  });
+}
+
+function confirmSouthHazelBarrMexicoCoverage(routeMap) {
+  const officialRoute = routeMap.get(4205);
+  const fallbackId = "unavailable-florida-evans-sheridan-federal-osm-1182706968-176104107-176112227-0";
+  const fallbackRoute = routeMap.get(fallbackId);
+  if (!officialRoute || !fallbackRoute) return;
+
+  // Denver route 4205 contains the confirmed east/west schedules, while the
+  // public-road fallback contains the complete curb geometry from W Mexico
+  // Ave north to Barr. Keep every point of that geometry and replace only its
+  // unavailable (pink) schedule metadata with the confirmed route.
+  const path = fallbackRoute.map.path.slice().reverse();
+  routeMap.set(4205, {
+    ...officialRoute,
+    map: { ...officialRoute.map, staticMapUrl: "", center: path[Math.floor(path.length / 2)], path },
+    sourceNote: "Denver route 4205 confirms the S Hazel Ct schedule; public-road geometry completes the block from Barr to W Mexico Ave."
+  });
+  routeMap.delete(fallbackId);
+}
+
+function applySouthKnoxAlamedaInterchangeGeometry(routeMap) {
+  const northApproach = routeMap.get(3297);
+  const southApproach = routeMap.get(11719);
+  if (!northApproach || !southApproach) return;
+
+  // Denver's route endpoints correctly stop at the traffic signal, but its
+  // two-point map geometry draws Knox straight across the Alameda/Morrison
+  // interchange. Follow the public-road approaches and leave the physical
+  // break through the interchange uncolored.
+  const northPath = [
+    [39.713378806876, -105.032459730268],
+    [39.7116798, -105.0324893],
+    [39.7116254, -105.0324911],
+    [39.7115678, -105.032498],
+    [39.7115324, -105.0325059],
+    [39.7114878, -105.0325251],
+    [39.7114409, -105.0325539],
+    [39.711383, -105.0326054],
+    [39.7113452, -105.0326419],
+    [39.7113206, -105.0326718],
+    [39.7112642, -105.0327527]
+  ];
+  const southPath = [
+    [39.711142, -105.0326652],
+    [39.7110646, -105.0325398],
+    [39.7110509, -105.0325228],
+    [39.7110321, -105.03251],
+    [39.7110102, -105.0324967],
+    [39.7109697, -105.032486],
+    [39.710725, -105.0324807],
+    [39.7105092, -105.0324766],
+    [39.7103812, -105.0324732],
+    [39.7103249, -105.0324727]
+  ];
+
+  routeMap.set(3297, {
+    ...northApproach,
+    map: { ...northApproach.map, staticMapUrl: "", center: northPath[5], path: northPath }
+  });
+  routeMap.set(11719, {
+    ...southApproach,
+    map: { ...southApproach.map, staticMapUrl: "", center: southPath[5], path: southPath }
+  });
+}
+
+function addConfirmedSouthPattonWyeCoverage(routeMap) {
+  const officialRoute = routeMap.get(18232);
+  if (!officialRoute) return;
+
+  routeMap.delete("unavailable-bayaud-exposition-sheridan-federal-osm-37273289-176106473-434298297-0");
+  const path = [
+    [39.7039479, -105.0395334],
+    [39.7038671, -105.0394017],
+    [39.7037699, -105.0392786],
+    [39.7036874, -105.0391923],
+    [39.7035274, -105.0391371]
+  ];
+  routeMap.set("confirmed-s-patton-exposition-wye", {
+    ...officialRoute,
+    id: "confirmed-s-patton-exposition-wye",
+    officialRouteId: 18232,
+    streetName: "S PATTON CT",
+    from: "W EXPOSITION AVE/S PERRY ST",
+    to: "WYE",
+    map: { ...officialRoute.map, staticMapUrl: "", center: path[2], path },
+    sourceNote: "Denver route 18232 confirms the S Patton Ct name and schedule; public-road geometry completes the diagonal connector to its wye."
+  });
+}
+
+function addConfirmedSouthJulianWayCoverage(routeMap) {
+  const officialRoute = routeMap.get(19406);
+  if (!officialRoute) return;
+
+  routeMap.delete("unavailable-florida-evans-sheridan-federal-osm-16989248-176076646-176104112-0");
+  const path = [
+    [39.6876451, -105.031587],
+    [39.685941, -105.031587],
+    [39.6854918, -105.0316213],
+    [39.6853267, -105.0317243]
+  ];
+  routeMap.set("confirmed-s-julian-way-iowa-mexico", {
+    ...officialRoute,
+    id: "confirmed-s-julian-way-iowa-mexico",
+    officialRouteId: 19406,
+    from: "W IOWA AVE",
+    to: "W MEXICO AVE/NMCHG",
+    map: { ...officialRoute.map, staticMapUrl: "", center: path[1], path },
+    sourceNote: "Schedule confirmed by Denver route 19406; public-road geometry completes the short curve to the W Mexico Ave name-change endpoint."
+  });
+}
+
+function removeSupersededSouthIrvingFallbacks(routeMap) {
+  // The road inventory names these two center blocks "South Irving Street
+  // Parkway", while Denver's confirmed divided-road routes call them
+  // "S IRVING ST". Older builds therefore painted pink unavailable lines on
+  // top of the official Tuesday/Wednesday curb geometry.
+  if (!routeMap.has(5886) || !routeMap.has(19485)) return;
+
+  [
+    "unavailable-florida-evans-sheridan-federal-osm-346396116-176092448-176092450-0",
+    "unavailable-florida-evans-sheridan-federal-osm-346396117-3529398385-3529398382-0"
+  ].forEach((id) => routeMap.delete(id));
+
+  // S Julian Circle is split at W Asbury Ave into two official scheduled
+  // routes. Remove all four OSM fallback pieces, including the short Irving
+  // connectors, once both confirmed halves are available.
+  if (!routeMap.has(8554) || !routeMap.has(20766)) return;
+  [
+    "unavailable-florida-evans-sheridan-federal-osm-16988433-176092450-3529398385-0",
+    "unavailable-florida-evans-sheridan-federal-osm-16988433-3529398385-176110563-0",
+    "unavailable-florida-evans-sheridan-federal-osm-16988433-176110563-3529398382-0",
+    "unavailable-florida-evans-sheridan-federal-osm-16988433-3529398382-176092448-0"
+  ].forEach((id) => routeMap.delete(id));
 }
 
 function ensureUnavailableTennysonCoverage(routeMap) {
@@ -2928,6 +3118,82 @@ function applyLocalStreetNameOverrides(routeMap) {
 }
 
 function ensureRinoOfficialRouteCoverage(routeMap) {
+  const addUnavailableWalnutBlock = ({ id, from, to, path }) => {
+    if (routeMap.has(id)) return;
+    routeMap.set(id, {
+      id,
+      streetName: "WALNUT ST",
+      from,
+      to,
+      sweepType: "Unavailable",
+      leftSweepDirection: "Left",
+      rightSweepDirection: "Right",
+      leftSweepingRule: "Denver route data unavailable — check posted signs.",
+      rightSweepingRule: "Denver route data unavailable — check posted signs.",
+      schedules: [],
+      isPosted: false,
+      dataUnavailable: true,
+      map: { staticMapUrl: "", center: path[Math.floor(path.length / 2)], path },
+      sourceNote: "Denver's Street Sweeping Schedules and Alerts lookup confirms an April–November sweeping season for this block but provides no usable side or date schedule."
+    });
+  };
+
+  const addUnavailableRinoBlock = ({ id, streetName, from, to, path }) => {
+    if (routeMap.has(id)) return;
+    routeMap.set(id, {
+      id, streetName, from, to,
+      sweepType: "Unavailable",
+      leftSweepDirection: "Left",
+      rightSweepDirection: "Right",
+      leftSweepingRule: "Denver route data unavailable — check posted signs.",
+      rightSweepingRule: "Denver route data unavailable — check posted signs.",
+      schedules: [], isPosted: false, dataUnavailable: true,
+      map: { staticMapUrl: "", center: path[Math.floor(path.length / 2)], path },
+      sourceNote: "Pink verification coverage added for a visible RiNo map gap; check posted signs."
+    });
+  };
+
+  addUnavailableWalnutBlock({
+    id: "unavailable-walnut-27th-28th",
+    from: "27TH ST",
+    to: "28TH ST",
+    path: [[39.7608300127708, -104.985886980374], [39.7609639, -104.9848465], [39.7610978334174, -104.983805935064]]
+  });
+  addUnavailableWalnutBlock({
+    id: "unavailable-walnut-28th-29th",
+    from: "28TH ST",
+    to: "29TH ST",
+    path: [[39.7610978334174, -104.983805935064], [39.7615655, -104.9832005], [39.7620331112184, -104.982594973694]]
+  });
+  addUnavailableWalnutBlock({
+    id: "unavailable-walnut-29th-30th",
+    from: "29TH ST",
+    to: "30TH ST",
+    path: [[39.7620331112184, -104.982594973694], [39.7624968, -104.9819948], [39.7629605231865, -104.981394709113]]
+  });
+  addUnavailableWalnutBlock({
+    id: "unavailable-walnut-31st-32nd",
+    from: "31ST ST",
+    to: "32ND ST",
+    path: [[39.7638844223947, -104.980178436626], [39.7643558, -104.9795729], [39.7648272054731, -104.978967327292]]
+  });
+  [
+    ["unavailable-walnut-30th-31st", "30TH ST", "31ST ST", [[39.7629605231865, -104.981394709113], [39.7634225, -104.9807866], [39.7638844223947, -104.980178436626]]],
+    ["unavailable-walnut-32nd-33rd", "32ND ST", "33RD ST", [[39.7648272054731, -104.978967327292], [39.7652962, -104.9783738], [39.7657652802023, -104.977780228784]]],
+    ["unavailable-walnut-33rd-34th", "33RD ST", "34TH ST", [[39.7657652802023, -104.977780228784], [39.7662293, -104.9771743], [39.7666932784295, -104.976568273298]]],
+    ["unavailable-walnut-34th-35th", "34TH ST", "35TH ST", [[39.7666932784295, -104.976568273298], [39.7671587, -104.9759658], [39.7676240441772, -104.9753633794]]]
+  ].forEach(([id, from, to, path]) => addUnavailableRinoBlock({ id, streetName: "WALNUT ST", from, to, path }));
+
+  [
+    ["unavailable-larimer-33rd-34th", "33RD ST", "34TH ST", [[39.7650922531457, -104.976907494732], [39.7655592, -104.9763002], [39.7660261, -104.975693]]],
+    ["unavailable-larimer-34th-35th", "34TH ST", "35TH ST", [[39.7660261, -104.975693], [39.7664901, -104.9750989], [39.7669541504805, -104.974504850619]]]
+  ].forEach(([id, from, to, path]) => addUnavailableRinoBlock({ id, streetName: "LARIMER ST", from, to, path }));
+
+  addUnavailableRinoBlock({
+    id: "unavailable-35th-larimer-walnut", streetName: "35TH ST", from: "LARIMER ST", to: "WALNUT ST",
+    path: [[39.7669541504805, -104.974504850619], [39.7672891, -104.9749341], [39.7676240441772, -104.9753633794]]
+  });
+
   const addConfirmedRoute = ({ id, adjacentId, streetName, from, to, path }) => {
     if (routeMap.has(id)) return;
     const adjacent = routeMap.get(adjacentId);
@@ -2947,9 +3213,35 @@ function ensureRinoOfficialRouteCoverage(routeMap) {
     id: 23947, adjacentId: 23948, streetName: "26TH ST", from: "LARIMER ST", to: "BLAKE ST",
     path: [[39.7585552407673, -104.98533900067], [39.758900704267, -104.985788196374], [39.7592327014274, -104.986218819592]]
   });
+  const markUnavailable = (id, from, to) => {
+    const existing = routeMap.get(id);
+    if (!existing) return;
+    routeMap.set(id, {
+      ...existing,
+      from,
+      to,
+      sweepType: "Unavailable",
+      leftSweepingRule: "Denver route data unavailable — check posted signs.",
+      rightSweepingRule: "Denver route data unavailable — check posted signs.",
+      schedules: [],
+      isPosted: false,
+      dataUnavailable: true,
+      sourceNote: "Denver's Street Sweeping Schedules and Alerts lookup shows this road portion but provides no usable side or date schedule."
+    });
+  };
   addConfirmedRoute({
     id: 24031, adjacentId: 24033, streetName: "28TH ST", from: "LARIMER ST", to: "BLAKE ST",
     path: [[39.7604265567974, -104.982931405626], [39.760762, -104.983369], [39.7610978334174, -104.983805935064]]
+  });
+  markUnavailable(24031, "LARIMER ST", "WALNUT ST");
+  markUnavailable(24033, "WALNUT ST", "BLAKE ST");
+  addConfirmedRoute({
+    id: "confirmed-34th-larimer-walnut",
+    adjacentId: 22787,
+    streetName: "34TH ST",
+    from: "LARIMER ST",
+    to: "WALNUT ST",
+    path: [[39.7660261, -104.975693], [39.7663597, -104.9761306], [39.7666932784295, -104.976568273298]]
   });
   [
     [24034, 24037, "29TH ST", [[39.7613543146548, -104.981730283549], [39.761694, -104.982164], [39.7620331112184, -104.982594973694]]],
@@ -3358,6 +3650,8 @@ function refreshMapViewport() {
 
   bounds.extend([39.7506, -105.0435]);
   bounds.extend([39.7399, -105.0272]);
+  bounds.extend([W5_TO_ALAMEDA_EAST_BOUNDS.north, W5_TO_ALAMEDA_EAST_BOUNDS.west]);
+  bounds.extend([W5_TO_ALAMEDA_EAST_BOUNDS.south, W5_TO_ALAMEDA_EAST_BOUNDS.east]);
   bounds.extend([WEST_COLFAX_EXTENSION_BOUNDS.north, WEST_COLFAX_EXTENSION_BOUNDS.west]);
   bounds.extend([WEST_COLFAX_EXTENSION_BOUNDS.south, WEST_COLFAX_EXTENSION_BOUNDS.east]);
   bounds.extend([WEST_23RD_TO_26TH_EXTENSION_BOUNDS.north, WEST_23RD_TO_26TH_EXTENSION_BOUNDS.west]);
@@ -4079,10 +4373,14 @@ function renderSegments() {
     });
     const nextSweepDate = getNextSweepDate(segment);
     const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
-    const unavailableText = !segment.schedule || segment.schedule.sweepType === "Unavailable"
-      ? " | Denver route data unavailable — check posted signs"
-      : "";
-    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${unavailableText}`, {
+    const statusText = segment.schedule?.sweepType === "NotMaintained"
+      ? " | No Denver street sweeping — street not maintained by Denver"
+      : !segment.schedule || segment.schedule.sweepType === "Unavailable"
+        ? " | Schedule information unavailable — check Denver's website and posted signs"
+        : segment.schedule.relocationRequired === false
+          ? " | No car relocation required — tap for schedule details"
+        : "";
+    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${statusText}`, {
       sticky: true
     });
     touchTarget.on("click", () => toggleSegment(segment.id));
@@ -4188,6 +4486,11 @@ function renderCurrentSelection() {
   currentSelectionSection.classList.toggle("is-empty", selectedSegments.length === 0);
   selectedCount.textContent = String(selectedSegments.length);
   liveSelectionCount.textContent = `${selectedSegments.length} selected`;
+  const includesNonReminderCurb = selectedSegments.some((segment) => segment.schedule?.remindersAllowed === false);
+  saveSetButton.disabled = includesNonReminderCurb;
+  saveSetButton.title = includesNonReminderCurb
+    ? "Remove streets not maintained by Denver before saving sweeping reminders."
+    : "";
 
   selectedSegments.forEach((segment) => {
     const item = selectionTemplate.content.firstElementChild.cloneNode(true);
@@ -4199,6 +4502,10 @@ function renderCurrentSelection() {
     if (noMoveNotice && segment.schedule?.relocationRequired === false) {
       noMoveNotice.hidden = false;
     }
+    const unavailableNotice = item.querySelector(".unavailable-notice");
+    if (unavailableNotice && (!segment.schedule || segment.schedule.sweepType === "Unavailable")) {
+      unavailableNotice.hidden = false;
+    }
     item.querySelector(".remove-button").addEventListener("click", () => toggleSegment(segment.id));
     selectionList.appendChild(item);
   });
@@ -4206,7 +4513,7 @@ function renderCurrentSelection() {
 
 function buildSelectionMeta(segment) {
   if (!segment.schedule) {
-    return `${segment.sideLabel} of ${segment.street} | Denver route data unavailable — check posted signs`;
+    return `${segment.sideLabel} of ${segment.street} | Schedule information unavailable`;
   }
 
   if (segment.schedule.sweepType === "Nightly") {
@@ -4214,7 +4521,11 @@ function buildSelectionMeta(segment) {
   }
 
   if (segment.schedule.sweepType === "Unavailable") {
-    return `${segment.sideLabel} of ${segment.street} | Denver route data unavailable — check posted signs`;
+    return `${segment.sideLabel} of ${segment.street} | Schedule information unavailable`;
+  }
+
+  if (segment.schedule.sweepType === "NotMaintained") {
+    return `${segment.sideLabel} of ${segment.street} | No Denver street sweeping — the City and County of Denver identifies this street as not city-maintained. Sweeping reminders are unavailable.`;
   }
 
   if (segment.schedule.sweepType === "Weekly") {
@@ -4232,6 +4543,11 @@ function saveCurrentAsSet() {
 
   if (!selectedSegments.length) {
     setNameInput.focus();
+    return;
+  }
+
+  if (selectedSegments.some((segment) => segment.schedule?.remindersAllowed === false)) {
+    lookupStatus.textContent = "Streets not maintained by Denver have no Denver sweeping schedule and cannot be saved for sweeping reminders.";
     return;
   }
 
@@ -4899,7 +5215,7 @@ async function initializePushFeatures() {
   }
 
   try {
-    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=72");
+    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=74");
     state.serviceWorkerRegistration.update?.();
     const configResponse = await fetch(buildApiUrl("/api/push/config"));
     if (configResponse.ok) {
@@ -5096,7 +5412,7 @@ async function requestBrowserNotifications() {
     }
 
     if (!state.serviceWorkerRegistration) {
-      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=72");
+      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=74");
     }
 
     let subscription = await state.serviceWorkerRegistration.pushManager.getSubscription();

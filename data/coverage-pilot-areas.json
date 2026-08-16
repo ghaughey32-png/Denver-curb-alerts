@@ -8,6 +8,110 @@
       "south": 39.7399,
       "west": -105.0435,
       "east": -105.0272
+    },
+    {
+      "id": "w5-alameda-federal-i25",
+      "label": "W 5th Avenue–W Alameda Avenue, Federal Boulevard–I-25",
+      "north": 39.7244,
+      "south": 39.7104,
+      "west": -105.0254,
+      "east": -105.0002
+    },
+    {
+      "id": "w5-bayaud-sheridan-federal",
+      "label": "W 5th Avenue–W Bayaud Avenue, Sheridan Boulevard–Federal Boulevard",
+      "north": 39.7244,
+      "south": 39.7142,
+      "west": -105.0534,
+      "east": -105.025
+    },
+    {
+      "id": "bayaud-exposition-sheridan-federal",
+      "label": "W Bayaud Avenue–W Exposition Avenue, Sheridan Boulevard–Federal Boulevard",
+      "north": 39.7142,
+      "south": 39.703,
+      "west": -105.0534,
+      "east": -105.025
+    },
+    {
+      "id": "nevada-exposition-federal-i25",
+      "label": "W Nevada Place–W Exposition Avenue, Federal Boulevard–I-25",
+      "north": 39.7107,
+      "south": 39.7028,
+      "west": -105.0254,
+      "east": -105.0002
+    },
+    {
+      "id": "ohio-florida-sheridan-federal",
+      "label": "W Ohio Avenue–W Florida Avenue, Sheridan Boulevard–Federal Boulevard",
+      "north": 39.7032,
+      "south": 39.6893,
+      "west": -105.0534,
+      "east": -105.025
+    },
+    {
+      "id": "ohio-florida-federal-i25",
+      "label": "W Ohio Avenue–W Florida Avenue, Federal Boulevard–I-25",
+      "north": 39.7032,
+      "south": 39.6893,
+      "west": -105.0254,
+      "east": -105.0002
+    },
+    {
+      "id": "virginia-florida-jason-bannock",
+      "label": "W Virginia Avenue–W Florida Avenue, Jason Street–Bannock Street",
+      "north": 39.708,
+      "south": 39.6893,
+      "west": -104.9995,
+      "east": -104.9897
+    },
+    {
+      "id": "florida-evans-sheridan-federal",
+      "label": "W Florida Avenue–W Evans Avenue, Sheridan Boulevard–Federal Boulevard",
+      "north": 39.6893,
+      "south": 39.6778,
+      "west": -105.0534,
+      "east": -105.025
+    },
+    {
+      "id": "evans-yale-sheridan-federal",
+      "label": "W Evans Avenue–W Yale Avenue, Sheridan Boulevard–Federal Boulevard",
+      "north": 39.6778,
+      "south": 39.6666,
+      "west": -105.0534,
+      "east": -105.025
+    },
+    {
+      "id": "yale-dartmouth-wadsworth-federal",
+      "label": "W Yale Avenue–W Dartmouth Avenue, Wadsworth Boulevard–Federal Boulevard",
+      "north": 39.6678,
+      "south": 39.6562,
+      "west": -105.082,
+      "east": -105.025
+    },
+    {
+      "id": "florida-yale-federal-i25",
+      "label": "W Florida Avenue–W Yale Avenue, Federal Boulevard–I-25",
+      "north": 39.6893,
+      "south": 39.6666,
+      "west": -105.0254,
+      "east": -104.9995
+    },
+    {
+      "id": "w50-vrain-infill",
+      "label": "W 50th Avenue and Vrain Street infill",
+      "north": 39.792,
+      "south": 39.7868,
+      "west": -105.052,
+      "east": -105.0458
+    },
+    {
+      "id": "e26-e37-gilpin-york",
+      "label": "E 26th Avenue–E 37th Avenue, Gilpin Street–York Street",
+      "north": 39.7685,
+      "south": 39.7544,
+      "west": -104.9674,
+      "east": -104.959
     }
   ]
 }

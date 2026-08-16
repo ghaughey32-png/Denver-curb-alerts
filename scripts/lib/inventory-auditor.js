@@ -12,8 +12,12 @@ function normalizeStreetName(value = "") {
     .replace(/\bBOULEVARD\b/g, "BLVD")
     .replace(/\bPLACE\b/g, "PL")
     .replace(/\bCOURT\b/g, "CT")
+    .replace(/\bCIRCLE\b/g, "CIR")
     .replace(/\bROAD\b/g, "RD")
     .replace(/\bDRIVE\b/g, "DR")
+    // Denver calls this roadway S Irving St while the public-road inventory
+    // calls the same divided carriageway South Irving Street Parkway.
+    .replace(/\bIRVING ST PARKWAY\b/g, "IRVING ST")
     .replace(/[^A-Z0-9]+/g, " ")
     .trim()
     .replace(/^[NSEW] /, "");

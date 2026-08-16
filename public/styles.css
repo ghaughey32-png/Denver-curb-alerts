@@ -868,6 +868,10 @@ button {
   background: var(--unavailable);
 }
 
+.gray {
+  background: #7b8790;
+}
+
 .leaflet-tooltip.you-are-here-label {
   background: rgba(31, 47, 55, 0.9);
   border: none;
@@ -1141,7 +1145,8 @@ button {
   line-height: 1.55;
 }
 
-.no-move-notice {
+.no-move-notice,
+.unavailable-notice {
   display: grid;
   gap: 5px;
   margin-top: 12px;
@@ -1153,19 +1158,32 @@ button {
   line-height: 1.4;
 }
 
-.no-move-notice[hidden] {
+.no-move-notice[hidden],
+.unavailable-notice[hidden] {
   display: none;
 }
 
-.no-move-notice span {
+.no-move-notice span,
+.unavailable-notice span {
   font-size: 0.9rem;
 }
 
-.no-move-notice a {
+.no-move-notice a,
+.unavailable-notice a {
   width: fit-content;
   color: #176b57;
   font-size: 0.88rem;
   font-weight: 700;
+}
+
+.unavailable-notice {
+  color: #6f2148;
+  background: #fff0f7;
+  border-color: rgba(111, 33, 72, 0.2);
+}
+
+.unavailable-notice a {
+  color: #a1165d;
 }
 
 .remove-button {

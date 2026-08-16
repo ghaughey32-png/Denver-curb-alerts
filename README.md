@@ -51,7 +51,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 
 ## Refresh the saved map inventory
 
-The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including W 6th–W 12th from Sheridan to I-25, W 13th–W Colfax from Sheridan to Julian, W 20th–W 26th from Federal to Bryant, W 26th–W 46th from Sheridan to Federal, W 26th–W 46th from Federal to Pecos/I-25, W 33rd–W 46th from Osage to Inca, W 47th–W 48th Avenue South Drive from Sheridan to Quivas, and W 50th–W 52nd from Tennyson to Lowell and Federal to Pecos. This avoids running hundreds of Denver lookups in each visitor's browser.
+The app opens with `public/denver-west-routes.json`, a saved copy of the official Denver routes for the mapped area, including East 17th–East 26th from Downing to York; East 26th–East 37th from Gilpin to York; W Dartmouth–W Yale from Wadsworth to Federal; W Yale–W Florida from Sheridan to I-25; W Florida–W Ohio from Sheridan to I-25; W Florida–W Virginia from Jason to Bannock; W Exposition–W 5th from Sheridan to Federal; W Exposition–W Nevada from Federal to I-25; W Alameda (CO 26)–W 5th from Federal to I-25; and the existing West Denver and RiNo inventories. This avoids running hundreds of Denver lookups in each visitor's browser.
 
 With the local server running, rebuild that snapshot using:
 
@@ -72,6 +72,16 @@ npm run audit:inventory
 ```
 
 The durable publishing rule is: no mapped public street block may render blank. When starting a new neighborhood, obtain its road/block geometry first (for example from OpenStreetMap), add those blocks to the manifest, then run the builder.
+
+### Mapping Approach #3 — Change 2
+
+Map a newly imported area with the exhaustive staged discovery workflow:
+
+```bash
+npm run map:area -- area-id
+```
+
+Change 2 queries each unresolved public block progressively: midpoint, near both endpoints, interior points, nearby perpendicular offsets, and finally named intersection addresses. Each stage reruns the geometry audit and stops spending requests on blocks that have resolved. Successful Denver responses—including empty results—are cached in `data/mapping-cache-<area-id>.json`, so the first run is the slowest and later runs reuse prior work. The corresponding mapping report records per-stage query and resolution counts plus every automated check for blocks that still require human review.
 
 ### Staged gap review pilot
 

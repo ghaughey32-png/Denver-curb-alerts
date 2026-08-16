@@ -7,6 +7,7 @@
     "start": "node server.js",
     "build:inventory": "node scripts/build-static-inventory.js",
     "build:review-queue": "node scripts/build-coverage-review-queue.js",
+    "map:area": "node scripts/map-area-approach-3.js",
     "sync:coverage": "node scripts/sync-expected-coverage.js",
     "audit:inventory": "node --test test/inventory-auditor.test.js test/inventory-coverage.test.js",
     "test": "node --test test/*.test.js"
