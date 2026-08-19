@@ -579658,7 +579658,9 @@
           39.7107,
           -104.95865824656488
         ]
-      ]
+      ],
+      "excluded": true,
+      "exclusionReason": "Private gated-community road (Polo Club); not maintained by the City and County of Denver."
     },
     {
       "id": "alameda-e7-lincoln-colorado-osm-16985413-176096211-176091819-0",
@@ -733554,7 +733556,9 @@
           39.707861,
           -104.9551863
         ]
-      ]
+      ],
+      "excluded": true,
+      "exclusionReason": "Private gated-community road (Polo Club); not maintained by the City and County of Denver."
     },
     {
       "id": "dakota-louisiana-broadway-colorado-osm-16985446-1497882272-176096444-0",
@@ -756038,7 +756042,9 @@
           39.7096161,
           -104.9560212
         ]
-      ]
+      ],
+      "excluded": true,
+      "exclusionReason": "Private gated-community road (Polo Club); not maintained by the City and County of Denver."
     },
     {
       "id": "dakota-louisiana-broadway-colorado-osm-515376364-176096455-5033334678-0",
@@ -756082,7 +756088,9 @@
           39.7098,
           -104.95580319411765
         ]
-      ]
+      ],
+      "excluded": true,
+      "exclusionReason": "Private gated-community road (Polo Club); not maintained by the City and County of Denver."
     },
     {
       "id": "dakota-louisiana-broadway-colorado-osm-515376365-5033334710-176103458-0",

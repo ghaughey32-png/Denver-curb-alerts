@@ -86,6 +86,23 @@ test("Regis-area ownership classifications remain visible", () => {
   });
 });
 
+test("Polo Club private streets render gray instead of blank", () => {
+  const { applyConfirmedPoloClubCoverage } = require("../scripts/lib/confirmed-polo-club-coverage.js");
+  const probeMap = new Map();
+  applyConfirmedPoloClubCoverage(probeMap);
+  const poloClubIds = [...probeMap.keys()];
+
+  assert.ok(poloClubIds.length >= 30, "expected the full set of Polo Club blocks to be patched");
+  poloClubIds.forEach((id) => {
+    const route = inventory.routes.find((candidate) => candidate.id === id);
+    assert.ok(route, `${id} should be published`);
+    assert.equal(route.sweepType, "Private");
+    assert.match(route.leftSweepingRule, /not maintained by the City and County of Denver/i);
+    const block = manifest.blocks.find((candidate) => candidate.id === id);
+    assert.ok(block?.excluded, `${id} should be excluded from public-block auditing`);
+  });
+});
+
 test("W 1st through W 5th has declared map coverage from Sheridan to Federal", () => {
   const areaBlocks = manifest.blocks.filter((block) => String(block.id).startsWith("w1-w5-osm-"));
   const publicBlocks = areaBlocks.filter((block) => !block.excluded);
@@ -357,7 +374,7 @@ test("E 38th through E 45th includes official coverage from Blake to Colorado", 
     name: "E Dakota through E Louisiana from Broadway to Colorado",
     prefix: "dakota-louisiana-broadway-colorado-osm-",
     bounds: { south: 39.6924, north: 39.7098, west: -104.9877, east: -104.9404 },
-    expectedPublicBlocks: 930,
+    expectedPublicBlocks: 927,
     minimumScheduled: 849
   }
 ].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {

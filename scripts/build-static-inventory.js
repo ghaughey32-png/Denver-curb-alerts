@@ -4,6 +4,7 @@ const { auditInventory } = require("./lib/inventory-auditor.js");
 const { addConfirmedValverdeCoverage } = require("./lib/confirmed-valverde-coverage.js");
 const { applyConfirmedVrainCoverage } = require("./lib/confirmed-vrain-coverage.js");
 const { applyConfirmedRegisAreaCoverage } = require("./lib/confirmed-regis-area-coverage.js");
+const { applyConfirmedPoloClubCoverage } = require("./lib/confirmed-polo-club-coverage.js");
 
 const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3000";
 const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
@@ -892,6 +893,7 @@ async function main() {
   addConfirmedValverdeCoverage(routeMap);
   applyConfirmedVrainCoverage(routeMap);
   applyConfirmedRegisAreaCoverage(routeMap);
+  applyConfirmedPoloClubCoverage(routeMap);
   addConfirmedSouthJulianWayCoverage(routeMap);
   addConfirmedWestWesleyPlatteJasonCoverage(routeMap);
   addConfirmedSouthPlatteIliffWesleyCoverage(routeMap);
