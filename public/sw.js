@@ -1,14 +1,14 @@
-const CACHE_NAME = "curb-alerts-shell-v87";
+const CACHE_NAME = "curb-alerts-shell-v94";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css?v=20260814a",
-  "/denver-west-routes.js?v=20260816-e26-e37",
+  "/styles.css?v=20260816-special-curbs",
+  "/denver-west-routes.js?v=20260818-e26-e37-josephine-colorado",
   "/curb-geometry.js?v=20260813b",
-  "/app.js?v=20260816-york-coverage",
-  "/denver-west-routes.json?v=43",
-  "/manifest.webmanifest?v=20260811d",
-  "/icon.svg?v=20260811d"
+  "/app.js?v=20260818-e26-e37-josephine-colorado",
+  "/denver-west-routes.json?v=48",
+  "/manifest.webmanifest?v=20260808d",
+  "/icon.svg?v=20260808d"
 ];
 
 self.addEventListener("install", (event) => {

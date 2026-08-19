@@ -14,6 +14,7 @@ test("normalizes common road-name variants before matching", () => {
   assert.equal(normalizeStreetName("West Main Street"), normalizeStreetName("W MAIN ST"));
   assert.equal(normalizeStreetName("Quitman Street"), normalizeStreetName("N Quitman St"));
   assert.equal(normalizeStreetName("South Irving Street Parkway"), normalizeStreetName("S Irving St"));
+  assert.equal(normalizeStreetName("East 26th Avenue"), normalizeStreetName("E 26th Avenue Parkway"));
   assert.equal(normalizeStreetName("South Julian Circle"), normalizeStreetName("S Julian Cir"));
 });
 

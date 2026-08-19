@@ -913,6 +913,11 @@ async function main() {
   // Route 27084 now includes the short S Pecos continuation north of Pacific,
   // so the overlapping pink fallback must not survive the coverage audit.
   routeMap.delete("unavailable-florida-yale-federal-i25-osm-37290027-176110603-176106054-0");
+  // Denver route 24360 supplies the posted E 26th Avenue Parkway schedule
+  // from York Street to Josephine Street. The OSM expected block ends partway
+  // through that official geometry, so the auditor cannot match it closely
+  // enough and otherwise publishes a duplicate pink fallback over the route.
+  routeMap.delete("unavailable-e17-e26-downing-york-osm-239249844-176088017-2823784462-0");
   const coverageReport = {
     ...audit.report,
     generatedAt: new Date().toISOString(),

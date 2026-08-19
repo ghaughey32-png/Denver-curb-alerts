@@ -15,6 +15,9 @@ function normalizeStreetName(value = "") {
     .replace(/\bCIRCLE\b/g, "CIR")
     .replace(/\bROAD\b/g, "RD")
     .replace(/\bDRIVE\b/g, "DR")
+    // Denver includes PARKWAY in E 26th Avenue's route name while OSM labels
+    // the same continuous roadway East 26th Avenue.
+    .replace(/\bAVE (?:PARKWAY|PKWY)\b/g, "AVE")
     // Denver calls this roadway S Irving St while the public-road inventory
     // calls the same divided carriageway South Irving Street Parkway.
     .replace(/\bIRVING ST PARKWAY\b/g, "IRVING ST")

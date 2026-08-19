@@ -5,3 +5,10 @@ data/push-subscriptions.json
 data/reminder-plans.json
 data/vapid-keys.txt
 Parking app 1.2/
+
+# Regenerable pipeline artifacts. Nothing reads these at runtime; they are lookup
+# caches and human-review reports rewritten by scripts/map-area-approach-3.js,
+# scripts/build-static-inventory.js, and scripts/sync-expected-coverage.js.
+data/mapping-cache-*.json
+data/mapping-report-*.json
+data/inventory-coverage-report.json

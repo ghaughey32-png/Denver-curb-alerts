@@ -106,12 +106,44 @@
       "east": -105.0458
     },
     {
+      "id": "alameda-e7-lincoln-colorado",
+      "label": "E Alameda Avenue–E 7th Avenue Parkway, Lincoln Street–Colorado Boulevard",
+      "north": 39.7288,
+      "south": 39.7107,
+      "west": -104.987,
+      "east": -104.9398
+    },
+    {
       "id": "e26-e37-gilpin-york",
       "label": "E 26th Avenue–E 37th Avenue, Gilpin Street–York Street",
       "north": 39.7685,
       "south": 39.7544,
       "west": -104.9674,
       "east": -104.959
+    },
+    {
+      "id": "e8-e17-york-colorado",
+      "label": "E 8th Avenue–E 17th Avenue, York Street–Colorado Boulevard",
+      "north": 39.7432,
+      "south": 39.7288,
+      "west": -104.96,
+      "east": -104.9404
+    },
+    {
+      "id": "e26-e37-josephine-colorado",
+      "label": "E 26th Avenue–E 37th Avenue, Josephine Street–Colorado Boulevard",
+      "north": 39.7685,
+      "south": 39.7544,
+      "west": -104.9589,
+      "east": -104.9404
+    },
+    {
+      "id": "e38-e45-blake-colorado",
+      "label": "E 38th Avenue–E 45th Avenue, Blake Street–Colorado Boulevard",
+      "north": 39.779,
+      "south": 39.7692,
+      "west": -104.9734,
+      "east": -104.9404
     }
   ]
 }

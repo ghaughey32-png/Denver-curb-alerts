@@ -10,6 +10,23 @@ test("every declared public street block is valid and auditable", () => {
   assert.equal(result.report.counts.expected, manifest.blocks.filter((block) => !block.excluded).length);
 });
 
+test("E 8th through E 16th has clickable coverage from Lincoln to Gaylord", () => {
+  const prefix = "e8-e16-lincoln-gaylord-osm-";
+  const areaBlocks = manifest.blocks.filter((block) => String(block.id).startsWith(prefix));
+  const publicBlocks = areaBlocks.filter((block) => !block.excluded);
+  const result = auditInventory({ routes: inventory.routes, blocks: publicBlocks, generateUnavailable: false });
+
+  assert.equal(areaBlocks.length, 3779);
+  assert.equal(publicBlocks.length, 588);
+  publicBlocks.flatMap((block) => block.geometry).forEach(([lat, lon]) => {
+    assert.ok(lat >= 39.7285 && lat <= 39.7426, `latitude ${lat} is outside the mapping area`);
+    assert.ok(lon >= -104.9868 && lon <= -104.961, `longitude ${lon} is outside the mapping area`);
+  });
+  assert.ok(result.report.counts.scheduled >= 574);
+  assert.ok(inventory.routes.some((route) => route.dataUnavailable && String(route.expectedBlockId || "").startsWith(prefix)));
+  assert.equal(result.report.counts["unexplained-gap"], 0);
+});
+
 test("unresolved Tennyson blocks are not published as generated pink routes", () => {
   const expectedIds = [
     "tennyson-46-47",
@@ -248,6 +265,44 @@ test("E 26th through E 37th reaches York Street continuously", () => {
   assert.ok(eastWestRoutesAtYork.some((route) => route.streetName === "E 37TH AVE"));
 });
 
+test("E 26th Avenue Parkway uses the confirmed York-to-Josephine schedule", () => {
+  const route = inventory.routes.find((candidate) => candidate.id === 24360);
+  const overlappingPinkRoute = inventory.routes.find(
+    (candidate) => candidate.expectedBlockId === "e17-e26-downing-york-osm-239249844-176088017-2823784462-0"
+  );
+
+  assert.ok(route);
+  assert.equal(route.streetName, "E 26TH AVENUE PKWY");
+  assert.equal(route.from, "N YORK ST/E 26TH AVE/TRAFFIC SIGNAL");
+  assert.equal(route.to, "N JOSEPHINE ST");
+  assert.equal(route.leftSweepingRule, "North side: The 2nd Thursday of the month.");
+  assert.equal(route.rightSweepingRule, "South side: The 2nd Friday of the month.");
+  assert.equal(route.isPosted, true);
+  assert.equal(overlappingPinkRoute, undefined);
+});
+
+test("E 38th through E 45th includes official coverage from Blake to Colorado", () => {
+  const prefix = "e38-e45-blake-colorado-osm-";
+  const areaBlocks = manifest.blocks.filter((block) => String(block.id).startsWith(prefix));
+  const publicBlocks = areaBlocks.filter((block) => !block.excluded);
+  const result = auditInventory({ routes: inventory.routes, blocks: publicBlocks, generateUnavailable: false });
+
+  assert.equal(publicBlocks.length, 396);
+  publicBlocks.flatMap((block) => block.geometry).forEach(([lat, lon]) => {
+    assert.ok(lat >= 39.7692 && lat <= 39.779, `latitude ${lat} is outside the mapping area`);
+    assert.ok(lon >= -104.9734 && lon <= -104.9404, `longitude ${lon} is outside the mapping area`);
+  });
+  assert.ok(result.report.counts.scheduled >= 356);
+  assert.ok(inventory.routes.some((route) =>
+    route.dataUnavailable && String(route.expectedBlockId || "").startsWith(prefix)
+  ));
+  assert.equal(result.report.counts["unexplained-gap"], 0);
+  assert.ok(inventory.routes.some((route) =>
+    route.streetName === "E 45TH AVE" &&
+    route.map?.path?.some(([lat, lon]) => lat >= 39.7788 && lat <= 39.779 && lon >= -104.9734 && lon <= -104.9404)
+  ));
+});
+
 [
   {
     name: "W Florida through W Evans from Sheridan to Federal",
@@ -283,6 +338,20 @@ test("E 26th through E 37th reaches York Street continuously", () => {
     bounds: { south: 39.743, north: 39.7558, west: -104.9736, east: -104.959 },
     expectedPublicBlocks: 335,
     minimumScheduled: 323
+  },
+  {
+    name: "E 8th through E 17th from York to Colorado",
+    prefix: "e8-e17-york-colorado-osm-",
+    bounds: { south: 39.7288, north: 39.7432, west: -104.96, east: -104.9404 },
+    expectedPublicBlocks: 465,
+    minimumScheduled: 455
+  },
+  {
+    name: "E 26th through E 37th from Josephine to Colorado",
+    prefix: "e26-e37-josephine-colorado-osm-",
+    bounds: { south: 39.7544, north: 39.7685, west: -104.9589, east: -104.9404 },
+    expectedPublicBlocks: 448,
+    minimumScheduled: 387
   }
 ].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
   test(`${name} has clickable coverage`, () => {

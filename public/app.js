@@ -1546,7 +1546,7 @@ const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
 const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v38";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=43";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=48";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
@@ -5215,7 +5215,7 @@ async function initializePushFeatures() {
   }
 
   try {
-    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=74");
+    state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=75");
     state.serviceWorkerRegistration.update?.();
     const configResponse = await fetch(buildApiUrl("/api/push/config"));
     if (configResponse.ok) {
@@ -5412,7 +5412,7 @@ async function requestBrowserNotifications() {
     }
 
     if (!state.serviceWorkerRegistration) {
-      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=74");
+      state.serviceWorkerRegistration = await navigator.serviceWorker.register("/sw.js?v=75");
     }
 
     let subscription = await state.serviceWorkerRegistration.pushManager.getSubscription();
