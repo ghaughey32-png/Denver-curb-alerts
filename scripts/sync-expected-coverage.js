@@ -28,7 +28,8 @@ const PUBLISHED_COVERAGE_PREFIXES = [
   "e8-e17-york-colorado-osm-",
   "alameda-e7-lincoln-colorado-osm-",
   "e26-e37-josephine-colorado-osm-",
-  "e38-e45-blake-colorado-osm-"
+  "e38-e45-blake-colorado-osm-",
+  "dakota-louisiana-broadway-colorado-osm-"
 ];
 const PUBLISHED_COVERAGE_IDS = new Set([
   "west-regis-university-frontage",
@@ -70,7 +71,7 @@ async function main() {
   payload.routes.push(...additions);
   const audit = auditInventory({ routes: payload.routes, blocks: manifest.blocks, generateUnavailable: false });
   payload.routeCount = payload.routes.length;
-  payload.areaLabel = "Denver expanded: East Alameda–East 7th from Lincoln–Colorado; East 8th–East 16th from Lincoln–Gaylord; East 8th–East 45th from York/Downing/Blake–Colorado; plus the West Denver and RiNo inventories";
+  payload.areaLabel = "Denver expanded: East Alameda–East 7th from Lincoln–Colorado; East 8th–East 16th from Lincoln–Gaylord; East 8th–East 45th from York/Downing/Blake–Colorado; East Dakota–East Louisiana from Broadway–Colorado; plus the West Denver and RiNo inventories";
   await fs.writeFile(JSON_PATH, `${JSON.stringify(payload)}\n`, "utf8");
   await fs.writeFile(SCRIPT_PATH, `window.DENVER_WEST_ROUTE_INVENTORY = ${JSON.stringify(payload)};\n`, "utf8");
   await fs.writeFile(REPORT_PATH, `${JSON.stringify({

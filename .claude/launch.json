@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "denver-curb-alerts",
+      "runtimeExecutable": "/Users/ghaughey/.nvm/versions/node/v24.19.0/bin/node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
+    }
+  ]
+}

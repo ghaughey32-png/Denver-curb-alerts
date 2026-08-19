@@ -352,6 +352,13 @@ test("E 38th through E 45th includes official coverage from Blake to Colorado", 
     bounds: { south: 39.7544, north: 39.7685, west: -104.9589, east: -104.9404 },
     expectedPublicBlocks: 448,
     minimumScheduled: 387
+  },
+  {
+    name: "E Dakota through E Louisiana from Broadway to Colorado",
+    prefix: "dakota-louisiana-broadway-colorado-osm-",
+    bounds: { south: 39.6924, north: 39.7098, west: -104.9877, east: -104.9404 },
+    expectedPublicBlocks: 930,
+    minimumScheduled: 849
   }
 ].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
   test(`${name} has clickable coverage`, () => {

@@ -144,6 +144,14 @@
       "south": 39.7692,
       "west": -104.9734,
       "east": -104.9404
+    },
+    {
+      "id": "dakota-louisiana-broadway-colorado",
+      "label": "E Dakota Avenue–E Louisiana Avenue, South Broadway–Colorado Boulevard",
+      "north": 39.7098,
+      "south": 39.6924,
+      "west": -104.9877,
+      "east": -104.9404
     }
   ]
 }
