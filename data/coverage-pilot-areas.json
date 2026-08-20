@@ -176,6 +176,14 @@
       "south": 39.6553,
       "west": -104.9692,
       "east": -104.9404
+    },
+    {
+      "id": "i70-e54-york-colorado",
+      "label": "I-70–E 54th Avenue at the Denver border, York Street–Colorado Boulevard",
+      "north": 39.7948,
+      "south": 39.779,
+      "west": -104.96,
+      "east": -104.9404
     }
   ]
 }

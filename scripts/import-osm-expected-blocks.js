@@ -179,6 +179,24 @@ if (areaId === "w50-vrain-infill") {
   });
 }
 
+// Denver's northern boundary follows Sand Creek here instead of one latitude:
+// it runs along E 54th Avenue east of Brighton Boulevard, then falls diagonally
+// to just north of E 52nd Avenue at York Street. These five blocks sit on the
+// Commerce City side of that diagonal, at and past the York Street bridge over
+// the creek, so Denver never sweeps them.
+if (areaId === "i70-e54-york-colorado") {
+  const commerceCityBlockIds = new Set([
+    `${areaId}-osm-365446753-3694617567-175951614-0`,
+    `${areaId}-osm-365446761-3694617567-3694617582-0`,
+    `${areaId}-osm-365446766-3694619355-3694617567-0`,
+    `${areaId}-osm-427836008-175951614-4270096677-0`,
+    `${areaId}-osm-1536738401-175951614-13999298638-0`
+  ]);
+  additions = additions.map((block) => commerceCityBlockIds.has(block.id)
+    ? { ...block, excluded: true, exclusionReason: "North of the Denver–Commerce City line at Sand Creek" }
+    : block);
+}
+
 const manifestPath = path.join(__dirname, "..", "data", "inventory-expected-blocks.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 manifest.blocks = [...manifest.blocks.filter((block) => !String(block.id).startsWith(`${areaId}-osm-`)), ...additions];

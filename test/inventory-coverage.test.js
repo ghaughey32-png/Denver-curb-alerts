@@ -397,6 +397,13 @@ test("E 38th through E 45th includes official coverage from Blake to Colorado", 
     bounds: { south: 39.6553, north: 39.6666, west: -104.9692, east: -104.9404 },
     expectedPublicBlocks: 330,
     minimumScheduled: 244
+  },
+  {
+    name: "I-70 through the Denver border from York to Colorado",
+    prefix: "i70-e54-york-colorado-osm-",
+    bounds: { south: 39.779, north: 39.7948, west: -104.96, east: -104.9404 },
+    expectedPublicBlocks: 313,
+    minimumScheduled: 222
   }
 ].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
   test(`${name} has clickable coverage`, () => {
