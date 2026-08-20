@@ -383,6 +383,13 @@ test("E 38th through E 45th includes official coverage from Blake to Colorado", 
     bounds: { south: 39.6778, north: 39.6924, west: -104.9877, east: -104.9404 },
     expectedPublicBlocks: 894,
     minimumScheduled: 795
+  },
+  {
+    name: "E Warren through E Yale from Broadway to Colorado",
+    prefix: "warren-yale-broadway-colorado-osm-",
+    bounds: { south: 39.6666, north: 39.6778, west: -104.9877, east: -104.9404 },
+    expectedPublicBlocks: 608,
+    minimumScheduled: 578
   }
 ].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
   test(`${name} has clickable coverage`, () => {

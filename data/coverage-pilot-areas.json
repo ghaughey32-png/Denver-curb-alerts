@@ -160,6 +160,14 @@
       "south": 39.6778,
       "west": -104.9877,
       "east": -104.9404
+    },
+    {
+      "id": "warren-yale-broadway-colorado",
+      "label": "E Warren Avenue–E Yale Avenue, South Broadway–Colorado Boulevard",
+      "north": 39.6778,
+      "south": 39.6666,
+      "west": -104.9877,
+      "east": -104.9404
     }
   ]
 }
