@@ -152,6 +152,14 @@
       "south": 39.6924,
       "west": -104.9877,
       "east": -104.9404
+    },
+    {
+      "id": "arkansas-evans-broadway-colorado",
+      "label": "E Arkansas Avenue–E Evans Avenue, South Broadway–Colorado Boulevard",
+      "north": 39.6924,
+      "south": 39.6778,
+      "west": -104.9877,
+      "east": -104.9404
     }
   ]
 }
