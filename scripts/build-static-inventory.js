@@ -440,6 +440,39 @@ function addConfirmedSouthJulianWayCoverage(routeMap) {
   });
 }
 
+function addConfirmedSouthMarionBuchtelIowaCoverage(routeMap) {
+  // Denver's coordinate lookup answers HTTP 500 for every point on this block
+  // and its geocoder rejects the cross streets, so the crawl never saw the
+  // route and the block published as a pink unavailable overlay. Denver's own
+  // Street Sweeping Schedules and Alerts page does return it, on the same
+  // 2nd Tuesday/2nd Wednesday pair as route 8915 immediately south of Iowa.
+  routeMap.delete("unavailable-arkansas-evans-broadway-colorado-osm-16982976-176077870-176077871-0");
+  const path = [
+    [39.6883787, -104.9722383],
+    [39.6883306, -104.972241],
+    [39.6875543, -104.9722411]
+  ];
+  routeMap.set("confirmed-s-marion-buchtel-iowa", {
+    id: "confirmed-s-marion-buchtel-iowa",
+    streetId: 810,
+    streetName: "S MARION ST",
+    from: "E BUCHTEL BLVD",
+    to: "E IOWA AVE",
+    sweepType: "Scheduled",
+    leftSweepDirection: "East",
+    rightSweepDirection: "West",
+    leftSweepingRule: "East side: The 2nd Tuesday of the month.",
+    rightSweepingRule: "West side: The 2nd Wednesday of the month.",
+    schedules: [
+      { Date: "09/08/2026", Description: "East" },
+      { Date: "09/09/2026", Description: "West" }
+    ],
+    isPosted: true,
+    map: { staticMapUrl: "", center: path[1], path },
+    sourceNote: "Schedule and endpoints confirmed from Denver Street Sweeping Schedules and Alerts screenshot, August 20, 2026; sweeping runs April through November."
+  });
+}
+
 function addConfirmedWestWesleyPlatteJasonCoverage(routeMap) {
   const path = [
     [39.6730269895347, -104.998225795144],
@@ -882,6 +915,7 @@ function applyCoveragePatches(routeMap, expectedBlocks) {
   applyConfirmedRegisAreaCoverage(routeMap);
   applyConfirmedPoloClubCoverage(routeMap);
   addConfirmedSouthJulianWayCoverage(routeMap);
+  addConfirmedSouthMarionBuchtelIowaCoverage(routeMap);
   addConfirmedWestWesleyPlatteJasonCoverage(routeMap);
   addConfirmedSouthPlatteIliffWesleyCoverage(routeMap);
   applySouthHookerWayWesleyCurveCoverage(routeMap, expectedBlocks);
