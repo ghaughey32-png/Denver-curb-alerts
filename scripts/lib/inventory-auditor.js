@@ -26,6 +26,13 @@ function normalizeStreetName(value = "") {
     // out in full ("South Marion Street Parkway"). Normalize both to PKWY so
     // divided parkways like Marion and Downing match their Denver routes.
     .replace(/\bPARKWAY\b/g, "PKWY")
+    // OSM splits the divided stretch of Buchtel between Broadway and University
+    // into separate "East Buchtel North Boulevard" and "East Buchtel South
+    // Boulevard" carriageways, but Denver names both roadways E BUCHTEL BLVD and
+    // tells them apart only by geometry — each carriageway gets its own route
+    // with its own sweeping day. Drop the infix so the geometric match decides
+    // which carriageway a route covers.
+    .replace(/\bBUCHTEL [NS] BLVD\b/g, "BUCHTEL BLVD")
     .replace(/[^A-Z0-9]+/g, " ")
     .trim()
     .replace(/^[NSEW] /, "");
