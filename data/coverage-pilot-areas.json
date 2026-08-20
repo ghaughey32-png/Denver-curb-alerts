@@ -168,6 +168,14 @@
       "south": 39.6666,
       "west": -104.9877,
       "east": -104.9404
+    },
+    {
+      "id": "amherst-floyd-franklin-colorado",
+      "label": "E Amherst Avenue–E Floyd Avenue, South Franklin Street–Colorado Boulevard",
+      "north": 39.6666,
+      "south": 39.6553,
+      "west": -104.9692,
+      "east": -104.9404
     }
   ]
 }

@@ -390,6 +390,13 @@ test("E 38th through E 45th includes official coverage from Blake to Colorado", 
     bounds: { south: 39.6666, north: 39.6778, west: -104.9877, east: -104.9404 },
     expectedPublicBlocks: 608,
     minimumScheduled: 578
+  },
+  {
+    name: "E Amherst through E Floyd from Franklin to Colorado",
+    prefix: "amherst-floyd-franklin-colorado-osm-",
+    bounds: { south: 39.6553, north: 39.6666, west: -104.9692, east: -104.9404 },
+    expectedPublicBlocks: 330,
+    minimumScheduled: 244
   }
 ].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
   test(`${name} has clickable coverage`, () => {
