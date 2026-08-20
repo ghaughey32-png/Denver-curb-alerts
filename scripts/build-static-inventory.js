@@ -533,8 +533,15 @@ function extendSouthPecosCoverageNorthOfPacific(routeMap) {
   // Denver route 27084 supplies the same confirmed curb schedule through the
   // short Pecos continuation north of W Pacific Pl. Fold that continuation
   // into the official route instead of drawing a pink unavailable fallback.
+  const northernAnchor = [39.679963, -105.0063528];
+  // Unlike the other patches this one splices new points onto whatever
+  // geometry it is given, so re-running it over an already-extended route
+  // would duplicate them. Bail out when the extension is already present.
+  const [firstLatitude, firstLongitude] = route.map.path[0] || [];
+  if (firstLatitude === northernAnchor[0] && firstLongitude === northernAnchor[1]) return;
+
   const path = [
-    [39.679963, -105.0063528],
+    northernAnchor,
     [39.6796724, -105.0063613],
     [39.6795819463647, -105.006414247991],
     ...route.map.path.slice(1)
@@ -858,31 +865,11 @@ function ensureRinoOfficialRouteCoverage(routeMap) {
   });
 }
 
-async function main() {
-  const expectedBlockManifest = JSON.parse(await fs.readFile(EXPECTED_BLOCKS_PATH, "utf8"));
-  const pointMap = new Map();
-  REGIONS.forEach((region) => {
-    sampleRegion(region).forEach((point) => pointMap.set(`${point.latitude},${point.longitude}`, point));
-  });
-  REQUIRED_ROUTE_ANCHORS.forEach((point) => pointMap.set(`${point.latitude},${point.longitude}`, point));
-
-  const coordinateUrls = Array.from(pointMap.values()).map(({ latitude, longitude }) =>
-    `${APP_ORIGIN}/api/denver/sweeping?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`
-  );
-  const addressUrls = ADDRESSES.map(
-    (address) => `${APP_ORIGIN}/api/denver/sweeping?address=${encodeURIComponent(address)}`
-  );
-  const summaries = await runPool([...coordinateUrls, ...addressUrls]);
-  const routeMap = new Map();
-
-
-  summaries.filter(Boolean).forEach((summary) => {
-    (Array.isArray(summary.routes) ? summary.routes : []).forEach((route) => {
-      if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
-        mergeRoute(routeMap, route);
-      }
-    });
-  });
+// The hand-curated coverage corrections applied to a freshly crawled route set,
+// before the audit runs. These assume the routes came straight from Denver, so
+// rebuild:offline deliberately does not replay them over an already-published
+// payload -- see the header of scripts/rebuild-inventory-offline.js.
+function applyCoveragePatches(routeMap, expectedBlocks) {
   addByronParkFrontageCoverage(routeMap);
   addWest46ParkFrontageCoverage(routeMap);
   addWest48FederalEliotCoverage(routeMap);
@@ -897,12 +884,17 @@ async function main() {
   addConfirmedSouthJulianWayCoverage(routeMap);
   addConfirmedWestWesleyPlatteJasonCoverage(routeMap);
   addConfirmedSouthPlatteIliffWesleyCoverage(routeMap);
-  applySouthHookerWayWesleyCurveCoverage(routeMap, expectedBlockManifest.blocks);
+  applySouthHookerWayWesleyCurveCoverage(routeMap, expectedBlocks);
   confirmSouthOsceolaWayYaleNewtonCoverage(routeMap);
   extendSouthPecosCoverageNorthOfPacific(routeMap);
   addConfirmedSouthPattonWyeCoverage(routeMap);
   applySouthKnoxAlamedaInterchangeGeometry(routeMap);
+}
 
+// Audits the patched routes, drops the fallbacks that would overlap confirmed
+// coverage, and writes the three published artifacts. Throws instead of
+// publishing when a mapped public block would render blank.
+async function auditAndPublish(routeMap, expectedBlockManifest) {
   const audit = auditInventory({ routes: routeMap, blocks: expectedBlockManifest.blocks });
   audit.generatedRoutes.forEach((route) => routeMap.set(route.id, route));
   // The source map incorrectly contains a second South Lowell roadway east of
@@ -931,6 +923,12 @@ async function main() {
     throw new Error(`Inventory build failed: unexplained public-road gaps: ${ids}`);
   }
 
+  await writeInventoryArtifacts(routeMap, coverageReport);
+}
+
+// Writes the three published artifacts. The .json and the .js carry the same
+// payload and are always written together, so keep them in one place.
+async function writeInventoryArtifacts(routeMap, coverageReport) {
   const payload = {
     version: 1,
     generatedAt: new Date().toISOString(),
@@ -945,7 +943,46 @@ async function main() {
   console.log(`Saved ${payload.routeCount} Denver routes; coverage: ${coverageReport.counts.scheduled} scheduled, ${coverageReport.counts.unavailable} unavailable, ${coverageReport.counts.excluded} excluded, ${coverageReport.counts["unexplained-gap"]} unexplained gaps.`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+async function main() {
+  const expectedBlockManifest = JSON.parse(await fs.readFile(EXPECTED_BLOCKS_PATH, "utf8"));
+  const pointMap = new Map();
+  REGIONS.forEach((region) => {
+    sampleRegion(region).forEach((point) => pointMap.set(`${point.latitude},${point.longitude}`, point));
+  });
+  REQUIRED_ROUTE_ANCHORS.forEach((point) => pointMap.set(`${point.latitude},${point.longitude}`, point));
+
+  const coordinateUrls = Array.from(pointMap.values()).map(({ latitude, longitude }) =>
+    `${APP_ORIGIN}/api/denver/sweeping?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`
+  );
+  const addressUrls = ADDRESSES.map(
+    (address) => `${APP_ORIGIN}/api/denver/sweeping?address=${encodeURIComponent(address)}`
+  );
+  const summaries = await runPool([...coordinateUrls, ...addressUrls]);
+  const routeMap = new Map();
+
+  summaries.filter(Boolean).forEach((summary) => {
+    (Array.isArray(summary.routes) ? summary.routes : []).forEach((route) => {
+      if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
+        mergeRoute(routeMap, route);
+      }
+    });
+  });
+
+  applyCoveragePatches(routeMap, expectedBlockManifest.blocks);
+  await auditAndPublish(routeMap, expectedBlockManifest);
+}
+
+module.exports = {
+  applyCoveragePatches,
+  auditAndPublish,
+  writeInventoryArtifacts,
+  EXPECTED_BLOCKS_PATH,
+  OUTPUT_PATH
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

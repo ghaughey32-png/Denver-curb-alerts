@@ -31,6 +31,7 @@ Denver API integration. Don't duplicate that content here.
 | `npm test` | `node --test test/*.test.js`. Slow — two tests load the 9 MB inventory. |
 | `npm run audit:inventory` | Offline coverage gate. Run this before every handoff. |
 | `npm run build:inventory` | Full rebuild. Hits Denver's live API hundreds of times; needs the local server up. |
+| `npm run rebuild:offline` | Reclassifies the published inventory with no network. Use for matching/classification fixes; see below. |
 | `npm run map:area -- <area-id>` | Staged discovery for one pilot area. **Defaults `APP_ORIGIN` to production**, not localhost — set it deliberately. |
 | `npm run build:review-queue -- <overpass.json> [area-id]` | Builds a human-review queue. Never touches the published inventory. |
 | `npm run sync:coverage` | Offline reconciliation pass. No network. |
@@ -61,6 +62,22 @@ weaken the test.
 **The product invariant: no mapped public street block may render blank.** An unmatched public block
 either resolves to a scheduled route or becomes a pink `dataUnavailable` overlay. Anything left over
 is an `unexplained-gap`, and `build:inventory` throws rather than publish it.
+
+**Don't re-crawl Denver for a logic fix — use `rebuild:offline`.** `build:inventory` bundles two
+unrelated jobs: crawling Denver's API for the whole city, and running the offline pipeline over what
+came back. A change to the classifier (`scripts/lib/inventory-auditor.js`) needs no new data, because
+the routes already in `public/denver-west-routes.json` are the same routes a fresh crawl returns.
+`npm run rebuild:offline` reruns only the classification, in about a minute with zero API calls.
+Denver's API rate-limits the full crawl hard: sustained bulk runs start returning HTTP 200 with empty
+payloads, which silently produces a wrecked inventory (~859 scheduled instead of ~8,500) rather than
+an error. Reach for the full crawl only when you actually want fresh data from Denver — schedule
+changes, new or retired routes, seasonal updates, or a pilot area that has never been crawled.
+
+`rebuild:offline` is deliberately narrow: it reclassifies, and withdraws a pink fallback when its
+block now resolves to a real schedule. It never invents new pink coverage (reprocessing learns
+nothing new about a block, and several uncovered blocks are unpublished by deliberate product
+decision), and it does not replay the coverage patches — those are written against a fresh crawl and
+replaying them mixes in unrelated accumulated drift. Change a patch, run the full crawl.
 
 **Some tests assert on source text, by design.** `test/not-maintained-ui.test.js` matches
 `/notMaintained: "#7b8790"/`; `test/curb-geometry.test.js` reads `public/app.js` as a string. Renaming
@@ -158,6 +175,18 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
   `generateUnavailable: false` and does not enforce the build gate, so
   `data/inventory-coverage-report.json` can show `unexplained-gap` counts (currently ~19 Tennyson
   blocks) while the app is fine. Only `build:inventory` enforces the gate.
+- **The published inventory is stale relative to the scripts, and a full rebuild will surface it.**
+  As of 2026-08-19, running `build:inventory` (or replaying the coverage patches over the published
+  payload) fails five tests that pass against the committed file. Verified unrelated to any current
+  work by reproducing it with an unmodified `inventory-auditor.js`. Three causes, all pre-existing:
+  the four `routeMap.delete(...)` calls in `auditAndPublish` remove fallbacks for blocks whose real
+  coverage is only 0.18–0.36, leaving them blank (`florida-evans`/`evans-yale` S Lowell and S Osceola,
+  plus their cross-area twins); `ensureRinoOfficialRouteCoverage` adds two Larimer blocks that
+  `test/curb-geometry.test.js` does not expect (it asserts exactly 6); and the Tennyson, Yates and
+  MLK expected blocks have no suppression in the build script, so a rebuild publishes pink routes
+  that `test/inventory-coverage.test.js` forbids. Whoever next runs a full crawl has to resolve these
+  — probably by excluding the bogus blocks in the manifest and updating the Larimer count — rather
+  than assuming the rebuild broke something.
 - **The service worker cache match is exact.** [public/sw.js](public/sw.js) calls
   `caches.match(event.request)` without `ignoreSearch`, so a precached `styles.css?v=A` will never
   satisfy a page request for `styles.css?v=B` — a version mismatch quietly removes that asset from the

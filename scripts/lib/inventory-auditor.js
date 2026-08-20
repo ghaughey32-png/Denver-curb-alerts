@@ -21,6 +21,11 @@ function normalizeStreetName(value = "") {
     // Denver calls this roadway S Irving St while the public-road inventory
     // calls the same divided carriageway South Irving Street Parkway.
     .replace(/\bIRVING ST PARKWAY\b/g, "IRVING ST")
+    // Denver abbreviates PARKWAY to PKWY in route names (e.g. "S MARION
+    // STREET PKWY") while the OSM-derived expected-block manifest spells it
+    // out in full ("South Marion Street Parkway"). Normalize both to PKWY so
+    // divided parkways like Marion and Downing match their Denver routes.
+    .replace(/\bPARKWAY\b/g, "PKWY")
     .replace(/[^A-Z0-9]+/g, " ")
     .trim()
     .replace(/^[NSEW] /, "");
