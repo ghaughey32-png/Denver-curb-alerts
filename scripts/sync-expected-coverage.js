@@ -11,31 +11,17 @@ const JSON_PATH = path.join(ROOT, "public", "denver-west-routes.json");
 const SCRIPT_PATH = path.join(ROOT, "public", "denver-west-routes.js");
 const MANIFEST_PATH = path.join(ROOT, "data", "inventory-expected-blocks.json");
 const REPORT_PATH = path.join(ROOT, "data", "inventory-coverage-report.json");
-const PUBLISHED_COVERAGE_PREFIXES = [
-  "w5-alameda-federal-i25-osm-",
-  "w5-bayaud-sheridan-federal-osm-",
-  "bayaud-exposition-sheridan-federal-osm-",
-  "nevada-exposition-federal-i25-osm-",
-  "ohio-florida-sheridan-federal-osm-",
-  "ohio-florida-federal-i25-osm-",
-  "virginia-florida-jason-bannock-osm-",
-  "florida-evans-sheridan-federal-osm-",
-  "evans-yale-sheridan-federal-osm-",
-  "yale-dartmouth-wadsworth-federal-osm-",
-  "florida-yale-federal-i25-osm-",
-  "w50-vrain-infill-osm-",
-  "e17-e26-downing-york-osm-",
-  "e8-e16-lincoln-gaylord-osm-",
-  "e8-e17-york-colorado-osm-",
-  "alameda-e7-lincoln-colorado-osm-",
-  "e26-e37-josephine-colorado-osm-",
-  "e38-e45-blake-colorado-osm-",
-  "dakota-louisiana-broadway-colorado-osm-",
-  "arkansas-evans-broadway-colorado-osm-",
-  "warren-yale-broadway-colorado-osm-",
-  "amherst-floyd-franklin-colorado-osm-",
-  "i70-e54-york-colorado-osm-"
-];
+// Which areas publish pink fallbacks is a property of the area itself, so it is
+// recorded once in data/coverage-pilot-areas.json rather than retyped here. An
+// area added to that file with "published": true needs no edit in this script.
+const COVERAGE_AREAS = require("../data/coverage-pilot-areas.json");
+const PUBLISHED_COVERAGE_PREFIXES = COVERAGE_AREAS.areas
+  .filter((area) => area.published)
+  .map((area) => `${area.id}-osm-`);
+// The label is curated prose, not one phrase per area — several neighbouring
+// areas are deliberately summarized as a single span. It lives in the areas file
+// so adding an area can extend it without editing this script.
+const areaLabel = ({ prefix, segments, suffix }) => `${prefix}${[...segments, suffix].join("; ")}`;
 const PUBLISHED_COVERAGE_IDS = new Set([
   "west-regis-university-frontage",
   "west-parkside-decatur-eliot"
@@ -77,7 +63,7 @@ async function main() {
   payload.routes.push(...additions);
   const audit = auditInventory({ routes: payload.routes, blocks: manifest.blocks, generateUnavailable: false });
   payload.routeCount = payload.routes.length;
-  payload.areaLabel = "Denver expanded: East Alameda–East 7th from Lincoln–Colorado; East 8th–East 16th from Lincoln–Gaylord; East 8th–East 45th from York/Downing/Blake–Colorado; East Dakota–East Yale from Broadway–Colorado; East Amherst–East Floyd from Franklin–Colorado; I-70–East 54th from York–Colorado; plus the West Denver and RiNo inventories";
+  payload.areaLabel = areaLabel(COVERAGE_AREAS.payloadAreaLabel);
   await fs.writeFile(JSON_PATH, `${JSON.stringify(payload)}\n`, "utf8");
   await fs.writeFile(SCRIPT_PATH, `window.DENVER_WEST_ROUTE_INVENTORY = ${JSON.stringify(payload)};\n`, "utf8");
   await fs.writeFile(REPORT_PATH, `${JSON.stringify({

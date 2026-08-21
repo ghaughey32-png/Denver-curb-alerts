@@ -12,3 +12,4 @@ Parking app 1.2/
 data/mapping-cache-*.json
 data/mapping-report-*.json
 data/inventory-coverage-report.json
+data/osm-extract-*.osm

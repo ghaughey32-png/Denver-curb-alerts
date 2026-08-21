@@ -27,8 +27,9 @@ Denver API integration. Don't duplicate that content here.
 
 | Command | Notes |
 | --- | --- |
-| `npm start` | Serves on `127.0.0.1:3000`. Must be running **before** `build:inventory` or `build:review-queue`. |
+| `npm start` | Serves on `127.0.0.1:3000`. Must be running **before** `add:area`, `build:inventory`, or `build:review-queue`. |
 | `npm test` | `node --test test/*.test.js`. Runs in about half a second. |
+| `npm run add:area -- <area-id> [flags]` | **Adds a whole new pilot area in one command** — see below. Needs the local server up. |
 | `npm run audit:inventory` | Offline coverage gate. Run this before every handoff. |
 | `npm run build:inventory` | Full rebuild. Hits Denver's live API hundreds of times; needs the local server up. |
 | `npm run rebuild:offline` | Reclassifies the published inventory with no network. Use for matching/classification fixes; see below. |
@@ -37,6 +38,36 @@ Denver API integration. Don't duplicate that content here.
 | `npm run sync:coverage` | Offline reconciliation pass. No network. |
 
 Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id> <south> <west> <north> <east>`.
+
+### Adding a pilot area
+
+`add:area` is the one command to reach for. It fetches the OpenStreetMap extract, imports the
+expected blocks, crawls Denver for that area, reconciles coverage, measures the result, records the
+coverage expectations, extends the payload and README labels, and bumps the four versioned asset
+constants — the whole sequence that used to be six hand-edits across as many files.
+
+```
+npm start   # in another shell
+npm run add:area -- colfax-w7-osage-broadway \
+  --label "W Colfax Avenue–W 7th Avenue, N Osage Street–N Broadway" \
+  --summary "W 7th–W Colfax from Osage–Broadway" \
+  --readme "W 7th–W Colfax from Osage to Broadway" \
+  --south 39.7262 --west -105.0058 --north 39.7406 --east -104.987
+```
+
+It refuses to start if the id already exists or the rectangle overlaps a published area — areas tile,
+they never stack, and abutting rectangles should share an edge value exactly so no sliver of a block
+is left unmapped. If a step fails it restores `data/coverage-pilot-areas.json` and `README.md` before
+exiting; everything else it touches is rewritten idempotently, so just run it again. The Overpass
+extract is cached at `data/osm-extract-<area-id>.osm` and reused. Useful flags: `--osm <file>` to
+skip the download, `--skip-map` to import without crawling Denver, `--no-version` to leave the asset
+versions alone, `--origin` to point the crawl at a different server.
+
+Pick the rectangle so it clears the far curb of each boundary street — about 0.0005° past the
+centerline is the convention the existing areas follow. It is not worth agonizing over.
+
+Overpass answers 406 to any request without a User-Agent header, which is what Node sends by
+default. `add:area` sets one; anything else querying Overpass has to as well.
 
 ## Hard rules
 
@@ -48,8 +79,10 @@ Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id
 - `data/inventory-coverage-report.json`
 - `data/mapping-cache-*.json`, `data/mapping-report-*.json`
 
-**Bump the versioned constants together.** Changing any file in `public/` means updating its `?v=`
-string in *both* places, or the change silently fails to reach installed clients:
+**Bump the versioned constants together.** `add:area` and `scripts/lib/asset-versions.js` do this for
+you; reach for the manual route only for a change no pipeline script drives. Changing any file in
+`public/` means updating its `?v=` string in *both* places, or the change silently fails to reach
+installed clients:
 
 - [public/index.html](public/index.html) — the `?v=` query on each `<link>` / `<script>`
 - [public/sw.js](public/sw.js) — the matching entry in `APP_SHELL`, plus `CACHE_NAME` on line 1
@@ -58,6 +91,17 @@ Two more versioned constants live in [public/app.js](public/app.js):
 `STATIC_ROUTE_INVENTORY_URL` (line ~1549) and `SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY` (line ~1548).
 `test/static-cache-version.test.js` enforces all of this — if it fails, fix the versions, don't
 weaken the test.
+
+**Record an area once, in `data/coverage-pilot-areas.json`.** Its bounds, whether it publishes pink
+fallbacks (`published`), and its coverage expectations (`coverage.expectedPublicBlocks`,
+`coverage.minimumScheduled`) are read from there by
+[scripts/sync-expected-coverage.js](scripts/sync-expected-coverage.js) and
+[test/inventory-coverage.test.js](test/inventory-coverage.test.js). The payload's `areaLabel` is
+composed from `payloadAreaLabel` in the same file — curated prose, deliberately not one phrase per
+area, since several neighbouring areas are summarized as a single span. Do not retype any of this
+into the script or the test; a hand-copied rectangle that drifts makes the test assert against the
+wrong box while still passing. Two published areas were missing from this file entirely until
+2026-08-21, which is exactly the failure this rule prevents.
 
 **The product invariant: no mapped public street block may render blank.** An unmatched public block
 either resolves to a scheduled route or becomes a pink `dataUnavailable` overlay. Anything left over
@@ -134,6 +178,7 @@ why a specific Denver route id is patched or suppressed. Preserve those comments
 - **Coverage audit** — `auditInventory({ routes, blocks, matchToleranceMeters: 12, minimumCoverage: 0.9 })`.
 - **Pilot area** — a named bbox in `data/coverage-pilot-areas.json`. Its id is the suffix used
   everywhere: `mapping-cache-<area-id>.json`, block ids `<area-id>-osm-<way>-<node>-<node>-<n>`.
+  That file is the single source of truth for an area (see the hard rule below).
 - **Mapping cache** — `data/mapping-cache-<area>.json`, memoized lookups keyed by coordinate or
   address so reruns are cheap. Empty successful results are cached too.
 - **Mapping report** — `data/mapping-report-<area>.json`, per-stage stats plus `unresolved[]` blocks

@@ -7,7 +7,8 @@
       "north": 39.7506,
       "south": 39.7399,
       "west": -105.0435,
-      "east": -105.0272
+      "east": -105.0272,
+      "published": false
     },
     {
       "id": "w5-alameda-federal-i25",
@@ -15,7 +16,8 @@
       "north": 39.7244,
       "south": 39.7104,
       "west": -105.0254,
-      "east": -105.0002
+      "east": -105.0002,
+      "published": true
     },
     {
       "id": "w5-bayaud-sheridan-federal",
@@ -23,7 +25,8 @@
       "north": 39.7244,
       "south": 39.7142,
       "west": -105.0534,
-      "east": -105.025
+      "east": -105.025,
+      "published": true
     },
     {
       "id": "bayaud-exposition-sheridan-federal",
@@ -31,7 +34,8 @@
       "north": 39.7142,
       "south": 39.703,
       "west": -105.0534,
-      "east": -105.025
+      "east": -105.025,
+      "published": true
     },
     {
       "id": "nevada-exposition-federal-i25",
@@ -39,7 +43,8 @@
       "north": 39.7107,
       "south": 39.7028,
       "west": -105.0254,
-      "east": -105.0002
+      "east": -105.0002,
+      "published": true
     },
     {
       "id": "ohio-florida-sheridan-federal",
@@ -47,7 +52,8 @@
       "north": 39.7032,
       "south": 39.6893,
       "west": -105.0534,
-      "east": -105.025
+      "east": -105.025,
+      "published": true
     },
     {
       "id": "ohio-florida-federal-i25",
@@ -55,7 +61,8 @@
       "north": 39.7032,
       "south": 39.6893,
       "west": -105.0254,
-      "east": -105.0002
+      "east": -105.0002,
+      "published": true
     },
     {
       "id": "virginia-florida-jason-bannock",
@@ -63,7 +70,8 @@
       "north": 39.708,
       "south": 39.6893,
       "west": -104.9995,
-      "east": -104.9897
+      "east": -104.9897,
+      "published": true
     },
     {
       "id": "florida-evans-sheridan-federal",
@@ -71,7 +79,13 @@
       "north": 39.6893,
       "south": 39.6778,
       "west": -105.0534,
-      "east": -105.025
+      "east": -105.025,
+      "published": true,
+      "coverage": {
+        "testName": "W Florida through W Evans from Sheridan to Federal",
+        "expectedPublicBlocks": 338,
+        "minimumScheduled": 317
+      }
     },
     {
       "id": "evans-yale-sheridan-federal",
@@ -79,7 +93,13 @@
       "north": 39.6778,
       "south": 39.6666,
       "west": -105.0534,
-      "east": -105.025
+      "east": -105.025,
+      "published": true,
+      "coverage": {
+        "testName": "W Evans through W Yale from Sheridan to Federal",
+        "expectedPublicBlocks": 320,
+        "minimumScheduled": 306
+      }
     },
     {
       "id": "yale-dartmouth-wadsworth-federal",
@@ -87,7 +107,13 @@
       "north": 39.6678,
       "south": 39.6562,
       "west": -105.082,
-      "east": -105.025
+      "east": -105.025,
+      "published": true,
+      "coverage": {
+        "testName": "W Yale through W Dartmouth from Wadsworth to Federal",
+        "expectedPublicBlocks": 610,
+        "minimumScheduled": 504
+      }
     },
     {
       "id": "florida-yale-federal-i25",
@@ -95,7 +121,13 @@
       "north": 39.6893,
       "south": 39.6666,
       "west": -105.0254,
-      "east": -104.9995
+      "east": -104.9995,
+      "published": true,
+      "coverage": {
+        "testName": "W Florida through W Yale from Federal to I-25",
+        "expectedPublicBlocks": 418,
+        "minimumScheduled": 341
+      }
     },
     {
       "id": "w50-vrain-infill",
@@ -103,7 +135,8 @@
       "north": 39.792,
       "south": 39.7868,
       "west": -105.052,
-      "east": -105.0458
+      "east": -105.0458,
+      "published": true
     },
     {
       "id": "alameda-e7-lincoln-colorado",
@@ -111,7 +144,8 @@
       "north": 39.7288,
       "south": 39.7107,
       "west": -104.987,
-      "east": -104.9398
+      "east": -104.9398,
+      "published": true
     },
     {
       "id": "e26-e37-gilpin-york",
@@ -119,7 +153,31 @@
       "north": 39.7685,
       "south": 39.7544,
       "west": -104.9674,
-      "east": -104.959
+      "east": -104.959,
+      "published": false
+    },
+    {
+      "id": "e8-e16-lincoln-gaylord",
+      "label": "E 8th Avenue–E 16th Avenue, Lincoln Street–Gaylord Street",
+      "north": 39.7426,
+      "south": 39.7285,
+      "west": -104.9868,
+      "east": -104.961,
+      "published": true
+    },
+    {
+      "id": "e17-e26-downing-york",
+      "label": "E 17th Avenue–E 26th Avenue, Downing Street–York Street",
+      "north": 39.7558,
+      "south": 39.743,
+      "west": -104.9736,
+      "east": -104.959,
+      "published": true,
+      "coverage": {
+        "testName": "E 17th through E 26th from Downing to York",
+        "expectedPublicBlocks": 335,
+        "minimumScheduled": 323
+      }
     },
     {
       "id": "e8-e17-york-colorado",
@@ -127,7 +185,13 @@
       "north": 39.7432,
       "south": 39.7288,
       "west": -104.96,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "E 8th through E 17th from York to Colorado",
+        "expectedPublicBlocks": 465,
+        "minimumScheduled": 455
+      }
     },
     {
       "id": "e26-e37-josephine-colorado",
@@ -135,7 +199,13 @@
       "north": 39.7685,
       "south": 39.7544,
       "west": -104.9589,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "E 26th through E 37th from Josephine to Colorado",
+        "expectedPublicBlocks": 448,
+        "minimumScheduled": 387
+      }
     },
     {
       "id": "e38-e45-blake-colorado",
@@ -143,7 +213,8 @@
       "north": 39.779,
       "south": 39.7692,
       "west": -104.9734,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true
     },
     {
       "id": "dakota-louisiana-broadway-colorado",
@@ -151,7 +222,13 @@
       "north": 39.7098,
       "south": 39.6924,
       "west": -104.9877,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "E Dakota through E Louisiana from Broadway to Colorado",
+        "expectedPublicBlocks": 927,
+        "minimumScheduled": 849
+      }
     },
     {
       "id": "arkansas-evans-broadway-colorado",
@@ -159,7 +236,13 @@
       "north": 39.6924,
       "south": 39.6778,
       "west": -104.9877,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "E Arkansas through E Evans from Broadway to Colorado",
+        "expectedPublicBlocks": 894,
+        "minimumScheduled": 795
+      }
     },
     {
       "id": "warren-yale-broadway-colorado",
@@ -167,7 +250,13 @@
       "north": 39.6778,
       "south": 39.6666,
       "west": -104.9877,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "E Warren through E Yale from Broadway to Colorado",
+        "expectedPublicBlocks": 608,
+        "minimumScheduled": 578
+      }
     },
     {
       "id": "amherst-floyd-franklin-colorado",
@@ -175,7 +264,13 @@
       "north": 39.6666,
       "south": 39.6553,
       "west": -104.9692,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "E Amherst through E Floyd from Franklin to Colorado",
+        "expectedPublicBlocks": 330,
+        "minimumScheduled": 244
+      }
     },
     {
       "id": "i70-e54-york-colorado",
@@ -183,7 +278,25 @@
       "north": 39.7948,
       "south": 39.779,
       "west": -104.96,
-      "east": -104.9404
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "I-70 through the Denver border from York to Colorado",
+        "expectedPublicBlocks": 313,
+        "minimumScheduled": 222
+      }
     }
-  ]
+  ],
+  "payloadAreaLabel": {
+    "prefix": "Denver expanded: ",
+    "segments": [
+      "East Alameda–East 7th from Lincoln–Colorado",
+      "East 8th–East 16th from Lincoln–Gaylord",
+      "East 8th–East 45th from York/Downing/Blake–Colorado",
+      "East Dakota–East Yale from Broadway–Colorado",
+      "East Amherst–East Floyd from Franklin–Colorado",
+      "I-70–East 54th from York–Colorado"
+    ],
+    "suffix": "plus the West Denver and RiNo inventories"
+  }
 }

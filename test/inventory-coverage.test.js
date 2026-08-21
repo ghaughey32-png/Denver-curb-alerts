@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const inventory = require("../public/denver-west-routes.json");
 const manifest = require("../data/inventory-expected-blocks.json");
 const { auditInventory } = require("../scripts/lib/inventory-auditor.js");
+const { areas } = require("../data/coverage-pilot-areas.json");
 
 test("every declared public street block is valid and auditable", () => {
   const result = auditInventory({ routes: inventory.routes, blocks: manifest.blocks, generateUnavailable: false });
@@ -320,92 +321,20 @@ test("E 38th through E 45th includes official coverage from Blake to Colorado", 
   ));
 });
 
-[
-  {
-    name: "W Florida through W Evans from Sheridan to Federal",
-    prefix: "florida-evans-sheridan-federal-osm-",
-    bounds: { south: 39.6778, north: 39.6893, west: -105.0534, east: -105.025 },
-    expectedPublicBlocks: 338,
-    minimumScheduled: 317
-  },
-  {
-    name: "W Evans through W Yale from Sheridan to Federal",
-    prefix: "evans-yale-sheridan-federal-osm-",
-    bounds: { south: 39.6666, north: 39.6778, west: -105.0534, east: -105.025 },
-    expectedPublicBlocks: 320,
-    minimumScheduled: 306
-  },
-  {
-    name: "W Yale through W Dartmouth from Wadsworth to Federal",
-    prefix: "yale-dartmouth-wadsworth-federal-osm-",
-    bounds: { south: 39.6562, north: 39.6678, west: -105.082, east: -105.025 },
-    expectedPublicBlocks: 610,
-    minimumScheduled: 504
-  },
-  {
-    name: "W Florida through W Yale from Federal to I-25",
-    prefix: "florida-yale-federal-i25-osm-",
-    bounds: { south: 39.6666, north: 39.6893, west: -105.0254, east: -104.9995 },
-    expectedPublicBlocks: 418,
-    minimumScheduled: 341
-  },
-  {
-    name: "E 17th through E 26th from Downing to York",
-    prefix: "e17-e26-downing-york-osm-",
-    bounds: { south: 39.743, north: 39.7558, west: -104.9736, east: -104.959 },
-    expectedPublicBlocks: 335,
-    minimumScheduled: 323
-  },
-  {
-    name: "E 8th through E 17th from York to Colorado",
-    prefix: "e8-e17-york-colorado-osm-",
-    bounds: { south: 39.7288, north: 39.7432, west: -104.96, east: -104.9404 },
-    expectedPublicBlocks: 465,
-    minimumScheduled: 455
-  },
-  {
-    name: "E 26th through E 37th from Josephine to Colorado",
-    prefix: "e26-e37-josephine-colorado-osm-",
-    bounds: { south: 39.7544, north: 39.7685, west: -104.9589, east: -104.9404 },
-    expectedPublicBlocks: 448,
-    minimumScheduled: 387
-  },
-  {
-    name: "E Dakota through E Louisiana from Broadway to Colorado",
-    prefix: "dakota-louisiana-broadway-colorado-osm-",
-    bounds: { south: 39.6924, north: 39.7098, west: -104.9877, east: -104.9404 },
-    expectedPublicBlocks: 927,
-    minimumScheduled: 849
-  },
-  {
-    name: "E Arkansas through E Evans from Broadway to Colorado",
-    prefix: "arkansas-evans-broadway-colorado-osm-",
-    bounds: { south: 39.6778, north: 39.6924, west: -104.9877, east: -104.9404 },
-    expectedPublicBlocks: 894,
-    minimumScheduled: 795
-  },
-  {
-    name: "E Warren through E Yale from Broadway to Colorado",
-    prefix: "warren-yale-broadway-colorado-osm-",
-    bounds: { south: 39.6666, north: 39.6778, west: -104.9877, east: -104.9404 },
-    expectedPublicBlocks: 608,
-    minimumScheduled: 578
-  },
-  {
-    name: "E Amherst through E Floyd from Franklin to Colorado",
-    prefix: "amherst-floyd-franklin-colorado-osm-",
-    bounds: { south: 39.6553, north: 39.6666, west: -104.9692, east: -104.9404 },
-    expectedPublicBlocks: 330,
-    minimumScheduled: 244
-  },
-  {
-    name: "I-70 through the Denver border from York to Colorado",
-    prefix: "i70-e54-york-colorado-osm-",
-    bounds: { south: 39.779, north: 39.7948, west: -104.96, east: -104.9404 },
-    expectedPublicBlocks: 313,
-    minimumScheduled: 222
-  }
-].forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
+// The rectangle and the block counts for each area are recorded once in
+// data/coverage-pilot-areas.json. Deriving the table from that file keeps this
+// test asserting against the same bounds the pipeline actually imported, which a
+// hand-copied table here could silently drift away from.
+areas
+  .filter((area) => area.coverage)
+  .map((area) => ({
+    name: area.coverage.testName,
+    prefix: `${area.id}-osm-`,
+    bounds: { south: area.south, north: area.north, west: area.west, east: area.east },
+    expectedPublicBlocks: area.coverage.expectedPublicBlocks,
+    minimumScheduled: area.coverage.minimumScheduled
+  }))
+  .forEach(({ name, prefix, bounds, expectedPublicBlocks, minimumScheduled }) => {
   test(`${name} has clickable coverage`, () => {
     const areaBlocks = manifest.blocks.filter((block) => String(block.id).startsWith(prefix));
     const publicBlocks = areaBlocks.filter((block) => !block.excluded);
