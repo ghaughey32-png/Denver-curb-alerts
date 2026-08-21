@@ -197,6 +197,21 @@ if (areaId === "i70-e54-york-colorado") {
     : block);
 }
 
+// The requested rectangle reaches west to North Lipan Street so both of its
+// curbs are included, but everything at or west of North Kalamath Street and at
+// or south of West 5th Avenue was already imported and mapped as
+// w5-alameda-federal-i25. Only the Lipan block between West 5th and West 6th is
+// new ground, and it crosses that north edge rather than sitting inside it, so
+// excluding the blocks that fall wholly within the published rectangle keeps the
+// manifest free of duplicate expected blocks without losing coverage.
+if (areaId === "w6-alameda-lipan-broadway") {
+  const publishedWest = -105.0002;
+  const publishedNorth = 39.7244;
+  additions = additions.map((block) => block.excluded || !block.geometry.every(([lat, lon]) => lon <= publishedWest && lat <= publishedNorth)
+    ? block
+    : { ...block, excluded: true, exclusionReason: "Already published in the W 5th Avenue–W Alameda Avenue, Federal–I-25 area" });
+}
+
 const manifestPath = path.join(__dirname, "..", "data", "inventory-expected-blocks.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 manifest.blocks = [...manifest.blocks.filter((block) => !String(block.id).startsWith(`${areaId}-osm-`)), ...additions];

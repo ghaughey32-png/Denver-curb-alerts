@@ -285,6 +285,34 @@
         "expectedPublicBlocks": 313,
         "minimumScheduled": 222
       }
+    },
+    {
+      "id": "w6-alameda-lipan-broadway",
+      "label": "W 6th Avenue–W Alameda Avenue, N Lipan Street–N Broadway",
+      "north": 39.7262,
+      "south": 39.7104,
+      "west": -105.0018,
+      "east": -104.987,
+      "published": true,
+      "coverage": {
+        "testName": "W Alameda through W 6th from Lipan to Broadway",
+        "expectedPublicBlocks": 288,
+        "minimumScheduled": 279
+      }
+    },
+    {
+      "id": "colfax-w7-osage-broadway",
+      "label": "W Colfax Avenue–W 7th Avenue, N Osage Street–N Broadway",
+      "north": 39.7406,
+      "south": 39.7262,
+      "west": -105.0058,
+      "east": -104.987,
+      "published": true,
+      "coverage": {
+        "testName": "W 7th through W Colfax from Osage to Broadway",
+        "expectedPublicBlocks": 480,
+        "minimumScheduled": 465
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -295,7 +323,9 @@
       "East 8th–East 45th from York/Downing/Blake–Colorado",
       "East Dakota–East Yale from Broadway–Colorado",
       "East Amherst–East Floyd from Franklin–Colorado",
-      "I-70–East 54th from York–Colorado"
+      "I-70–East 54th from York–Colorado",
+      "W Alameda–W 6th from Lipan–Broadway",
+      "W 7th–W Colfax from Osage–Broadway"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
