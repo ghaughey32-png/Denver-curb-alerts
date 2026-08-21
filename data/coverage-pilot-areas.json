@@ -313,6 +313,48 @@
         "expectedPublicBlocks": 480,
         "minimumScheduled": 465
       }
+    },
+    {
+      "id": "e17-e26-colorado-quebec",
+      "label": "East 17th Avenue Parkway–East 26th Avenue, Colorado Boulevard–Quebec Street",
+      "north": 39.7558,
+      "south": 39.7432,
+      "west": -104.9404,
+      "east": -104.9027,
+      "published": true,
+      "coverage": {
+        "testName": "East 17th–East 26th from Colorado–Quebec",
+        "expectedPublicBlocks": 660,
+        "minimumScheduled": 659
+      }
+    },
+    {
+      "id": "e26-e37-colorado-quebec",
+      "label": "East 26th Avenue–East 37th Avenue, Colorado Boulevard–Quebec Street",
+      "north": 39.7685,
+      "south": 39.7558,
+      "west": -104.9404,
+      "east": -104.9027,
+      "published": true,
+      "coverage": {
+        "testName": "East 26th–East 37th from Colorado–Quebec",
+        "expectedPublicBlocks": 609,
+        "minimumScheduled": 513
+      }
+    },
+    {
+      "id": "e38-i70-colorado-quebec",
+      "label": "East 38th Avenue–I-70, Colorado Boulevard–Quebec Street",
+      "north": 39.779,
+      "south": 39.7685,
+      "west": -104.9404,
+      "east": -104.9027,
+      "published": true,
+      "coverage": {
+        "testName": "East 38th–I-70 from Colorado–Quebec",
+        "expectedPublicBlocks": 259,
+        "minimumScheduled": 186
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -325,7 +367,8 @@
       "East Amherst–East Floyd from Franklin–Colorado",
       "I-70–East 54th from York–Colorado",
       "W Alameda–W 6th from Lipan–Broadway",
-      "W 7th–W Colfax from Osage–Broadway"
+      "W 7th–W Colfax from Osage–Broadway",
+      "East 17th–I-70 from Colorado–Quebec"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
