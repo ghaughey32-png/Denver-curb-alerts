@@ -4415,7 +4415,8 @@ function renderSegments() {
           ? " | No car relocation required — tap for schedule details"
         : "";
     touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${statusText}`, {
-      sticky: true
+      sticky: true,
+      className: "curb-tooltip"
     });
     touchTarget.on("click", () => toggleSegment(segment.id));
     touchTarget.addTo(state.segmentLayerGroup);
@@ -4484,7 +4485,8 @@ function renderSegments() {
         fillOpacity: 1
       });
       marker.bindTooltip(`Selected: ${segment.street} - ${segment.sideLabel}`, {
-        sticky: true
+        sticky: true,
+        className: "curb-tooltip"
       });
       marker.on("click", () => toggleSegment(segment.id));
       marker.addTo(state.segmentLayerGroup);

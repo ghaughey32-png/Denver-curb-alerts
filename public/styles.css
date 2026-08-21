@@ -904,6 +904,17 @@ button {
   display: none;
 }
 
+/* Curb hover tooltips carry a full sentence of schedule guidance. Leaflet's default
+   `white-space: nowrap` renders that as one long line that runs off the map edge, so
+   let the text wrap and cap the width against the viewport instead. */
+.leaflet-tooltip.curb-tooltip {
+  white-space: normal;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 96px));
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .map-frame {
   position: relative;
   margin-top: 18px;
