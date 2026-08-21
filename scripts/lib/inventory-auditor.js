@@ -1,7 +1,24 @@
 const EARTH_RADIUS_METERS = 6371000;
+// Denver sits near 39.7°N, where a degree of longitude spans about 85.6 km and a
+// degree of latitude about 111.1 km. The bounding-box rejection below divides by
+// slightly smaller figures on purpose: a smaller denominator pads the box out a
+// little further than the tolerance strictly requires, so the shortcut can only
+// ever be too cautious, never too eager.
+const METERS_PER_DEGREE_LATITUDE = 110000;
+const METERS_PER_DEGREE_LONGITUDE = 85000;
+
+// auditInventory asks for the normalized form of every route's street name once
+// per block it classifies, which on a city-wide run means tens of millions of
+// passes through the replacement chain below. The set of distinct street names
+// is tiny by comparison, so memoizing collapses that work to one pass per name.
+const normalizedStreetNames = new Map();
 
 function normalizeStreetName(value = "") {
-  return String(value)
+  const original = String(value);
+  const memoized = normalizedStreetNames.get(original);
+  if (memoized !== undefined) return memoized;
+
+  const normalized = original
     .toUpperCase()
     .replace(/\bWEST\b/g, "W")
     .replace(/\bEAST\b/g, "E")
@@ -36,6 +53,9 @@ function normalizeStreetName(value = "") {
     .replace(/[^A-Z0-9]+/g, " ")
     .trim()
     .replace(/^[NSEW] /, "");
+
+  normalizedStreetNames.set(original, normalized);
+  return normalized;
 }
 
 function distanceMeters(a, b) {
@@ -71,6 +91,56 @@ function distanceToPathMeters(point, path) {
     minimum = Math.min(minimum, distanceToSegmentMeters(point, path[index - 1], path[index]));
   }
   return minimum;
+}
+
+function pathBounds(path) {
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+  if (!Array.isArray(path)) return { minLat, maxLat, minLon, maxLon };
+  for (const [lat, lon] of path) {
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lon < minLon) minLon = lon;
+    if (lon > maxLon) maxLon = lon;
+  }
+  return { minLat, maxLat, minLon, maxLon };
+}
+
+// A sample point lying outside a route's bounding box by more than the match
+// tolerance cannot possibly be within the tolerance of the route itself, so this
+// skips the per-segment walk for the many same-named routes that run nowhere
+// near the block being classified. Routes with fewer than two points collapse to
+// an empty box and are rejected here, which matches distanceToPathMeters
+// returning Infinity for them.
+function beyondBounds(point, bounds, toleranceMeters) {
+  const latitudePad = toleranceMeters / METERS_PER_DEGREE_LATITUDE;
+  const longitudePad = toleranceMeters / METERS_PER_DEGREE_LONGITUDE;
+  return point[0] < bounds.minLat - latitudePad ||
+    point[0] > bounds.maxLat + latitudePad ||
+    point[1] < bounds.minLon - longitudePad ||
+    point[1] > bounds.maxLon + longitudePad;
+}
+
+function withinTolerance(point, entry, toleranceMeters) {
+  return !beyondBounds(point, entry.bounds, toleranceMeters) &&
+    distanceToPathMeters(point, entry.route.map.path) <= toleranceMeters;
+}
+
+// Group the routes by normalized street name once instead of rescanning the
+// whole inventory for every block. Insertion order is preserved inside each
+// bucket so the report keeps listing matched route ids in inventory order.
+function indexRoutesByStreet(routeList) {
+  const index = new Map();
+  for (const route of routeList) {
+    if (!Array.isArray(route.map?.path)) continue;
+    const key = normalizeStreetName(route.streetName);
+    let bucket = index.get(key);
+    if (!bucket) index.set(key, bucket = []);
+    bucket.push({ route, bounds: pathBounds(route.map.path) });
+  }
+  return index;
 }
 
 function samplePath(path, spacingMeters = 8) {
@@ -119,6 +189,7 @@ function makeUnavailableRoute(block) {
 
 function auditInventory({ routes, blocks, matchToleranceMeters = 12, minimumCoverage = 0.9, generateUnavailable = true }) {
   const routeList = Array.from(routes.values ? routes.values() : routes);
+  const routesByStreet = indexRoutesByStreet(routeList);
   const generatedRoutes = [];
   const blockResults = [];
 
@@ -133,26 +204,27 @@ function auditInventory({ routes, blocks, matchToleranceMeters = 12, minimumCove
     }
 
     const streetKey = normalizeStreetName(block.streetName);
-    const candidates = routeList.filter((route) => normalizeStreetName(route.streetName) === streetKey && Array.isArray(route.map?.path));
-    const scheduled = candidates.filter(routeHasUsableSchedule);
+    let candidates = routesByStreet.get(streetKey);
+    if (!candidates) routesByStreet.set(streetKey, candidates = []);
+    const scheduled = candidates.filter((entry) => routeHasUsableSchedule(entry.route));
     const samples = samplePath(block.geometry);
-    const coveredSamples = samples.filter((point) => scheduled.some((route) => distanceToPathMeters(point, route.map.path) <= matchToleranceMeters));
+    const coveredSamples = samples.filter((point) => scheduled.some((entry) => withinTolerance(point, entry, matchToleranceMeters)));
     const coverage = coveredSamples.length / samples.length;
 
     if (coverage >= minimumCoverage) {
-      blockResults.push({ id: block.id, streetName: block.streetName, from: block.from, to: block.to, status: "scheduled", coverage, routeIds: scheduled.map((route) => route.id) });
+      blockResults.push({ id: block.id, streetName: block.streetName, from: block.from, to: block.to, status: "scheduled", coverage, routeIds: scheduled.map((entry) => entry.route.id) });
       continue;
     }
 
-    const existingUnavailable = candidates.find((route) => route.dataUnavailable && (
-      route.expectedBlockId === block.id || samplePath(block.geometry).every((point) => distanceToPathMeters(point, route.map.path) <= matchToleranceMeters)
+    const existingUnavailable = candidates.find((entry) => entry.route.dataUnavailable && (
+      entry.route.expectedBlockId === block.id || samples.every((point) => withinTolerance(point, entry, matchToleranceMeters))
     ));
     if (existingUnavailable) {
-      blockResults.push({ id: block.id, streetName: block.streetName, from: block.from, to: block.to, status: "unavailable", coverage, routeIds: [existingUnavailable.id] });
+      blockResults.push({ id: block.id, streetName: block.streetName, from: block.from, to: block.to, status: "unavailable", coverage, routeIds: [existingUnavailable.route.id] });
     } else if (generateUnavailable) {
       const unavailable = makeUnavailableRoute(block);
       generatedRoutes.push(unavailable);
-      routeList.push(unavailable);
+      candidates.push({ route: unavailable, bounds: pathBounds(unavailable.map.path) });
       blockResults.push({ id: block.id, streetName: block.streetName, from: block.from, to: block.to, status: "unavailable", coverage, routeIds: [unavailable.id], generated: true });
     } else {
       blockResults.push({ id: block.id, streetName: block.streetName, from: block.from, to: block.to, status: "unexplained-gap", coverage });

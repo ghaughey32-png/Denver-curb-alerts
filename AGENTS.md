@@ -28,7 +28,7 @@ Denver API integration. Don't duplicate that content here.
 | Command | Notes |
 | --- | --- |
 | `npm start` | Serves on `127.0.0.1:3000`. Must be running **before** `build:inventory` or `build:review-queue`. |
-| `npm test` | `node --test test/*.test.js`. Slow — two tests load the 9 MB inventory. |
+| `npm test` | `node --test test/*.test.js`. Runs in about half a second. |
 | `npm run audit:inventory` | Offline coverage gate. Run this before every handoff. |
 | `npm run build:inventory` | Full rebuild. Hits Denver's live API hundreds of times; needs the local server up. |
 | `npm run rebuild:offline` | Reclassifies the published inventory with no network. Use for matching/classification fixes; see below. |
@@ -62,6 +62,16 @@ weaken the test.
 **The product invariant: no mapped public street block may render blank.** An unmatched public block
 either resolves to a scheduled route or becomes a pink `dataUnavailable` overlay. Anything left over
 is an `unexplained-gap`, and `build:inventory` throws rather than publish it.
+
+**The auditor indexes routes by street name — keep it that way.**
+[scripts/lib/inventory-auditor.js](scripts/lib/inventory-auditor.js) groups routes into a
+`Map` keyed by normalized street name once per run, memoizes `normalizeStreetName`, and rejects
+candidate routes by bounding box before walking their geometry. It used to rescan all ~12,700 routes
+for every one of the ~12,000 public blocks, calling a 15-regex normalizer on each — about 153 million
+normalizations, and a full audit took 89 seconds. Indexed, the identical audit takes 0.1 seconds, and
+`npm test` went from 155s to 0.5s. If you refactor the matching loop, verify the report is unchanged
+byte for byte against the previous implementation before trusting it; the classification is load
+bearing.
 
 **Don't re-crawl Denver for a logic fix — use `rebuild:offline`.** `build:inventory` bundles two
 unrelated jobs: crawling Denver's API for the whole city, and running the offline pipeline over what
