@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { isGlendaleBlock } = require("./lib/glendale-city-limits.js");
 
 const [sourcePath, areaId, southArg, westArg, northArg, eastArg] = process.argv.slice(2);
 if (!sourcePath || !areaId || !eastArg) {
@@ -196,6 +197,16 @@ if (areaId === "i70-e54-york-colorado") {
     ? { ...block, excluded: true, exclusionReason: "North of the Denver–Commerce City line at Sand Creek" }
     : block);
 }
+
+// Glendale is its own city, wholly enclosed by Denver, and it straddles the
+// Colorado–Monaco rectangles either side of Cherry Creek. Denver sweeps none of
+// it, so its blocks are dropped rather than published as pink; see
+// scripts/lib/glendale-city-limits.js for why pink would be the wrong answer.
+// The test is geometric rather than a list of block ids so that re-importing a
+// larger or shifted rectangle keeps classifying the same streets correctly.
+additions = additions.map((block) => block.excluded || !isGlendaleBlock(block.geometry)
+  ? block
+  : { ...block, excluded: true, exclusionReason: "Inside the City of Glendale, which Denver does not sweep" });
 
 // The requested rectangle reaches west to North Lipan Street so both of its
 // curbs are included, but everything at or west of North Kalamath Street and at

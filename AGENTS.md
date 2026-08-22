@@ -107,6 +107,18 @@ wrong box while still passing. Two published areas were missing from this file e
 either resolves to a scheduled route or becomes a pink `dataUnavailable` overlay. Anything left over
 is an `unexplained-gap`, and `build:inventory` throws rather than publish it.
 
+**Glendale is not Denver, and pink is the wrong answer there.** The City of Glendale is an
+independent municipality wholly enclosed by Denver, straddling Cherry Creek between Colorado
+Boulevard and South Cherry Street. Denver's API returns nothing for its streets, so without help they
+all become pink — and pink tells the user *you do not need to move your car*, while Glendale sweeps
+and tickets its own streets. [scripts/lib/glendale-city-limits.js](scripts/lib/glendale-city-limits.js)
+holds the boundary (OSM relation 112942) and `isGlendaleBlock` drops those blocks at import time, so
+they are excluded rather than published. The test is deliberately buffered 20 m inside the line:
+Glendale's boundary runs down the middle of Colorado Boulevard, South Cherry Street and East
+Mississippi Avenue, and a plain inside/outside test throws away Denver's real coverage on its own
+half of all three. Any new area touching Cherry Creek east of Colorado needs no extra work; the rule
+is geometric, not a list of ids.
+
 **The auditor indexes routes by street name — keep it that way.**
 [scripts/lib/inventory-auditor.js](scripts/lib/inventory-auditor.js) groups routes into a
 `Map` keyed by normalized street name once per run, memoizes `normalizeStreetName`, and rejects
@@ -225,6 +237,21 @@ The user alternates between tools on this repo. These rules keep that from corru
 Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 
 ## Known issues and historical quirks
+
+- **Denver's address lookup is returning HTTP 400.** `/api/denver/sweeping?address=...` fails for
+  every address while the coordinate form (`?latitude=&longitude=`) works normally. This predates
+  2026-08-22 — the `intersection-addresses` stage of `map:area` already scored 0 resolved out of 16
+  attempts in the areas mapped before then, so it is a last-resort fallback and costs the pipeline
+  almost nothing. It does degrade the in-app address search, which falls back to a fuzzy match and
+  can land on the wrong quadrant (searching "Iowa and Bellaire" matches *N* Bellaire in Sloan's
+  Lake). Coordinate lookups carry all of the coverage; don't re-plumb the pipeline over this.
+- **Re-importing an already-published area against a fresh Overpass extract drifts.** Verified on
+  2026-08-22: re-running the importer for `dakota-louisiana-broadway-colorado` returned the same 2728
+  blocks but 930 public instead of 927, because Polo Club Road had lost its `access=private` tag in
+  OSM since the original import — which silently un-excluded a block that
+  `confirmed-polo-club-coverage.js` needs excluded, failing `test/inventory-coverage.test.js`. Only
+  re-import a published area when you have its cached `data/osm-extract-<area-id>.osm`; the cached
+  file reproduces exactly.
 
 - **A clean coverage report is not a precondition.** `sync:coverage` writes the report with
   `generateUnavailable: false` and does not enforce the build gate, so

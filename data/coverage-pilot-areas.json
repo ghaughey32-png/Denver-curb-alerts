@@ -380,8 +380,36 @@
       "published": true,
       "coverage": {
         "testName": "East Alameda–East 5th from Colorado–Monaco",
-        "expectedPublicBlocks": 502,
+        "expectedPublicBlocks": 501,
         "minimumScheduled": 485
+      }
+    },
+    {
+      "id": "dakota-louisiana-colorado-monaco",
+      "label": "E Dakota Avenue–E Louisiana Avenue, Colorado Boulevard–South Monaco Street Parkway",
+      "north": 39.7098,
+      "south": 39.6924,
+      "west": -104.9404,
+      "east": -104.9118,
+      "published": true,
+      "coverage": {
+        "testName": "East Dakota through East Louisiana from Colorado to Monaco",
+        "expectedPublicBlocks": 439,
+        "minimumScheduled": 343
+      }
+    },
+    {
+      "id": "arkansas-evans-colorado-monaco",
+      "label": "E Arkansas Avenue–E Evans Avenue, Colorado Boulevard–South Monaco Street Parkway",
+      "north": 39.6924,
+      "south": 39.6778,
+      "west": -104.9404,
+      "east": -104.9118,
+      "published": true,
+      "coverage": {
+        "testName": "East Arkansas through East Evans from Colorado to Monaco",
+        "expectedPublicBlocks": 474,
+        "minimumScheduled": 459
       }
     }
   ],
@@ -398,7 +426,8 @@
       "W 7th–W Colfax from Osage–Broadway",
       "East 17th–I-70 from Colorado–Quebec",
       "East 6th–East 17th from Colorado–Monaco",
-      "East Alameda–East 5th from Colorado–Monaco"
+      "East Alameda–East 5th from Colorado–Monaco",
+      "East Dakota–East Evans from Colorado–Monaco"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
