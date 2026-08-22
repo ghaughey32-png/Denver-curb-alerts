@@ -355,6 +355,20 @@
         "expectedPublicBlocks": 259,
         "minimumScheduled": 186
       }
+    },
+    {
+      "id": "e6-e17-colorado-monaco",
+      "label": "East 6th Avenue Parkway–East 17th Avenue Parkway, Colorado Boulevard–Monaco Street Parkway",
+      "north": 39.7432,
+      "south": 39.7248,
+      "west": -104.9398,
+      "east": -104.9118,
+      "published": true,
+      "coverage": {
+        "testName": "East 6th–East 17th from Colorado–Monaco",
+        "expectedPublicBlocks": 866,
+        "minimumScheduled": 847
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -368,7 +382,8 @@
       "I-70–East 54th from York–Colorado",
       "W Alameda–W 6th from Lipan–Broadway",
       "W 7th–W Colfax from Osage–Broadway",
-      "East 17th–I-70 from Colorado–Quebec"
+      "East 17th–I-70 from Colorado–Quebec",
+      "East 6th–East 17th from Colorado–Monaco"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
