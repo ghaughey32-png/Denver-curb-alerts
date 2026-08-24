@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { isGlendaleBlock } = require("./lib/glendale-city-limits.js");
+const { isOutsideDenverBlock } = require("./lib/denver-city-limits.js");
 
 const [sourcePath, areaId, southArg, westArg, northArg, eastArg] = process.argv.slice(2);
 if (!sourcePath || !areaId || !eastArg) {
@@ -207,6 +208,18 @@ if (areaId === "i70-e54-york-colorado") {
 additions = additions.map((block) => block.excluded || !isGlendaleBlock(block.geometry)
   ? block
   : { ...block, excluded: true, exclusionReason: "Inside the City of Glendale, which Denver does not sweep" });
+
+// Glendale is the enclave that bites hardest, but it is not the only city inside
+// a plausible rectangle. Denver's southeast corner interleaves with Aurora,
+// Greenwood Village, Cherry Hills Village and the unincorporated Holly Hills
+// pocket too finely to separate with bounds, and the same pink-means-do-nothing
+// problem applies to all of them. Testing against the whole city line catches
+// every one, and the 20 m buffer in the module keeps Denver's own curb on the
+// boundary streets it shares. Blocks already excluded above keep their more
+// specific reason.
+additions = additions.map((block) => block.excluded || !isOutsideDenverBlock(block.geometry)
+  ? block
+  : { ...block, excluded: true, exclusionReason: "Outside the City and County of Denver, which sweeps only its own streets" });
 
 // The requested rectangle reaches west to North Lipan Street so both of its
 // curbs are included, but everything at or west of North Kalamath Street and at
