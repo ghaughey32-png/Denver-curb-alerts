@@ -35,6 +35,14 @@ function normalizeStreetName(value = "") {
     // Denver includes PARKWAY in E 26th Avenue's route name while OSM labels
     // the same continuous roadway East 26th Avenue.
     .replace(/\bAVE (?:PARKWAY|PKWY)\b/g, "AVE")
+    // Same shape one street over: Denver calls the diagonal connector between
+    // E 31st Ave and MLK at Elizabeth "E 31ST AVENUE DR", while OSM labels it
+    // plain "East 31st Avenue". It is the only AVENUE DR in Denver's route
+    // names and the manifest never uses the suffix at all, so folding it away
+    // costs nothing. The Drive branches off the Avenue and touches it at the
+    // junction, but a block only matches when 90% of its samples fall within
+    // the tolerance, so geometry still keeps the two roadways apart.
+    .replace(/\bAVE (?:DR|DRIVE)\b/g, "AVE")
     // Denver calls this roadway S Irving St while the public-road inventory
     // calls the same divided carriageway South Irving Street Parkway.
     .replace(/\bIRVING ST PARKWAY\b/g, "IRVING ST")

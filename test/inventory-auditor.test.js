@@ -81,3 +81,34 @@ test("a scheduled route still matches its block across that spelling difference"
   assert.equal(result.report.blocks[0].status, "scheduled");
   assert.equal(result.generatedRoutes.length, 0);
 });
+
+// Denver names the diagonal connector up to MLK "E 31ST AVENUE DR" while OSM
+// labels it plain "East 31st Avenue". It is the only AVENUE DR in Denver's
+// route names, and the same index-by-name problem applies: without this the
+// block never reaches the geometric comparison and publishes pink over a
+// scheduled route.
+test("31st Avenue Drive normalizes onto 31st Avenue", () => {
+  assert.equal(normalizeStreetName("E 31ST AVENUE DR"), normalizeStreetName("East 31st Avenue"));
+});
+
+// Folding the suffix away is only safe because coverage, not the name alone,
+// decides the match: the Drive branches off the Avenue and touches it at the
+// junction, so a shared name must not be enough to claim a whole block.
+test("sharing a normalized name is not enough to match a separate roadway", () => {
+  const avenueBlock = {
+    id: "ave-block",
+    streetName: "East 31st Avenue",
+    from: "A ST",
+    to: "B ST",
+    geometry: [[39.7615, -104.945], [39.7615, -104.9445], [39.7615, -104.944]]
+  };
+  const driveRoute = {
+    id: 25387,
+    streetName: "E 31ST AVENUE DR",
+    sweepType: "Scheduled",
+    schedules: [{ Date: "09/10/2026", Description: "South" }],
+    map: { path: [[39.7625, -104.945], [39.7635, -104.944]] }
+  };
+  const result = auditInventory({ routes: [driveRoute], blocks: [avenueBlock] });
+  assert.equal(result.report.blocks[0].status, "unavailable");
+});
