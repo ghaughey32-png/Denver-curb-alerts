@@ -119,6 +119,25 @@ Mississippi Avenue, and a plain inside/outside test throws away Denver's real co
 half of all three. Any new area touching Cherry Creek east of Colorado needs no extra work; the rule
 is geometric, not a list of ids.
 
+**Nothing outside Denver gets published, and that test is general.** Glendale was only the enclave
+that bit first. [scripts/lib/denver-city-limits.js](scripts/lib/denver-city-limits.js) carries the
+whole city line — OSM relation 1411339, admin_level 6, stitched into one outer ring plus five holes,
+simplified at one metre — and `isOutsideDenverBlock` drops anything beyond it at import time, for
+the same reason Glendale is dropped. The importer applies Glendale first so those blocks keep their
+more specific exclusion reason, then this. Holes matter as much as the outline: Glendale and the
+Holly Hills pocket of unincorporated Arapahoe County are interior, not edge bites, so the ray casting
+runs even-odd across every ring at once. The 20 m buffer is Glendale's, for Glendale's reason — the
+line runs down the middle of South Yosemite, South Havana, East Hampden, East Yale and East
+Belleview, and Denver sweeps its own curb on all of them. A block split evenly across the line is
+kept, not dropped.
+
+This is load bearing in the southeast, where Denver interleaves with Aurora, Greenwood Village and
+Cherry Hills Village: the six areas from Colorado Boulevard to I-225 excluded 1,771 blocks between
+them, every one of which would otherwise have shipped as pink. Validated against Denver's own API —
+excluded blocks return zero routes, published ones return one to six — and spot-checked against
+Nominatim. Do not add per-area rectangles to work around a municipal boundary; fix the geometry here
+instead.
+
 **The auditor indexes routes by street name — keep it that way.**
 [scripts/lib/inventory-auditor.js](scripts/lib/inventory-auditor.js) groups routes into a
 `Map` keyed by normalized street name once per run, memoizes `normalizeStreetName`, and rejects
@@ -255,20 +274,38 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 
 - **A clean coverage report is not a precondition.** `sync:coverage` writes the report with
   `generateUnavailable: false` and does not enforce the build gate, so
-  `data/inventory-coverage-report.json` can show `unexplained-gap` counts (currently ~19 Tennyson
-  blocks) while the app is fine. Only `build:inventory` enforces the gate.
+  `data/inventory-coverage-report.json` can show `unexplained-gap` counts while the app is fine. As
+  of 2026-08-24 that is 19 blocks, and they are not all Tennyson: 8 East Martin Luther King Jr Blvd,
+  7 N Tennyson St, 3 Larimer St and 1 N Yates St. Only `build:inventory` enforces the gate, and with
+  `generateUnavailable` on those 19 become pink rather than gaps.
 - **The published inventory is stale relative to the scripts, and a full rebuild will surface it.**
-  As of 2026-08-19, running `build:inventory` (or replaying the coverage patches over the published
-  payload) fails five tests that pass against the committed file. Verified unrelated to any current
-  work by reproducing it with an unmodified `inventory-auditor.js`. Three causes, all pre-existing:
-  the four `routeMap.delete(...)` calls in `auditAndPublish` remove fallbacks for blocks whose real
-  coverage is only 0.18–0.36, leaving them blank (`florida-evans`/`evans-yale` S Lowell and S Osceola,
-  plus their cross-area twins); `ensureRinoOfficialRouteCoverage` adds two Larimer blocks that
-  `test/curb-geometry.test.js` does not expect (it asserts exactly 6); and the Tennyson, Yates and
-  MLK expected blocks have no suppression in the build script, so a rebuild publishes pink routes
-  that `test/inventory-coverage.test.js` forbids. Whoever next runs a full crawl has to resolve these
-  — probably by excluding the bogus blocks in the manifest and updating the Larimer count — rather
-  than assuming the rebuild broke something.
+  Re-measured 2026-08-24, correcting an earlier version of this note that sent one agent down a
+  wrong path. `build:inventory` would **publish cleanly** — `audit.unexplainedGaps` is 0, so the
+  build gate does not throw. Two tests then fail against the regenerated payload:
+
+  - `ensureRinoOfficialRouteCoverage` brings LARIMER ST unavailable routes from 6 to **11** (33rd–34th,
+    34th–35th and three `rino-larimer-*`), while `test/curb-geometry.test.js` asserts exactly 6. The
+    count can only be corrected *with* the crawl: that test reads the committed payload, so changing
+    it to 11 beforehand fails immediately.
+  - The seven Tennyson blocks publish as pink, which `test/inventory-coverage.test.js` forbids. They
+    sit in the manifest as public and not excluded, so the audit generates fallbacks the test then
+    rejects. Resolving this needs a product decision — whether those are real Denver blocks whose
+    sweeping was never resolved, or blocks that do not belong in the manifest — not a code change.
+    The Yates block and the eight MLK blocks are the same question.
+
+  **The four `routeMap.delete(...)` calls in `auditAndPublish` are not part of this and must stay.**
+  An earlier version of this note claimed they blank out blocks whose real coverage is 0.18–0.36.
+  That reads the audit's bookkeeping as if it were the rendered map. It is not: `public/app.js` holds
+  a `suppressedFallbackRouteIds` set with the S Lowell and S Osceola fallback ids and filters them
+  before drawing, and the confirmed official routes draw underneath. The deletes are the build-side
+  half of that deliberate, screenshot-confirmed pairing, and `test/curb-geometry.test.js` enforces
+  both halves with source-text assertions. Removing them turns two tests red for no gain. The S Pecos
+  and E 26th Parkway deletes are inert against the current payload — both blocks audit as scheduled
+  at coverage 1.000 — but they cost nothing and still guard a fresh crawl.
+
+  Reproduce any of this offline in about two seconds, with no API calls: load
+  `public/denver-west-routes.json`, run the exported `applyCoveragePatches(routeMap, manifest.blocks)`
+  over it, then `auditInventory`. Do not call `auditAndPublish` for this — it writes `public/`.
 - **The service worker cache match is exact.** [public/sw.js](public/sw.js) calls
   `caches.match(event.request)` without `ignoreSearch`, so a precached `styles.css?v=A` will never
   satisfy a page request for `styles.css?v=B` — a version mismatch quietly removes that asset from the
