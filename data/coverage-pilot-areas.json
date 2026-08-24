@@ -453,6 +453,20 @@
         "expectedPublicBlocks": 538,
         "minimumScheduled": 400
       }
+    },
+    {
+      "id": "yale-evans-quebec-i225",
+      "label": "E Yale Avenue–E Evans Avenue, South Quebec Street–I-225",
+      "north": 39.6778,
+      "south": 39.6666,
+      "west": -104.9027,
+      "east": -104.8256,
+      "published": true,
+      "coverage": {
+        "testName": "East Yale–East Evans from Quebec–I-225",
+        "expectedPublicBlocks": 99,
+        "minimumScheduled": 47
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -472,7 +486,8 @@
       "East Dakota–East Evans from Colorado–Monaco",
       "East Yale–East Evans from Colorado–Quebec",
       "East Hampden–East Yale from Colorado–Quebec",
-      "East Hampden–East Yale from Quebec–I-225"
+      "East Hampden–East Yale from Quebec–I-225",
+      "East Yale–East Evans from Quebec–I-225"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
