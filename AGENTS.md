@@ -257,6 +257,13 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 
 ## Known issues and historical quirks
 
+- **Denver's route lookup crashes on North Tennyson Street.** Coordinates anywhere along Tennyson
+  between W 46th and W 52nd return HTTP 500 with " Object reference not set to an instance of an
+  object." from Denver, while the service is otherwise healthy — one street east at -105.0400 returns
+  four routes, all scheduled. This is an upstream null-reference defect, not an absence of sweeping,
+  so no amount of re-crawling will resolve those blocks and the curated client-side pink in
+  `ensureUnavailableTennysonCoverage` is the coverage. Confirmed 2026-08-24, and it is why the pink
+  is hand-drawn there. Do not read an empty or failed Tennyson lookup as "Denver does not sweep it".
 - **Denver's address lookup is returning HTTP 400.** `/api/denver/sweeping?address=...` fails for
   every address while the coordinate form (`?latitude=&longitude=`) works normally. This predates
   2026-08-22 — the `intersection-addresses` stage of `map:area` already scored 0 resolved out of 16
@@ -287,11 +294,16 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
     34th–35th and three `rino-larimer-*`), while `test/curb-geometry.test.js` asserts exactly 6. The
     count can only be corrected *with* the crawl: that test reads the committed payload, so changing
     it to 11 beforehand fails immediately.
-  - The seven Tennyson blocks publish as pink, which `test/inventory-coverage.test.js` forbids. They
-    sit in the manifest as public and not excluded, so the audit generates fallbacks the test then
-    rejects. Resolving this needs a product decision — whether those are real Denver blocks whose
-    sweeping was never resolved, or blocks that do not belong in the manifest — not a code change.
-    The Yates block and the eight MLK blocks are the same question.
+  - ~~The seven Tennyson blocks publish as pink.~~ **Resolved 2026-08-24** by marking them excluded
+    in the manifest. They were never a coverage gap: `ensureUnavailableTennysonCoverage` in
+    `public/app.js` already draws all seven as pink client-side, from hand-curated intersection
+    coordinates rather than the OSM geometry, and it deliberately sets no `expectedBlockId` — which
+    is exactly what the test keys on. The build must not emit a second, OSM-shaped pink for the same
+    curb. Excluding the blocks stops the audit generating one while leaving the client's coverage
+    untouched, so nothing changes on the map. The Yates block and the eight MLK blocks have no
+    equivalent client-side function and are still open.
+
+    Only the Larimer count above now stands between a fresh crawl and a green suite.
 
   **The four `routeMap.delete(...)` calls in `auditAndPublish` are not part of this and must stay.**
   An earlier version of this note claimed they blank out blocks whose real coverage is 0.18–0.36.
