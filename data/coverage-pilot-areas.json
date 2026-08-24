@@ -439,6 +439,20 @@
         "expectedPublicBlocks": 447,
         "minimumScheduled": 387
       }
+    },
+    {
+      "id": "hampden-yale-quebec-i225",
+      "label": "E Hampden Avenue–E Yale Avenue, South Quebec Street–I-225",
+      "north": 39.6666,
+      "south": 39.6526,
+      "west": -104.9027,
+      "east": -104.8256,
+      "published": true,
+      "coverage": {
+        "testName": "East Hampden–East Yale from Quebec–I-225",
+        "expectedPublicBlocks": 538,
+        "minimumScheduled": 400
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -457,7 +471,8 @@
       "East Alameda–East 5th from Colorado–Monaco",
       "East Dakota–East Evans from Colorado–Monaco",
       "East Yale–East Evans from Colorado–Quebec",
-      "East Hampden–East Yale from Colorado–Quebec"
+      "East Hampden–East Yale from Colorado–Quebec",
+      "East Hampden–East Yale from Quebec–I-225"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
