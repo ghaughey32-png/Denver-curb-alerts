@@ -481,6 +481,20 @@
         "expectedPublicBlocks": 658,
         "minimumScheduled": 579
       }
+    },
+    {
+      "id": "belleview-quincy-colorado-i225",
+      "label": "E Belleview Avenue–E Quincy Avenue, Colorado Boulevard–I-225",
+      "north": 39.6381,
+      "south": 39.6235,
+      "west": -104.9404,
+      "east": -104.8256,
+      "published": true,
+      "coverage": {
+        "testName": "East Belleview–East Quincy from Colorado–I-225",
+        "expectedPublicBlocks": 585,
+        "minimumScheduled": 374
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -502,7 +516,8 @@
       "East Hampden–East Yale from Colorado–Quebec",
       "East Hampden–East Yale from Quebec–I-225",
       "East Yale–East Evans from Quebec–I-225",
-      "East Quincy–East Hampden from Colorado–I-225"
+      "East Quincy–East Hampden from Colorado–I-225",
+      "East Belleview–East Quincy from Colorado–I-225"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
