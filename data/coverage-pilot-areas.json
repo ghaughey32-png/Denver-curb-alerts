@@ -411,6 +411,20 @@
         "expectedPublicBlocks": 474,
         "minimumScheduled": 459
       }
+    },
+    {
+      "id": "yale-evans-colorado-quebec",
+      "label": "E Yale Avenue–E Evans Avenue, Colorado Boulevard–South Quebec Street",
+      "north": 39.6778,
+      "south": 39.6666,
+      "west": -104.9404,
+      "east": -104.9027,
+      "published": true,
+      "coverage": {
+        "testName": "East Yale–East Evans from Colorado–Quebec",
+        "expectedPublicBlocks": 392,
+        "minimumScheduled": 333
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -427,7 +441,8 @@
       "East 17th–I-70 from Colorado–Quebec",
       "East 6th–East 17th from Colorado–Monaco",
       "East Alameda–East 5th from Colorado–Monaco",
-      "East Dakota–East Evans from Colorado–Monaco"
+      "East Dakota–East Evans from Colorado–Monaco",
+      "East Yale–East Evans from Colorado–Quebec"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
