@@ -50,6 +50,14 @@ function normalizeStreetName(value = "") {
     // with its own sweeping day. Drop the infix so the geometric match decides
     // which carriageway a route covers.
     .replace(/\bBUCHTEL [NS] BLVD\b/g, "BUCHTEL BLVD")
+    // Denver spells this boulevard both ways in its own route names -- most
+    // records say E MARTIN LUTHER KING BLVD, some say E MARTIN LUTHER KING JR
+    // BLVD -- while the OSM-derived manifest always carries the honorific. The
+    // index is keyed by name, so without this the manifest's blocks never get
+    // compared against Denver's routes at all and every one of them publishes a
+    // pink fallback directly on top of a scheduled route. Drop the honorific and
+    // let the geometric match decide, the same way BUCHTEL does above.
+    .replace(/\bMARTIN LUTHER KING JR\b/g, "MARTIN LUTHER KING")
     .replace(/[^A-Z0-9]+/g, " ")
     .trim()
     .replace(/^[NSEW] /, "");

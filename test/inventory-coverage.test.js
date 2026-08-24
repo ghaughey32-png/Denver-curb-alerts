@@ -346,7 +346,16 @@ areas
       assert.ok(lon >= bounds.west && lon <= bounds.east, `longitude ${lon} is outside the mapping area`);
     });
     assert.ok(result.report.counts.scheduled >= minimumScheduled);
-    assert.ok(inventory.routes.some((route) => route.dataUnavailable && String(route.expectedBlockId || "").startsWith(prefix)));
+    // Every block that failed to resolve has to be clickable rather than blank,
+    // so an area carrying unresolved blocks must publish a pink route tagged
+    // with the block it stands in for. An area where everything resolves needs
+    // no pink at all, and asserting one unconditionally would fail the better
+    // outcome: e26-e37-colorado-quebec reached 609 of 609 scheduled once the
+    // auditor stopped treating "Martin Luther King Jr" as a different street
+    // from "Martin Luther King", and its pink went to zero as a result.
+    if (result.report.counts.unavailable > 0) {
+      assert.ok(inventory.routes.some((route) => route.dataUnavailable && String(route.expectedBlockId || "").startsWith(prefix)));
+    }
     assert.equal(result.report.counts["unexplained-gap"], 0);
   });
 });

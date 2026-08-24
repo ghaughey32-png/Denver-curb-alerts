@@ -49,3 +49,35 @@ test("keeps excluded roads out of expected public-block totals", () => {
   assert.equal(result.report.counts.expected, 0);
   assert.equal(result.report.counts.excluded, 1);
 });
+
+// Denver writes this boulevard both with and without the honorific in its own
+// route names, while the OSM-derived manifest always carries it. Because the
+// auditor indexes routes by normalized street name, a mismatch here does not
+// merely lose a match -- it stops the comparison ever happening, and every MLK
+// block publishes a pink "no need to move your car" fallback directly on top of
+// a scheduled route. That was live for 129 blocks until 2026-08-24.
+test("Martin Luther King normalizes the same with or without the honorific", () => {
+  const withJr = normalizeStreetName("East Martin Luther King Jr Boulevard");
+  assert.equal(withJr, normalizeStreetName("E MARTIN LUTHER KING BLVD"));
+  assert.equal(withJr, normalizeStreetName("E MARTIN LUTHER KING JR BLVD"));
+});
+
+test("a scheduled route still matches its block across that spelling difference", () => {
+  const mlkBlock = {
+    id: "mlk-dexter-dahlia",
+    streetName: "East Martin Luther King Jr Boulevard",
+    from: "N DEXTER ST",
+    to: "N DAHLIA ST",
+    geometry: [[39.76197, -104.93], [39.76197, -104.929]]
+  };
+  const denverRoute = {
+    id: 25562,
+    streetName: "E MARTIN LUTHER KING BLVD",
+    sweepType: "Scheduled",
+    schedules: [{ Date: "08/27/2026", Description: "North" }],
+    map: { path: [[39.76197, -104.93], [39.76197, -104.929]] }
+  };
+  const result = auditInventory({ routes: [denverRoute], blocks: [mlkBlock] });
+  assert.equal(result.report.blocks[0].status, "scheduled");
+  assert.equal(result.generatedRoutes.length, 0);
+});
