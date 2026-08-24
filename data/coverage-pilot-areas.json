@@ -425,6 +425,20 @@
         "expectedPublicBlocks": 392,
         "minimumScheduled": 333
       }
+    },
+    {
+      "id": "hampden-yale-colorado-quebec",
+      "label": "E Hampden Avenue–E Yale Avenue, Colorado Boulevard–South Quebec Street",
+      "north": 39.6666,
+      "south": 39.6526,
+      "west": -104.9404,
+      "east": -104.9027,
+      "published": true,
+      "coverage": {
+        "testName": "East Hampden–East Yale from Colorado–Quebec",
+        "expectedPublicBlocks": 447,
+        "minimumScheduled": 387
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -442,7 +456,8 @@
       "East 6th–East 17th from Colorado–Monaco",
       "East Alameda–East 5th from Colorado–Monaco",
       "East Dakota–East Evans from Colorado–Monaco",
-      "East Yale–East Evans from Colorado–Quebec"
+      "East Yale–East Evans from Colorado–Quebec",
+      "East Hampden–East Yale from Colorado–Quebec"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
