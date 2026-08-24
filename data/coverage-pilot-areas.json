@@ -467,6 +467,20 @@
         "expectedPublicBlocks": 99,
         "minimumScheduled": 47
       }
+    },
+    {
+      "id": "quincy-hampden-colorado-i225",
+      "label": "E Quincy Avenue–E Hampden Avenue, Colorado Boulevard–I-225",
+      "north": 39.6526,
+      "south": 39.6381,
+      "west": -104.9404,
+      "east": -104.8256,
+      "published": true,
+      "coverage": {
+        "testName": "East Quincy–East Hampden from Colorado–I-225",
+        "expectedPublicBlocks": 658,
+        "minimumScheduled": 579
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -487,7 +501,8 @@
       "East Yale–East Evans from Colorado–Quebec",
       "East Hampden–East Yale from Colorado–Quebec",
       "East Hampden–East Yale from Quebec–I-225",
-      "East Yale–East Evans from Quebec–I-225"
+      "East Yale–East Evans from Quebec–I-225",
+      "East Quincy–East Hampden from Colorado–I-225"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
