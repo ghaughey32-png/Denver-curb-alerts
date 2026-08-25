@@ -537,6 +537,34 @@
         "expectedPublicBlocks": 752,
         "minimumScheduled": 714
       }
+    },
+    {
+      "id": "evans-alameda-monaco-i225",
+      "label": "East Evans Avenue–East Alameda Avenue, South Monaco Street Parkway–I-225",
+      "north": 39.7064,
+      "south": 39.6778,
+      "west": -104.9118,
+      "east": -104.8256,
+      "published": true,
+      "coverage": {
+        "testName": "East Evans–East Alameda from Monaco–I-225",
+        "expectedPublicBlocks": 556,
+        "minimumScheduled": 382
+      }
+    },
+    {
+      "id": "alameda-colfax-yosemite-i225",
+      "label": "East Alameda Avenue–East Colfax Avenue, Yosemite Street–I-225",
+      "north": 39.7407,
+      "south": 39.7064,
+      "west": -104.8835,
+      "east": -104.8256,
+      "published": true,
+      "coverage": {
+        "testName": "East Alameda–East Colfax from Yosemite–I-225",
+        "expectedPublicBlocks": 157,
+        "minimumScheduled": 106
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -562,7 +590,9 @@
       "East Belleview–East Quincy from Colorado–I-225",
       "W Florida–W Yale from Jason–Broadway",
       "East Alameda–East 6th from Monaco–Yosemite",
-      "East 6th–East Colfax from Monaco–Yosemite"
+      "East 6th–East Colfax from Monaco–Yosemite",
+      "East Evans–East Alameda from Monaco–I-225",
+      "East Alameda–East Colfax from Yosemite–I-225"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
