@@ -4,7 +4,8 @@ const inventory = require("../public/denver-west-routes.json");
 const manifest = require("../data/inventory-expected-blocks.json");
 const { auditInventory } = require("../scripts/lib/inventory-auditor.js");
 const { areas } = require("../data/coverage-pilot-areas.json");
-const { metresOutsideDenver } = require("../scripts/lib/denver-city-limits.js");
+const { metresOutsideDenver, isInsideEnclaveUnbuffered } = require("../scripts/lib/denver-city-limits.js");
+const { isInsideGlendaleUnbuffered } = require("../scripts/lib/glendale-city-limits.js");
 
 test("every declared public street block is valid and auditable", () => {
   const result = auditInventory({ routes: inventory.routes, blocks: manifest.blocks, generateUnavailable: false });
@@ -29,6 +30,51 @@ test("no pink route is drawn outside the city line", () => {
   );
 
   assert.deepEqual(strayed.map((route) => route.id), []);
+});
+
+// The same rule for the cities Denver wraps around rather than borders. The
+// enclaves are worse than the outer line, not better: Glendale's boundary runs
+// down the middle of Colorado Boulevard and Denver sweeps the western curb, so
+// the import-time test has to carry a 20 m buffer, and that buffer let 45 blocks
+// of Glendale's own side streets -- Dahlia, Cherry, Kentucky, Tennessee,
+// Leetsdale -- publish as pink, plus 22 more in the Holly Hills pocket.
+// Measured 2026-08-25. Pink there says "you do not need to move your car" on
+// curb Glendale sweeps and tickets.
+//
+// Nothing geometric separates those from Denver's own curb on the ring roads --
+// 29 blocks with real Denver schedules sit inside the Glendale ring at the same
+// depth. What separates them is whether Denver returned a schedule, which is
+// why sync-city-limits.js applies this after the crawl and the importer cannot.
+// This asserts the outcome: no pink inside an enclave, whatever the route.
+test("no pink route is drawn inside a city Denver does not sweep", () => {
+  const enclaved = inventory.routes.filter((route) => {
+    if (!route.dataUnavailable || !Array.isArray(route.map?.path)) return false;
+    return isInsideGlendaleUnbuffered(route.map.path) || isInsideEnclaveUnbuffered(route.map.path);
+  });
+
+  assert.deepEqual(
+    enclaved.map((route) => `${route.streetName} (${route.id})`),
+    [],
+    "Pink inside Glendale or the Holly Hills pocket tells the user not to move a car that another city will ticket."
+  );
+});
+
+// The counterpart, and the reason the rule above is gated on Denver's own
+// answer rather than on geometry alone: Denver sweeps its side of the streets
+// that ring the enclaves, and that coverage sits inside the rings. If this ever
+// drops to zero, the enclave rule has been loosened too far.
+test("Denver keeps its own curb on the streets that ring the enclaves", () => {
+  const kept = inventory.routes.filter((route) =>
+    !route.dataUnavailable &&
+    Array.isArray(route.map?.path) &&
+    isInsideGlendaleUnbuffered(route.map.path)
+  );
+
+  assert.ok(
+    kept.length >= 8,
+    `Expected Denver's scheduled curb inside the Glendale ring to survive; found ${kept.length}.`
+  );
+  assert.ok(kept.some((route) => /COLORADO BLVD/i.test(route.streetName)));
 });
 
 test("E 8th through E 16th has clickable coverage from Lincoln to Gaylord", () => {

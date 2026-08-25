@@ -37,6 +37,7 @@ Denver API integration. Don't duplicate that content here.
 | `npm run build:review-queue -- <overpass.json> [area-id]` | Builds a human-review queue. Never touches the published inventory. |
 | `npm run sync:coverage` | Offline reconciliation pass. No network. |
 | `npm run sync:city-limits` | Applies the city-limits rule to blocks imported before it existed. No network; follow with `sync:coverage`. |
+| `npm run check:city-limits` | Audits our city line against Denver's own published boundary. Reports only, never writes. Cached after the first run. |
 
 Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id> <south> <west> <north> <east>`.
 
@@ -190,6 +191,50 @@ which is where the residual 15 stubs come from — an 11 m finger at Glendale's 
 Colorado Boulevard, and similar ones on Leetsdale, Belleview, Havana and Yale. Closing those means
 untangling self-intersecting loops, which is a real polygon clipper; the budget in
 `test/denver-city-limits.test.js` guards against the count growing rather than pretending it is zero.
+
+**Pink must never be drawn inside a city Denver does not sweep, and geometry alone
+cannot enforce that.** The enclave tests (`isGlendaleBlock`, `isOutsideDenverBlock`) carry a 20 m
+buffer because an enclave's line runs down the middle of the streets that ring it — Colorado
+Boulevard, South Cherry Street, East Mississippi Avenue around Glendale — and Denver sweeps its own
+curb on every one. The buffer is not caution, it is necessary: measured 2026-08-25, **29 blocks that
+Denver returns real sweeping schedules for sit inside the Glendale ring, at a median depth of 5.6 m,
+against 5.8 m for Glendale's own side streets.** The two are geometrically indistinguishable, and no
+threshold separates them. Do not try to fix this by tightening the ring or lowering the buffer; that
+throws away Denver's boulevard coverage, which is what the buffer was added to protect.
+
+What separates them is Denver's own answer. A block with a sweeping schedule is Denver's whatever
+the boundary says; a block Denver returned nothing for, sitting inside an enclave by the plain
+unbuffered test, is the enclave's. That evidence does not exist when the importer runs, which is why
+`isInsideGlendaleUnbuffered` and `isInsideEnclaveUnbuffered` exist and why
+[scripts/sync-city-limits.js](scripts/sync-city-limits.js) — running *after* the crawl — is their
+only caller. It found **45 blocks of Glendale's grid** (Dahlia, Cherry, Kentucky, Tennessee,
+Leetsdale) and **22 in the Holly Hills pocket** published as pink, which tells the user *you do not
+need to move your car* on curb those cities sweep and ticket. Both invariants are asserted by
+`test/inventory-coverage.test.js`: no pink inside an enclave, and Denver's scheduled curb on the
+ring roads still published.
+
+The rule is deliberately not applied past the **outer** city line. Out there the same ambiguity
+exists with no enclave to bound it, and most of what it would catch is shared boundary streets where
+pink is often Denver's own. `check:city-limits` reports those for a human instead.
+
+**Keep a second opinion on the city line.** Collapsing the map and the pipeline onto one geometry was
+right, but it removed an accidental cross-check — while the map fetched Denver's own boundary layer,
+a divergence was at least visible. `npm run check:city-limits` is the deliberate replacement: it
+fetches Denver's ArcGIS "Denver Boundary" layer (City Engineer's Office, cached at
+`data/denver-official-boundary.json`), and reports published blocks that layer places outside the
+city or inside an enclave, excluded blocks it places inside, and how far the two lines diverge.
+The very first run found the Glendale and Holly Hills pink above. It reports; it never writes.
+
+Read its output with the schedule column in mind — a `[scheduled]` divergence is Denver telling you
+it sweeps there, and needs no action. As of 2026-08-25 the lines agree to a median of 2.1 m, and 18
+blocks remain flagged with no schedule: 10 where our rings and Denver's disagree about an enclave
+edge, and 8 on shared boundary streets. Both need a person, not a rule. The three standing entries
+under "excluded blocks Denver's layer places inside the city" — N Tennyson, Polo Club Road, Polo
+Field Lane — are deliberate exclusions documented elsewhere in this file, and are expected there.
+
+This script is the one exception to *don't call city services directly*: that rule is about route
+lookups, where parsing and geometry extraction belong in the `/api/denver/sweeping` proxy, and there
+is no proxy for the boundary layer.
 
 **The auditor indexes routes by street name — keep it that way.**
 [scripts/lib/inventory-auditor.js](scripts/lib/inventory-auditor.js) groups routes into a

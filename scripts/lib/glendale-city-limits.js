@@ -97,4 +97,38 @@ function isGlendaleBlock(geometry) {
   return wellInside * 2 > geometry.length;
 }
 
-module.exports = { GLENDALE_CITY_LIMITS, isPointInsideGlendale, metresInsideGlendale, isGlendaleBlock };
+// The same question without the buffer, for the one caller that can afford to
+// ask it: scripts/sync-city-limits.js, running after the crawl.
+//
+// The buffer above is not conservatism, it is necessity at import time — the
+// ring is drawn down the middle of Colorado Boulevard, South Cherry Street and
+// East Mississippi Avenue, so Denver's own curb on all three falls *inside* it.
+// Measured 2026-08-25: 29 blocks that Denver returns real sweeping schedules
+// for have every sampled point inside this ring, at a median depth of 5.6 m,
+// against 5.8 m for the Glendale side streets. The two are geometrically
+// indistinguishable. No threshold separates them, and lowering the buffer to
+// catch Glendale's grid would throw away Denver's boulevard coverage.
+//
+// What separates them is Denver's own answer. A block with a sweeping schedule
+// is Denver's whatever the ring says; a block Denver returns nothing for, that
+// sits inside Glendale by the plain test, is Glendale's. That evidence does not
+// exist when the importer runs, which is why this predicate is not used there.
+function isInsideGlendaleUnbuffered(geometry) {
+  if (!Array.isArray(geometry) || !geometry.length) return false;
+  const inside = geometry.filter((point) => isPointInsideGlendale(point)).length;
+  return inside * 2 > geometry.length;
+}
+
+// One wording for the flag, wherever it is stamped. import-osm-expected-blocks.js
+// applies it as an area arrives and sync-city-limits.js retroactively; a report
+// that spells the reason two ways reads like two different rules.
+const GLENDALE_EXCLUSION_REASON = "Inside the City of Glendale, which Denver does not sweep";
+
+module.exports = {
+  GLENDALE_CITY_LIMITS,
+  GLENDALE_EXCLUSION_REASON,
+  isPointInsideGlendale,
+  metresInsideGlendale,
+  isGlendaleBlock,
+  isInsideGlendaleUnbuffered
+};

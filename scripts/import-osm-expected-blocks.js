@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { isGlendaleBlock } = require("./lib/glendale-city-limits.js");
+const { isGlendaleBlock, GLENDALE_EXCLUSION_REASON } = require("./lib/glendale-city-limits.js");
 const { isOutsideDenverBlock, OUTSIDE_DENVER_EXCLUSION_REASON } = require("./lib/denver-city-limits.js");
 
 const [sourcePath, areaId, southArg, westArg, northArg, eastArg] = process.argv.slice(2);
@@ -207,7 +207,7 @@ if (areaId === "i70-e54-york-colorado") {
 // larger or shifted rectangle keeps classifying the same streets correctly.
 additions = additions.map((block) => block.excluded || !isGlendaleBlock(block.geometry)
   ? block
-  : { ...block, excluded: true, exclusionReason: "Inside the City of Glendale, which Denver does not sweep" });
+  : { ...block, excluded: true, exclusionReason: GLENDALE_EXCLUSION_REASON });
 
 // Glendale is the enclave that bites hardest, but it is not the only city inside
 // a plausible rectangle. Denver's southeast corner interleaves with Aurora,

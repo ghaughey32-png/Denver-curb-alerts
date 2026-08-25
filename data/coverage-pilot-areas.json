@@ -226,7 +226,7 @@
       "published": true,
       "coverage": {
         "testName": "E Dakota through E Louisiana from Broadway to Colorado",
-        "expectedPublicBlocks": 925,
+        "expectedPublicBlocks": 922,
         "minimumScheduled": 849
       }
     },
@@ -394,7 +394,7 @@
       "published": true,
       "coverage": {
         "testName": "East Dakota through East Louisiana from Colorado to Monaco",
-        "expectedPublicBlocks": 439,
+        "expectedPublicBlocks": 397,
         "minimumScheduled": 343
       }
     },
@@ -422,7 +422,7 @@
       "published": true,
       "coverage": {
         "testName": "East Yale–East Evans from Colorado–Quebec",
-        "expectedPublicBlocks": 392,
+        "expectedPublicBlocks": 376,
         "minimumScheduled": 333
       }
     },
@@ -436,7 +436,7 @@
       "published": true,
       "coverage": {
         "testName": "East Hampden–East Yale from Colorado–Quebec",
-        "expectedPublicBlocks": 447,
+        "expectedPublicBlocks": 441,
         "minimumScheduled": 387
       }
     },

@@ -25,6 +25,40 @@ function isOutsideDenverBlock(geometry) {
   return wellOutside * 2 > geometry.length;
 }
 
+// Is most of this block inside one of the city's enclaves -- Glendale, the Holly
+// Hills pocket of Arapahoe County, the three smaller ones -- asked without the
+// buffer? Only scripts/sync-city-limits.js may use this, and only together with
+// Denver's own answer about whether it sweeps the block. See the note on
+// isInsideGlendaleUnbuffered in glendale-city-limits.js for why the buffer
+// cannot simply be lowered: an enclave's boundary runs down the middle of the
+// streets that ring it, so Denver's own curb on those streets falls inside the
+// ring and is geometrically indistinguishable from the enclave's side streets.
+// A sweeping schedule is what tells them apart, and it does not exist at import
+// time.
+//
+// Enclaves only. The outer city line is deliberately not asked about this way:
+// past it the same ambiguity exists with no enclave to bound it, and the blocks
+// it would catch are shared boundary streets where pink is often Denver's own.
+function isInsideEnclaveUnbuffered(geometry) {
+  if (!Array.isArray(geometry) || !geometry.length) return false;
+  const inside = geometry.filter((point) =>
+    DENVER_CITY_LIMITS.slice(1).some((ring) => pointInEnclaveRing(point, ring))
+  ).length;
+  return inside * 2 > geometry.length;
+}
+
+function pointInEnclaveRing([latitude, longitude], ring) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const [currentLat, currentLon] = ring[index];
+    const [previousLat, previousLon] = ring[previous];
+    if (currentLat > latitude === previousLat > latitude) continue;
+    const crossing = ((previousLon - currentLon) * (latitude - currentLat)) / (previousLat - currentLat) + currentLon;
+    if (longitude < crossing) inside = !inside;
+  }
+  return inside;
+}
+
 // The wording every consumer stamps on a block it drops for this reason. Two
 // scripts apply the same rule at different times -- the importer as an area
 // arrives, sync-city-limits.js retroactively over areas imported before the
@@ -103,5 +137,6 @@ module.exports = {
   isWithinDenver,
   getDenverMaskRings,
   isOutsideDenverBlock,
+  isInsideEnclaveUnbuffered,
   clipPathToDenver
 };
