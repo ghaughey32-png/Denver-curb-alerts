@@ -495,6 +495,20 @@
         "expectedPublicBlocks": 585,
         "minimumScheduled": 374
       }
+    },
+    {
+      "id": "florida-yale-jason-broadway",
+      "label": "W Florida Avenue–W Yale Avenue, S Jason Street–S Broadway",
+      "north": 39.6893,
+      "south": 39.6666,
+      "west": -104.9995,
+      "east": -104.9877,
+      "published": true,
+      "coverage": {
+        "testName": "W Florida–W Yale from Jason–Broadway",
+        "expectedPublicBlocks": 181,
+        "minimumScheduled": 145
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -517,7 +531,8 @@
       "East Hampden–East Yale from Quebec–I-225",
       "East Yale–East Evans from Quebec–I-225",
       "East Quincy–East Hampden from Colorado–I-225",
-      "East Belleview–East Quincy from Colorado–I-225"
+      "East Belleview–East Quincy from Colorado–I-225",
+      "W Florida–W Yale from Jason–Broadway"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
