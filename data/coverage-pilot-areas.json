@@ -111,8 +111,8 @@
       "published": true,
       "coverage": {
         "testName": "W Yale through W Dartmouth from Wadsworth to Federal",
-        "expectedPublicBlocks": 610,
-        "minimumScheduled": 504
+        "expectedPublicBlocks": 576,
+        "minimumScheduled": 503
       }
     },
     {
@@ -125,7 +125,7 @@
       "published": true,
       "coverage": {
         "testName": "W Florida through W Yale from Federal to I-25",
-        "expectedPublicBlocks": 418,
+        "expectedPublicBlocks": 362,
         "minimumScheduled": 341
       }
     },
@@ -226,7 +226,7 @@
       "published": true,
       "coverage": {
         "testName": "E Dakota through E Louisiana from Broadway to Colorado",
-        "expectedPublicBlocks": 927,
+        "expectedPublicBlocks": 925,
         "minimumScheduled": 849
       }
     },
@@ -254,7 +254,7 @@
       "published": true,
       "coverage": {
         "testName": "E Warren through E Yale from Broadway to Colorado",
-        "expectedPublicBlocks": 608,
+        "expectedPublicBlocks": 601,
         "minimumScheduled": 578
       }
     },
@@ -268,7 +268,7 @@
       "published": true,
       "coverage": {
         "testName": "E Amherst through E Floyd from Franklin to Colorado",
-        "expectedPublicBlocks": 330,
+        "expectedPublicBlocks": 280,
         "minimumScheduled": 244
       }
     },

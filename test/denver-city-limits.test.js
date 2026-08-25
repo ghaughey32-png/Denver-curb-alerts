@@ -5,7 +5,8 @@ const {
   DENVER_CITY_LIMITS,
   isPointInsideDenver,
   metresOutsideDenver,
-  isOutsideDenverBlock
+  isOutsideDenverBlock,
+  clipPathToDenver
 } = require("../scripts/lib/denver-city-limits.js");
 
 test("every ring is closed, so the ray casting has no open edges", () => {
@@ -77,4 +78,51 @@ test("degenerate geometry is never excluded", () => {
   assert.equal(isOutsideDenverBlock([]), false);
   assert.equal(isOutsideDenverBlock(null), false);
   assert.equal(isOutsideDenverBlock(undefined), false);
+});
+
+// A block that only reaches across the line stays in the manifest, and the pink
+// drawn for it used to run the whole length of the way — telling the user not to
+// move a car parked on curb that Englewood or Sheridan sweeps. Trimming keeps
+// the Denver half clickable and stops drawing the rest.
+test("a path that leaves Denver is trimmed at the line", () => {
+  // West across Sheridan Boulevard, from Denver into Lakewood.
+  const westward = [[39.7, -105.05], [39.7, -105.07]];
+  const [piece] = clipPathToDenver(westward);
+
+  assert.equal(clipPathToDenver(westward).length, 1);
+  assert.deepEqual(piece[0], westward[0]);
+  assert.ok(piece[1][1] > -105.07, "the far end should be pulled back toward Denver");
+  // The cut lands on the 20 m buffer, give or take the decimetre that rounding
+  // the crossing to six decimals can move it.
+  assert.ok(metresOutsideDenver(piece[1]) <= 20.5);
+});
+
+test("a path wholly inside Denver is returned untouched", () => {
+  const capitolHill = [[39.7392, -104.9847], [39.7392, -104.9803], [39.7392, -104.976]];
+  assert.deepEqual(clipPathToDenver(capitolHill), [capitolHill]);
+});
+
+test("a path wholly outside Denver clips away to nothing", () => {
+  assert.deepEqual(clipPathToDenver([[39.63, -104.86], [39.632, -104.86]]), []);
+  assert.deepEqual(clipPathToDenver([[39.7, -105.05]]), []);
+  assert.deepEqual(clipPathToDenver(null), []);
+});
+
+// East Cherry Creek South Drive clips the corner of Glendale and comes back, so
+// a single surviving piece would have to bridge the gap with a straight line
+// through another city's curb.
+test("a path that leaves Denver and returns keeps both pieces", () => {
+  const outAndBack = [[39.7, -104.9497], [39.7, -104.94], [39.7, -104.93], [39.7, -104.9203]];
+  const pieces = clipPathToDenver(outAndBack);
+
+  assert.equal(pieces.length, 2);
+  pieces.flat().forEach((point) => assert.ok(metresOutsideDenver(point) <= 20.5));
+});
+
+// The line runs down the middle of the streets it shares, so a curb drawn on
+// East Hampden's centreline sits a metre or two either side of it at random.
+// Cutting at the line itself would shred that block into dashes.
+test("a curb on a shared boundary street survives whole", () => {
+  const hampden = [[39.6529, -104.9], [39.6529, -104.895], [39.6529, -104.89]];
+  assert.deepEqual(clipPathToDenver(hampden), [hampden]);
 });

@@ -4,11 +4,31 @@ const inventory = require("../public/denver-west-routes.json");
 const manifest = require("../data/inventory-expected-blocks.json");
 const { auditInventory } = require("../scripts/lib/inventory-auditor.js");
 const { areas } = require("../data/coverage-pilot-areas.json");
+const { metresOutsideDenver } = require("../scripts/lib/denver-city-limits.js");
 
 test("every declared public street block is valid and auditable", () => {
   const result = auditInventory({ routes: inventory.routes, blocks: manifest.blocks, generateUnavailable: false });
   assert.equal(result.unexplainedGaps.some((gap) => gap.reason === "invalid expected-block definition"), false);
   assert.equal(result.report.counts.expected, manifest.blocks.filter((block) => !block.excluded).length);
+});
+
+// Pink means "Denver has no schedule for this block, so you do not need to move
+// your car", which is only ever true of curb Denver sweeps. Aurora, Englewood,
+// Sheridan, Glendale and the rest sweep and ticket their own streets, so pink
+// past the city line is worse than no coverage at all. The importer drops blocks
+// that belong to another city outright; this catches the other half, a block
+// that is Denver's but whose geometry reaches across the line.
+test("no pink route is drawn outside the city line", () => {
+  const strayed = inventory.routes.filter((route) =>
+    route.dataUnavailable &&
+    Array.isArray(route.map?.path) &&
+    // The cut sits on the same 20 m buffer the exclusion rule uses, because the
+    // line runs down the middle of the streets it shares; the half metre of
+    // slack is the rounding of the trimmed endpoint to six decimals.
+    route.map.path.some((point) => metresOutsideDenver(point) > 20.5)
+  );
+
+  assert.deepEqual(strayed.map((route) => route.id), []);
 });
 
 test("E 8th through E 16th has clickable coverage from Lincoln to Gaylord", () => {

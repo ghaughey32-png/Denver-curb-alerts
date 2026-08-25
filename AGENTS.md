@@ -36,6 +36,7 @@ Denver API integration. Don't duplicate that content here.
 | `npm run map:area -- <area-id>` | Staged discovery for one pilot area. **Defaults `APP_ORIGIN` to production**, not localhost — set it deliberately. |
 | `npm run build:review-queue -- <overpass.json> [area-id]` | Builds a human-review queue. Never touches the published inventory. |
 | `npm run sync:coverage` | Offline reconciliation pass. No network. |
+| `npm run sync:city-limits` | Applies the city-limits rule to blocks imported before it existed. No network; follow with `sync:coverage`. |
 
 Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id> <south> <west> <north> <east>`.
 
@@ -137,6 +138,24 @@ them, every one of which would otherwise have shipped as pink. Validated against
 excluded blocks return zero routes, published ones return one to six — and spot-checked against
 Nominatim. Do not add per-area rectangles to work around a municipal boundary; fix the geometry here
 instead.
+
+Dropping the block is only half of it. A block that is Denver's but whose geometry reaches across
+the line — a street that runs out of the city mid-block, or an OSM way that carries on into
+Englewood — stays in the manifest, and the pink drawn for it used to run the full length of the way.
+`clipPathToDenver` trims the fallback to the part inside the city, at the same 20 m buffer and for
+the same reason: cutting at the line itself would shred a curb drawn on the centreline of a shared
+street into dashes. A path that leaves Denver and comes back yields one route per surviving piece,
+the first keeping the block's id. `test/inventory-coverage.test.js` asserts that no published pink
+route reaches past the buffer, so a fresh crawl cannot quietly reintroduce this.
+
+`sync:city-limits` is the retroactive half. The rule runs at import time, which is the right moment
+for it, but it landed after most of the map was published and re-importing a published area drifts
+(see the Overpass note below). The script asks the same geometric question of the blocks already in
+the manifest, excludes what fails, and restates the affected areas' `expectedPublicBlocks`; run
+`sync:coverage` afterwards to regenerate the pink. It found 149 blocks in five areas on
+2026-08-25 — Englewood, Sheridan and the Holly Hills pocket, confirmed against Nominatim — and of
+the 1,920 blocks now carrying that exclusion reason, exactly one resolves to a Denver schedule.
+Re-run it whenever the boundary geometry is refined; it is idempotent.
 
 **The auditor indexes routes by street name — keep it that way.**
 [scripts/lib/inventory-auditor.js](scripts/lib/inventory-auditor.js) groups routes into a
@@ -282,9 +301,10 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 - **A clean coverage report is not a precondition.** `sync:coverage` writes the report with
   `generateUnavailable: false` and does not enforce the build gate, so
   `data/inventory-coverage-report.json` can show `unexplained-gap` counts while the app is fine. As
-  of 2026-08-24 that is 19 blocks, and they are not all Tennyson: 8 East Martin Luther King Jr Blvd,
-  7 N Tennyson St, 3 Larimer St and 1 N Yates St. Only `build:inventory` enforces the gate, and with
-  `generateUnavailable` on those 19 become pink rather than gaps.
+  of 2026-08-25 that is 4 blocks: 3 Larimer St and 1 N Yates St. It was 19 the day before — the
+  Martin Luther King routes now match their blocks and the Tennyson blocks are excluded. Only
+  `build:inventory` enforces the gate, and with `generateUnavailable` on those 4 become pink rather
+  than gaps.
 - **The published inventory is stale relative to the scripts, and a full rebuild will surface it.**
   Re-measured 2026-08-24, correcting an earlier version of this note that sent one agent down a
   wrong path. `build:inventory` would **publish cleanly** — `audit.unexplainedGaps` is 0, so the

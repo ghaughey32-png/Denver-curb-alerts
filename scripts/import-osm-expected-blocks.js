@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { isGlendaleBlock } = require("./lib/glendale-city-limits.js");
-const { isOutsideDenverBlock } = require("./lib/denver-city-limits.js");
+const { isOutsideDenverBlock, OUTSIDE_DENVER_EXCLUSION_REASON } = require("./lib/denver-city-limits.js");
 
 const [sourcePath, areaId, southArg, westArg, northArg, eastArg] = process.argv.slice(2);
 if (!sourcePath || !areaId || !eastArg) {
@@ -219,7 +219,7 @@ additions = additions.map((block) => block.excluded || !isGlendaleBlock(block.ge
 // specific reason.
 additions = additions.map((block) => block.excluded || !isOutsideDenverBlock(block.geometry)
   ? block
-  : { ...block, excluded: true, exclusionReason: "Outside the City and County of Denver, which sweeps only its own streets" });
+  : { ...block, excluded: true, exclusionReason: OUTSIDE_DENVER_EXCLUSION_REASON });
 
 // The requested rectangle reaches west to North Lipan Street so both of its
 // curbs are included, but everything at or west of North Kalamath Street and at

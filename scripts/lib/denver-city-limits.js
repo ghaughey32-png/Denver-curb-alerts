@@ -454,4 +454,80 @@ function isOutsideDenverBlock(geometry) {
   return wellOutside * 2 > geometry.length;
 }
 
-module.exports = { DENVER_CITY_LIMITS, isPointInsideDenver, metresOutsideDenver, isOutsideDenverBlock };
+// The wording every consumer stamps on a block it drops for this reason. Two
+// scripts apply the same rule at different times -- the importer as an area
+// arrives, sync-city-limits.js retroactively over areas imported before the
+// rule existed -- and a coverage report that spells the reason two ways reads
+// like two different rules.
+const OUTSIDE_DENVER_EXCLUSION_REASON =
+  "Outside the City and County of Denver, which sweeps only its own streets";
+
+const isWithinDenver = (point) => metresOutsideDenver(point) <= BOUNDARY_BUFFER_METRES;
+
+// Where along a -> b the path crosses in or out. The two endpoints are known to
+// fall on opposite sides, and a straight block-length segment crosses the line
+// once, so bisection converges on that crossing; twenty halvings put it well
+// under a millimetre even on the longest segment in the manifest. Rounding to
+// six decimals -- about 11 cm -- matches the precision of the ring itself and
+// keeps the 9 MB payload from growing a full float per trimmed route.
+function crossingPoint(a, b) {
+  const startsInside = isWithinDenver(a);
+  const at = (ratio) => [a[0] + (b[0] - a[0]) * ratio, a[1] + (b[1] - a[1]) * ratio];
+  let inside = 0;
+  let outside = 1;
+  for (let step = 0; step < 20; step += 1) {
+    const middle = (inside + outside) / 2;
+    if (isWithinDenver(at(middle)) === startsInside) inside = middle; else outside = middle;
+  }
+  const [latitude, longitude] = at((inside + outside) / 2);
+  return [Number(latitude.toFixed(6)), Number(longitude.toFixed(6))];
+}
+
+// Dropping a whole block is the right answer when the block belongs to another
+// city, but plenty of blocks only reach across the line -- a street that runs
+// out of Denver mid-block, or one whose OSM way carries on past the city into
+// Englewood. Those stay in the manifest, and the pink drawn for them used to
+// run the full length of the way, which puts "you do not need to move your car"
+// over curb another city sweeps and tickets. Trimming the geometry keeps the
+// Denver half of the block clickable and stops drawing the rest.
+//
+// The cut is at the same 20 m buffer isOutsideDenverBlock uses, and for the
+// same reason: the boundary runs down the middle of the streets that carry it,
+// so a curb drawn on the centreline of East Hampden or South Yosemite sits a
+// couple of metres either side of the line at random. Cutting at the line
+// itself would shred those into dashes; cutting 20 m out leaves them whole.
+//
+// A path can leave Denver and come back -- East Cherry Creek South Drive clips
+// the corner of Glendale, South Locust brushes the Holly Hills pocket -- so the
+// result is a list of surviving pieces rather than one path. An empty list
+// means nothing of the path was in Denver.
+function clipPathToDenver(path) {
+  if (!Array.isArray(path) || path.length < 2) return [];
+  const pieces = [];
+  let current = isWithinDenver(path[0]) ? [path[0]] : null;
+
+  for (let index = 1; index < path.length; index += 1) {
+    const previous = path[index - 1];
+    const point = path[index];
+    const previousInside = isWithinDenver(previous);
+    const pointInside = isWithinDenver(point);
+    if (previousInside && pointInside) current.push(point);
+    else if (previousInside) {
+      current.push(crossingPoint(previous, point));
+      pieces.push(current);
+      current = null;
+    } else if (pointInside) current = [crossingPoint(previous, point), point];
+  }
+  if (current) pieces.push(current);
+
+  return pieces.filter((piece) => piece.length > 1);
+}
+
+module.exports = {
+  DENVER_CITY_LIMITS,
+  OUTSIDE_DENVER_EXCLUSION_REASON,
+  isPointInsideDenver,
+  metresOutsideDenver,
+  isOutsideDenverBlock,
+  clipPathToDenver
+};
