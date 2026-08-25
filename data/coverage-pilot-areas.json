@@ -509,6 +509,34 @@
         "expectedPublicBlocks": 181,
         "minimumScheduled": 145
       }
+    },
+    {
+      "id": "alameda-e6-monaco-yosemite",
+      "label": "East Alameda Avenue–East 6th Avenue Parkway, Monaco Street Parkway–Yosemite Street",
+      "north": 39.7248,
+      "south": 39.7064,
+      "west": -104.9118,
+      "east": -104.8835,
+      "published": true,
+      "coverage": {
+        "testName": "East Alameda–East 6th from Monaco–Yosemite",
+        "expectedPublicBlocks": 599,
+        "minimumScheduled": 493
+      }
+    },
+    {
+      "id": "e6-colfax-monaco-yosemite",
+      "label": "East 6th Avenue Parkway–East Colfax Avenue, Monaco Street Parkway–Yosemite Street",
+      "north": 39.7407,
+      "south": 39.7248,
+      "west": -104.9118,
+      "east": -104.8835,
+      "published": true,
+      "coverage": {
+        "testName": "East 6th–East Colfax from Monaco–Yosemite",
+        "expectedPublicBlocks": 752,
+        "minimumScheduled": 714
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -532,7 +560,9 @@
       "East Yale–East Evans from Quebec–I-225",
       "East Quincy–East Hampden from Colorado–I-225",
       "East Belleview–East Quincy from Colorado–I-225",
-      "W Florida–W Yale from Jason–Broadway"
+      "W Florida–W Yale from Jason–Broadway",
+      "East Alameda–East 6th from Monaco–Yosemite",
+      "East 6th–East Colfax from Monaco–Yosemite"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
