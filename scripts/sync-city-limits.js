@@ -15,7 +15,7 @@
 // This script asks the same geometric question of the blocks already in the
 // manifest, so no new OSM data is involved and nothing but the exclusion flag
 // changes. It is idempotent, and worth re-running whenever the boundary geometry
-// in scripts/lib/denver-city-limits.js is refined.
+// in public/denver-city-limits.js is refined.
 //
 // It does not touch the published payload. Run `npm run sync:coverage`
 // afterwards: that regenerates every pink fallback from the manifest, which both

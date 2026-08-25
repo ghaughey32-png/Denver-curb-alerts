@@ -157,6 +157,40 @@ the manifest, excludes what fails, and restates the affected areas' `expectedPub
 the 1,920 blocks now carrying that exclusion reason, exactly one resolves to a Denver schedule.
 Re-run it whenever the boundary geometry is refined; it is idempotent.
 
+**The map and the pipeline read the city line from one file, and it lives in `public/`.**
+[public/denver-city-limits.js](public/denver-city-limits.js) is a UMD module in the shape of
+`public/curb-geometry.js`: the rings, `BOUNDARY_BUFFER_METRES`, the point-in-city and
+distance-to-line predicates, and `getDenverMaskRings()`. A plain `<script>` tag loads it for the
+map; [scripts/lib/denver-city-limits.js](scripts/lib/denver-city-limits.js) requires it and adds the
+pipeline-only half (`isOutsideDenverBlock`, `clipPathToDenver`), re-exporting everything so callers
+still see one module. Do not copy the rings anywhere, and do not give the client its own boundary
+source.
+
+It used to have one. `public/app.js` fetched Denver's own ArcGIS boundary layer at runtime and drew
+the red "outside Denver" wash from it, on the raw city line, while the exclusion above used the OSM
+rings with a 20 m buffer. Two independently digitised boundaries, and a buffer on one side only, put
+**589 published routes under red paint — 261 of them with real sweeping schedules, 219 covered end
+to end** — concentrated on the boundary streets Sheridan, Belleview, Yale, Mississippi and Yosemite.
+Red means *the app has nothing here*, so that read as a coverage hole over curb the app covers.
+Measured 2026-08-25; the shared module brings it to 95 routes, 19 scheduled, 15 covered end to end.
+
+The authoritative-looking option was the wrong one. Denver's ArcGIS layer is the City Engineer's
+Office's own "Denver Boundary" and it is better data, but the pipeline cannot use it — it is a
+network fetch, the import and audit scripts are deliberately offline, and switching would reclassify
+thousands of published blocks. Agreement is the property that matters here, not authority. Denver's
+jurisdictional line is not its sweeping line in any case: the sweeping API returns real schedules
+for N Sheridan Blvd, which that layer places outside the city.
+
+The mask is the city line pushed **out** by `BOUNDARY_BUFFER_METRES`, not the line itself — drawn
+raw it covers 625 published routes, 244 end to end, because the line runs down the middle of the
+streets it shares. `getDenverMaskRings()` offsets each ring with round convex corners and mitered
+concave ones, drops the enclaves narrower than twice the buffer (they invert), and is filled
+even-odd. It is a vertex offset, not a clipper: features narrower than 40 m fold instead of closing,
+which is where the residual 15 stubs come from — an 11 m finger at Glendale's southern tip on
+Colorado Boulevard, and similar ones on Leetsdale, Belleview, Havana and Yale. Closing those means
+untangling self-intersecting loops, which is a real polygon clipper; the budget in
+`test/denver-city-limits.test.js` guards against the count growing rather than pretending it is zero.
+
 **The auditor indexes routes by street name — keep it that way.**
 [scripts/lib/inventory-auditor.js](scripts/lib/inventory-auditor.js) groups routes into a
 `Map` keyed by normalized street name once per run, memoizes `normalizeStreetName`, and rejects

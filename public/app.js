@@ -1689,8 +1689,6 @@ const DENVER_MAP_BOUNDS = {
   west: -105.1095,
   east: -104.5995
 };
-const DENVER_BOUNDARY_GEOJSON_URL =
-  "https://services7.arcgis.com/BRS1jOwmVPgFs2NE/ArcGIS/rest/services/Analyze_Traffic_Regina18_WFL1/FeatureServer/4/query?where=1%3D1&outFields=OBJECTID&returnGeometry=true&outSR=4326&f=geojson";
 const SLOANS_LAKE_FULL_BOUNDS = {
   north: 39.7506,
   south: 39.7399,
@@ -4135,71 +4133,51 @@ function initializeMap() {
   refreshMapViewport();
 }
 
-function getDenverBoundaryRings(geoJson) {
-  return (geoJson?.features || []).flatMap((feature) => {
-    const geometry = feature?.geometry;
-    if (geometry?.type === "Polygon") {
-      return geometry.coordinates || [];
-    }
-    if (geometry?.type === "MultiPolygon") {
-      return (geometry.coordinates || []).flat();
-    }
-    return [];
-  });
-}
-
-async function loadDenverBoundary() {
-  if (!state.map || !state.boundaryLayerGroup) {
+// The red wash and the outline come from denver-city-limits.js, the same module
+// scripts/lib/denver-city-limits.js decides block exclusion with. It used to be
+// a live ArcGIS fetch of Denver's own boundary layer, drawn on the raw city
+// line: two independently digitised boundaries, and a buffer applied on the
+// pipeline side only, put 589 published routes under red paint — 261 of them
+// with real sweeping schedules and 219 covered end to end, concentrated on the
+// boundary streets Sheridan, Belleview, Yale, Mississippi and Yosemite. Red
+// says "the app has nothing here", so that read as a coverage hole on curb the
+// app covers. Sharing the module leaves nothing for the two to disagree about.
+function loadDenverBoundary() {
+  if (!state.map || !state.boundaryLayerGroup || !window.DenverCityLimits) {
     return;
   }
 
-  try {
-    const response = await fetch(DENVER_BOUNDARY_GEOJSON_URL);
-    if (!response.ok) {
-      throw new Error("Denver boundary data was unavailable.");
-    }
+  // The mask is the city line pushed out by the same buffer the exclusion
+  // allows, so no curb the pipeline published can fall under the wash. The
+  // outline stays on the true line, which is the boundary worth showing.
+  const maskRings = window.DenverCityLimits.getDenverMaskRings();
+  const outsideRing = [
+    [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.west - 1],
+    [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.west - 1],
+    [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.east + 1],
+    [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.east + 1]
+  ];
 
-    const geoJson = await response.json();
-    const denverRings = getDenverBoundaryRings(geoJson);
-    if (!denverRings.length) {
-      throw new Error("Denver boundary data was empty.");
-    }
+  state.boundaryLayerGroup.clearLayers();
+  L.polygon([outsideRing, ...maskRings], {
+    pane: "denverBoundaryMask",
+    stroke: false,
+    fillColor: "#ef7777",
+    fillOpacity: 0.24,
+    fillRule: "evenodd",
+    interactive: false
+  }).addTo(state.boundaryLayerGroup);
 
-    const outsideRing = [
-      [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.west - 1],
-      [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.west - 1],
-      [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.east + 1],
-      [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.east + 1]
-    ];
-    const boundaryLatLngRings = denverRings.map((ring) =>
-      ring.map(([longitude, latitude]) => [latitude, longitude])
-    );
-
-    state.boundaryLayerGroup.clearLayers();
-    L.polygon([outsideRing, ...boundaryLatLngRings], {
-      pane: "denverBoundaryMask",
-      stroke: false,
-      fillColor: "#ef7777",
-      fillOpacity: 0.24,
-      fillRule: "evenodd",
-      interactive: false
-    }).addTo(state.boundaryLayerGroup);
-
-    L.geoJSON(geoJson, {
-      pane: "denverBoundaryOutline",
-      interactive: false,
-      style: {
-        color: "#9f1d2f",
-        weight: 5,
-        opacity: 0.95,
-        fill: false,
-        lineCap: "round",
-        lineJoin: "round"
-      }
-    }).addTo(state.boundaryLayerGroup);
-  } catch (error) {
-    console.warn("Unable to draw the Denver city boundary.", error);
-  }
+  L.polygon(window.DenverCityLimits.DENVER_CITY_LIMITS, {
+    pane: "denverBoundaryOutline",
+    interactive: false,
+    color: "#9f1d2f",
+    weight: 5,
+    opacity: 0.95,
+    fill: false,
+    lineCap: "round",
+    lineJoin: "round"
+  }).addTo(state.boundaryLayerGroup);
 }
 
 function renderMapFailure(message) {

@@ -3,10 +3,12 @@ const assert = require("node:assert/strict");
 
 const {
   DENVER_CITY_LIMITS,
+  BOUNDARY_BUFFER_METRES,
   isPointInsideDenver,
   metresOutsideDenver,
   isOutsideDenverBlock,
-  clipPathToDenver
+  clipPathToDenver,
+  getDenverMaskRings
 } = require("../scripts/lib/denver-city-limits.js");
 
 test("every ring is closed, so the ray casting has no open edges", () => {
@@ -125,4 +127,118 @@ test("a path that leaves Denver and returns keeps both pieces", () => {
 test("a curb on a shared boundary street survives whole", () => {
   const hampden = [[39.6529, -104.9], [39.6529, -104.895], [39.6529, -104.89]];
   assert.deepEqual(clipPathToDenver(hampden), [hampden]);
+});
+
+// --- The map mask -----------------------------------------------------------
+//
+// The mask public/app.js paints and the exclusion above used to come from
+// different maps: the mask from a live ArcGIS fetch of Denver's own boundary
+// layer, the exclusion from the OpenStreetMap rings, with the 20 m buffer
+// applied on the pipeline side only. That put 589 published routes under red
+// paint — 261 with real sweeping schedules, 219 covered end to end — which
+// reads as "this app has no data here" on curb it does have data for. Both
+// sides now read this module. These tests are what keeps them there.
+
+// Even-odd across the world ring and the mask rings, which is exactly how
+// loadDenverBoundary hands the polygon to Leaflet.
+function maskCovers(rings, [latitude, longitude]) {
+  let inside = false;
+  for (const ring of rings) {
+    for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+      const [currentLat, currentLon] = ring[index];
+      const [previousLat, previousLon] = ring[previous];
+      if (currentLat > latitude === previousLat > latitude) continue;
+      const crossing = ((previousLon - currentLon) * (latitude - currentLat)) / (previousLat - currentLat) + currentLon;
+      if (longitude < crossing) inside = !inside;
+    }
+  }
+  return !inside;
+}
+
+test("the mask leaves Denver clear and covers the cities around it", () => {
+  const rings = getDenverMaskRings();
+  const clear = [
+    ["Union Station", 39.7527, -104.9997],
+    ["University Hills", 39.665, -104.93],
+    ["Denver International Airport", 39.8561, -104.6737]
+  ];
+  const covered = [
+    ["Aurora", 39.7099, -104.8214],
+    ["Glendale", 39.705, -104.935],
+    ["Holly Hills", 39.6627, -104.9207],
+    ["Greenwood Village", 39.62, -104.9],
+    ["Lakewood", 39.7, -105.09]
+  ];
+
+  for (const [name, latitude, longitude] of clear) {
+    assert.equal(maskCovers(rings, [latitude, longitude]), false, name);
+  }
+  for (const [name, latitude, longitude] of covered) {
+    assert.equal(maskCovers(rings, [latitude, longitude]), true, name);
+  }
+});
+
+// The buffer is the whole reason the mask is not simply the raw rings. Drawn on
+// the line itself it covers 625 published routes, 244 of them end to end,
+// because the line runs down the middle of the streets it shares.
+test("the mask is the buffered city, not the raw line", () => {
+  const rings = getDenverMaskRings();
+  // Curb on Denver's own side of four streets whose centreline is the boundary.
+  // The Colorado Boulevard points are the published route geometry either side
+  // of Glendale, the case AGENTS.md calls out: Glendale's line runs down the
+  // middle of the boulevard and Denver sweeps the western curb.
+  const sharedCurbs = [
+    ["South Yosemite Street", 39.631, -104.8852],
+    ["East Hampden Avenue", 39.6529, -104.895],
+    ["South Colorado Boulevard north of Glendale", 39.71156, -104.9407],
+    ["South Colorado Boulevard mid-Glendale", 39.70206, -104.94069]
+  ];
+  for (const [name, latitude, longitude] of sharedCurbs) {
+    assert.equal(maskCovers(rings, [latitude, longitude]), false, name);
+  }
+});
+
+// Enclaves narrower than twice the buffer invert when they are shrunk by it.
+// Drawing their inverted remains masks a wedge of real Denver, so they are
+// dropped: an enclave everywhere within 20 m of Denver is Denver as far as the
+// rest of this app is concerned. Glendale and Holly Hills are far bigger than
+// that and must survive.
+test("the mask keeps the enclaves big enough to survive the buffer", () => {
+  const rings = getDenverMaskRings();
+  assert.ok(rings.length >= 3, "the outline and the two large enclaves at least");
+  assert.ok(rings.length < DENVER_CITY_LIMITS.length, "the sub-40 m enclaves should be dropped");
+  assert.equal(rings[0].length > DENVER_CITY_LIMITS[0].length, true, "corners are rounded, not mitered");
+});
+
+// The property the whole exercise is about: red says the app has nothing here,
+// so it must not be painted over curb the app publishes.
+//
+// Fifteen two-point stubs still slip under it, all of them in the same kind of
+// place: a finger or slot in the boundary narrower than twice the buffer, which
+// a vertex offset turns inside out rather than closing. Glendale has an
+// eleven-metre one at its southern tip on Colorado Boulevard; the rest are on
+// Leetsdale, Belleview, Havana and Yale. Removing them means untangling the
+// self-intersecting loops a naive offset leaves behind, which is a real
+// polygon clipper — a lot of geometry, in a repo with two dependencies, for
+// fifteen stubs. The budget below is deliberately just above the measured
+// count, so a wider regression fails here rather than shipping.
+test("the mask does not cover curb the app publishes", () => {
+  const inventory = require("../public/denver-west-routes.json");
+  const rings = getDenverMaskRings();
+
+  const covered = [];
+  for (const route of inventory.routes) {
+    const path = route.map && route.map.path;
+    if (!Array.isArray(path) || !path.length) continue;
+    const under = path.filter(
+      (point) => maskCovers(rings, point) && metresOutsideDenver(point) <= BOUNDARY_BUFFER_METRES
+    );
+    if (under.length === path.length) covered.push(`${route.streetName} at ${path[0]}`);
+  }
+
+  assert.ok(
+    covered.length <= 20,
+    `The mask covers ${covered.length} published routes end to end, up from the 15 measured on ` +
+      `2026-08-25. The ArcGIS mask this replaced covered 219.\n  ${covered.slice(0, 25).join("\n  ")}`
+  );
 });
