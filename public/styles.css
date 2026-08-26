@@ -2573,3 +2573,179 @@ a.ghost-button {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Activation: the soft ask, the iPhone install sheet, and giving the thumb
+   zone back to the user.
+   --------------------------------------------------------------------------- */
+
+.push-primer {
+  margin-top: 16px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(180, 93, 42, 0.1), rgba(180, 93, 42, 0.04));
+  border: 1px solid rgba(180, 93, 42, 0.28);
+  border-radius: 22px;
+}
+
+.push-primer[hidden] {
+  display: none;
+}
+
+.push-primer strong {
+  display: block;
+  font-size: 1.08rem;
+  line-height: 1.3;
+}
+
+.push-primer p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.push-primer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.push-primer-actions .primary-button,
+.push-primer-actions .ghost-button {
+  flex: 1 1 auto;
+}
+
+.install-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1700;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(31, 47, 55, 0.5);
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+}
+
+.install-sheet[hidden] {
+  display: none;
+}
+
+.install-sheet-inner {
+  position: relative;
+  width: min(460px, 100%);
+  padding: 24px 24px 26px;
+  background: rgba(251, 248, 242, 0.99);
+  border: 1px solid rgba(31, 47, 55, 0.12);
+  border-top: 5px solid rgba(180, 93, 42, 0.62);
+  border-radius: 28px;
+  box-shadow: 0 26px 70px rgba(31, 47, 55, 0.34);
+}
+
+.install-sheet-inner h2 {
+  margin: 4px 0 0;
+  padding-right: 44px;
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.install-sheet-lede {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.install-steps {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.install-steps li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  border-radius: 18px;
+}
+
+.install-step-number {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.92rem;
+}
+
+.install-steps strong {
+  display: block;
+  line-height: 1.35;
+}
+
+.install-steps span:not(.install-step-number):not(.install-step-glyph) {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.install-step-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: 8px;
+  border-radius: 14px;
+  background: rgba(31, 47, 55, 0.06);
+  border: 1px solid rgba(31, 47, 55, 0.12);
+  color: #0a7cff;
+}
+
+.install-sheet-done {
+  width: 100%;
+  margin-top: 18px;
+}
+
+@media (max-width: 720px) {
+  /* Beta feedback does not get the primary thumb zone. Icon-only on a phone,
+     tucked to the trailing edge, out of the way of the curb sheet's action. */
+  .floating-report {
+    left: auto;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    justify-items: end;
+  }
+
+  .floating-report-button {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+  }
+
+  .floating-report-label {
+    display: none;
+  }
+
+  .floating-report-panel {
+    width: calc(100vw - 28px);
+    max-width: 420px;
+  }
+
+  /* The install sheet is a full modal on a phone; nothing should float over it. */
+  body.install-sheet-open .floating-report {
+    display: none;
+  }
+}

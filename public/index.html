@@ -18,15 +18,14 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260826c-map-first-ttv" />
+    <link rel="stylesheet" href="./styles.css?v=20260826d-activation" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
       <nav class="app-tabs" aria-label="App sections">
         <button class="app-tab is-active" type="button" data-view-target="setup" aria-current="page">Map</button>
-        <button class="app-tab" type="button" data-view-target="alerts">My alert setup</button>
-        <button class="app-tab" type="button" data-view-target="schedule">Scheduled alerts</button>
+        <button class="app-tab" type="button" data-view-target="alerts">My alerts</button>
         <button class="app-tab" type="button" data-view-target="landing">How it works</button>
       </nav>
 
@@ -231,14 +230,13 @@
         <aside class="panel-card">
           <section id="current-selection-section" class="panel-section panel-step-section is-empty">
             <div class="mini-head">
-              <span class="panel-step-label workflow-step-label">Step 1</span>
               <h3>Current selection</h3>
               <span class="mini-count" id="live-selection-count">0 selected</span>
             </div>
 
             <div id="empty-selection" class="empty-state">
               <p>No curb sides selected yet.</p>
-              <p class="empty-subtext">Start by clicking any colored curb edge on the map.</p>
+              <p class="empty-subtext">Tap any colored curb on the map to see when it gets swept.</p>
             </div>
 
             <div id="selection-list" class="selection-list"></div>
@@ -246,45 +244,38 @@
 
           <section class="panel-section panel-step-section save-section">
             <div class="mini-head">
-              <span class="panel-step-label workflow-step-label">Step 2</span>
-              <h3>Device alerts</h3>
+              <h3>Save these curbs</h3>
             </div>
 
             <div class="save-set-card">
-              <div class="notification-status-block">
-                <p id="notification-status" class="notification-status-text">This app is not connected to push on this device yet.</p>
-                <p class="empty-subtext">
-                  Install this app to your iPhone Home Screen, then tap this to allow parking reminders on this device.
-                </p>
-              </div>
-              <div class="notification-action-row">
-                <button id="enable-notifications-button" class="primary-button" type="button">Turn on push for this device</button>
-                <button id="send-test-button" class="ghost-button" type="button">Send test now</button>
-                <button id="schedule-test-button" class="ghost-button" type="button">2-minute hosted test</button>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel-section panel-step-section save-section">
-            <div class="mini-head">
-              <span class="panel-step-label workflow-step-label">Step 3</span>
-              <h3>Save notification set</h3>
-            </div>
-
-            <div class="save-set-card">
-              <label class="input-label" for="set-name-input">Set name</label>
+              <label class="input-label" for="set-name-input">Set name (optional)</label>
               <input id="set-name-input" class="text-input" type="text" placeholder="Example: weekday parking near home" />
               <button id="save-set-button" class="primary-button" type="button">Save current selection</button>
               <div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div>
             </div>
 
+            <!-- The soft ask. It appears only after a set is saved, because the native permission
+                 prompt is one-shot on iOS and spending it before the user has anything to be
+                 reminded about is the most expensive mistake in this flow. "Not now" keeps the
+                 native prompt unspent so it can be offered again later. -->
+            <div id="push-primer" class="push-primer" hidden>
+              <strong id="push-primer-title">Want a heads-up before the sweeper comes?</strong>
+              <p id="push-primer-body">
+                We'll send one reminder the evening before your sweep day, and one on the morning of. Nothing else.
+              </p>
+              <div class="push-primer-actions">
+                <button id="push-primer-accept" class="primary-button" type="button">Turn on reminders</button>
+                <button id="push-primer-dismiss" class="ghost-button" type="button">Not now</button>
+              </div>
+            </div>
+
             <div class="setup-next-card" aria-label="Next step">
               <div>
-                <strong>Next: review your alert setup</strong>
-                <span>Check your saved curb sides, push status, and reminder readiness before viewing scheduled alerts.</span>
+                <strong>Next: check your reminders</strong>
+                <span>See your saved curbs and what is queued to send.</span>
               </div>
               <button class="primary-button setup-next-button" type="button" data-view-target="alerts">
-                Continue to alert setup
+                Go to my alerts
               </button>
             </div>
           </section>
@@ -293,58 +284,15 @@
     </section>
 
       <section class="app-view alerts-view" data-view="alerts" hidden>
-        <header class="page-intro compact-page-intro">
-          <div>
-            <p class="section-kicker">Confirm setup</p>
-            <h1>Make sure your reminders are ready.</h1>
-            <p>
-              Use this page as the handoff between choosing curbs and trusting the app to remind you later.
-            </p>
-          </div>
-          <div class="journey-pills" aria-label="Alert setup progress">
-            <span class="journey-pill is-done">1 Curb selected</span>
-            <span class="journey-pill is-done">2 Device connected</span>
-            <span class="journey-pill is-current">3 Save set</span>
-            <span class="journey-pill">4 Schedule</span>
-          </div>
-        </header>
-
         <main class="single-panel-view">
           <aside class="panel-card">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Your alert setup</p>
-              <h2>Build your reminder</h2>
-            </div>
-          </div>
 
-          <section class="panel-section panel-step-section">
-            <div class="mini-head">
-              <span class="panel-step-label">Saved</span>
-              <h3>Saved notification sets</h3>
-              <span class="mini-count" id="saved-set-count">0 saved</span>
-            </div>
-
-            <div id="empty-sets" class="empty-state compact-empty">
-              <p>No saved sets yet.</p>
-            </div>
-
-            <div id="saved-sets-list" class="saved-sets-list"></div>
-          </section>
-
-          <div class="setup-next-card confirmation-next-card" aria-label="Next step">
-            <div>
-              <strong>Ready to check what will send?</strong>
-              <span>Open the schedule page to review day-before and day-of notification jobs.</span>
-            </div>
-            <button class="primary-button setup-next-button" type="button" data-view-target="schedule">
-              Review scheduled alerts
-            </button>
-          </div>
-
+          <!-- The one progress system. This page used to carry journey pills at the top AND this
+               checklist AND "Step 1/2/3" badges over on the map panel: three competing accounts of
+               the same four-step flow. The checklist is the one that says what is actually still
+               missing, so it is the one that stayed. -->
           <section class="panel-section panel-step-section readiness-section">
             <div class="mini-head">
-              <span class="panel-step-label">Checklist</span>
               <h3>Reminder readiness</h3>
               <span class="mini-count" id="readiness-count">0 of 4 ready</span>
             </div>
@@ -381,33 +329,44 @@
             </div>
           </section>
 
-        </aside>
-      </main>
-    </section>
+          <!-- Push lives here, not on the map page. It used to sit between selecting a curb and
+               saving it, which asked for the commitment before the user had anything to be
+               reminded about. -->
+          <section class="panel-section panel-step-section save-section">
+            <div class="mini-head">
+              <h3>Reminders on this device</h3>
+            </div>
 
-      <section class="app-view schedule-view" data-view="schedule" hidden>
-        <header class="page-intro compact-page-intro">
-          <div>
-            <p class="section-kicker">Future reminders</p>
-            <h1>See what is queued before you rely on it.</h1>
-            <p>
-              These scheduled jobs are the confidence check: what will send, when it will send,
-              and which curb set it belongs to.
-            </p>
-          </div>
-          <div class="journey-pills" aria-label="Scheduled alert progress">
-            <span class="journey-pill is-done">Saved set</span>
-            <span class="journey-pill is-current">Queued reminders</span>
-            <span class="journey-pill">Send test</span>
-          </div>
-        </header>
+            <div class="save-set-card">
+              <div class="notification-status-block">
+                <p id="notification-status" class="notification-status-text">This app is not connected to push on this device yet.</p>
+              </div>
+              <div class="notification-action-row">
+                <button id="enable-notifications-button" class="primary-button" type="button">Turn on push for this device</button>
+                <button id="install-help-button" class="ghost-button" type="button" hidden>How to install on iPhone</button>
+                <button id="send-test-button" class="ghost-button" type="button">Send test now</button>
+                <button id="schedule-test-button" class="ghost-button" type="button">2-minute hosted test</button>
+              </div>
+            </div>
+          </section>
 
-        <main class="single-panel-view">
-          <aside class="panel-card">
           <section class="panel-section panel-step-section">
             <div class="mini-head">
-              <span class="panel-step-label">Scheduled</span>
-              <h3>Upcoming notification jobs</h3>
+              <h3>Saved curb sets</h3>
+              <span class="mini-count" id="saved-set-count">0 saved</span>
+            </div>
+
+            <div id="empty-sets" class="empty-state compact-empty">
+              <p>No saved sets yet.</p>
+              <p class="empty-subtext">Save a curb from the map to start getting reminders.</p>
+            </div>
+
+            <div id="saved-sets-list" class="saved-sets-list"></div>
+          </section>
+
+          <section class="panel-section panel-step-section">
+            <div class="mini-head">
+              <h3>Upcoming reminders</h3>
               <span class="mini-count" id="job-count">0 queued</span>
             </div>
 
@@ -422,6 +381,7 @@
 
             <div id="job-list" class="job-list"></div>
           </section>
+
           </aside>
         </main>
       </section>
@@ -573,6 +533,50 @@
            lived in a Leaflet hover tooltip, which touch devices never fire, and in the selection
            panel ~600px below the map. This sheet answers "when does my street get swept?" in one
            tap, on the device people actually use, and carries the reminder action with it. -->
+      <div id="install-sheet" class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-sheet-title" hidden>
+        <div class="install-sheet-inner">
+          <button id="install-sheet-close" class="curb-sheet-close" type="button" aria-label="Close install steps">&times;</button>
+          <p class="section-kicker">One-time setup</p>
+          <h2 id="install-sheet-title">Add Curb Alerts to your Home Screen</h2>
+          <p class="install-sheet-lede">
+            iPhone only sends reminders from apps on your Home Screen. This takes about fifteen seconds.
+          </p>
+
+          <ol class="install-steps">
+            <li>
+              <span class="install-step-number">1</span>
+              <div>
+                <strong>Tap the Share button in Safari.</strong>
+                <span class="install-step-glyph" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 15V3" />
+                    <path d="M8 7l4-4 4 4" />
+                    <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+                  </svg>
+                </span>
+                <span>It's the square with the arrow, in the bar at the bottom of the screen.</span>
+              </div>
+            </li>
+            <li>
+              <span class="install-step-number">2</span>
+              <div>
+                <strong>Scroll down and tap "Add to Home Screen".</strong>
+                <span>It sits below the row of share icons, with a plus in a square.</span>
+              </div>
+            </li>
+            <li>
+              <span class="install-step-number">3</span>
+              <div>
+                <strong>Open Curb Alerts from the new icon.</strong>
+                <span>Come back here from that icon and the reminder button will work.</span>
+              </div>
+            </li>
+          </ol>
+
+          <button id="install-sheet-done" class="primary-button install-sheet-done" type="button">Got it</button>
+        </div>
+      </div>
+
       <div id="curb-sheet" class="curb-sheet" role="dialog" aria-modal="false" aria-labelledby="curb-sheet-street" hidden>
         <div class="curb-sheet-inner">
           <button id="curb-sheet-close" class="curb-sheet-close" type="button" aria-label="Close curb details">&times;</button>
@@ -634,9 +638,10 @@
           type="button"
           aria-controls="issue-report-panel"
           aria-expanded="false"
+          aria-label="Report an issue"
         >
           <span class="caution-icon" aria-hidden="true">!</span>
-          <span>Report an issue</span>
+          <span class="floating-report-label">Report an issue</span>
         </button>
       </div>
     </div>
@@ -793,6 +798,6 @@
     <script src="./denver-west-routes.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260826c-map-first-ttv"></script>
+    <script src="./app.js?v=20260826d-activation"></script>
   </body>
 </html>

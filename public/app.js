@@ -1548,6 +1548,7 @@ const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
 const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v67";
 const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=76";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
+const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
   { enabled: true, time: "07:00" },
@@ -1660,6 +1661,15 @@ const curbSheetRule = document.querySelector("#curb-sheet-rule");
 const curbSheetNotice = document.querySelector("#curb-sheet-notice");
 const curbSheetAction = document.querySelector("#curb-sheet-action");
 const curbSheetClose = document.querySelector("#curb-sheet-close");
+const pushPrimer = document.querySelector("#push-primer");
+const pushPrimerTitle = document.querySelector("#push-primer-title");
+const pushPrimerBody = document.querySelector("#push-primer-body");
+const pushPrimerAccept = document.querySelector("#push-primer-accept");
+const pushPrimerDismiss = document.querySelector("#push-primer-dismiss");
+const installSheet = document.querySelector("#install-sheet");
+const installSheetClose = document.querySelector("#install-sheet-close");
+const installSheetDone = document.querySelector("#install-sheet-done");
+const installHelpButton = document.querySelector("#install-help-button");
 const onboardingCard = document.querySelector("#onboarding-card");
 const onboardingDismissButton = document.querySelector("#dismiss-onboarding-button");
 const notificationStatus = document.querySelector("#notification-status");
@@ -4725,6 +4735,7 @@ function saveCurrentAsSet() {
 
   state.savedSets = [nextSet, ...state.savedSets];
   saveJson(SAVED_SETS_KEY, state.savedSets);
+  saveJson(PUSH_PRIMER_DISMISSED_KEY, false);
   setNameInput.value = "";
   renderAll();
   showSaveConfirmation(nextSet, selectedSegments);
@@ -5440,6 +5451,85 @@ function scheduleBrowserNotifications() {
   });
 }
 
+// The iPhone install wall. Push on iOS is only delivered to a PWA opened from the Home Screen,
+// and Safari raises no install prompt of its own — so an app that does not show the steps simply
+// never reaches the majority of its users. This used to be one sentence next to a disabled button.
+function openInstallSheet() {
+  if (!installSheet) {
+    return;
+  }
+  installSheet.hidden = false;
+  installSheet.classList.add("is-open");
+  document.body.classList.add("install-sheet-open");
+}
+
+function closeInstallSheet() {
+  if (!installSheet) {
+    return;
+  }
+  installSheet.hidden = true;
+  installSheet.classList.remove("is-open");
+  document.body.classList.remove("install-sheet-open");
+}
+
+function pushIsConnected() {
+  return canUseBrowserNotifications() && window.Notification.permission === "granted";
+}
+
+// True when there is still something useful to ask for on this device.
+function canStillEnablePush() {
+  if (!canUseBrowserNotifications()) {
+    return false;
+  }
+  return window.Notification.permission !== "granted" && window.Notification.permission !== "denied";
+}
+
+// The soft ask, shown only once a set exists. Two shapes: on an uninstalled iPhone the honest next
+// step is the Home Screen install, not a permission prompt that iOS will refuse to show.
+function renderPushPrimer() {
+  if (!pushPrimer) {
+    return;
+  }
+
+  const hasSavedSet = state.savedSets.length > 0;
+  const dismissed = loadJson(PUSH_PRIMER_DISMISSED_KEY, false) === true;
+  const needsInstall = requiresHomeScreenInstallForPush() && !isStandaloneDisplay();
+
+  if (!hasSavedSet || dismissed || pushIsConnected() || (!needsInstall && !canStillEnablePush())) {
+    pushPrimer.hidden = true;
+    return;
+  }
+
+  if (needsInstall) {
+    pushPrimerTitle.textContent = "One more step to get reminders";
+    pushPrimerBody.textContent =
+      "iPhone only sends reminders from apps on your Home Screen. Adding Curb Alerts takes about fifteen seconds.";
+    pushPrimerAccept.textContent = "Show me how";
+  } else {
+    pushPrimerTitle.textContent = "Want a heads-up before the sweeper comes?";
+    pushPrimerBody.textContent =
+      "We'll send one reminder the evening before your sweep day, and one on the morning of. Nothing else.";
+    pushPrimerAccept.textContent = "Turn on reminders";
+  }
+
+  pushPrimer.hidden = false;
+}
+
+function acceptPushPrimer() {
+  if (requiresHomeScreenInstallForPush() && !isStandaloneDisplay()) {
+    openInstallSheet();
+    return;
+  }
+  requestBrowserNotifications();
+}
+
+// Deliberately not permanent. The native prompt is unspent, so the primer comes back on the next
+// save rather than being burned by a single "not right now".
+function dismissPushPrimer() {
+  saveJson(PUSH_PRIMER_DISMISSED_KEY, true);
+  renderPushPrimer();
+}
+
 function renderNotificationStatus() {
   if (!notificationStatus || !enableNotificationsButton || !sendTestButton || !scheduleTestButton) {
     return;
@@ -5477,11 +5567,18 @@ function renderNotificationStatus() {
 
   if (requiresHomeScreenInstallForPush() && !isStandaloneDisplay()) {
     notificationStatus.textContent =
-      "On iPhone and iPad, push only works after you add this app to your Home Screen and open it from that icon.";
+      "iPhone sends reminders only from apps on your Home Screen. Add Curb Alerts once and reminders work from then on.";
     enableNotificationsButton.disabled = true;
     sendTestButton.disabled = true;
     scheduleTestButton.disabled = true;
+    if (installHelpButton) {
+      installHelpButton.hidden = false;
+    }
     return;
+  }
+
+  if (installHelpButton) {
+    installHelpButton.hidden = true;
   }
 
   if (state.pushConfigError) {
@@ -5976,6 +6073,7 @@ function renderAll() {
   renderSavedSets();
   renderNotificationJobs();
   renderNotificationStatus();
+  renderPushPrimer();
   renderReminderReadiness();
   renderStats();
   queueReminderPlanSync();
@@ -6006,6 +6104,11 @@ function viewFromHash() {
 }
 
 function setActiveView(viewName, options = {}) {
+  // The scheduled-alerts page folded into the alerts page; old hashes still resolve.
+  if (viewName === "schedule") {
+    viewName = "alerts";
+  }
+
   if (!APP_VIEW_NAMES.has(viewName)) {
     return;
   }
@@ -6080,13 +6183,25 @@ function registerEvents() {
   clearButton.addEventListener("click", clearCurrentSelection);
   useMyLocationButton?.addEventListener("click", requestUserLocation);
   curbSheetClose?.addEventListener("click", closeCurbSheet);
+  pushPrimerAccept?.addEventListener("click", acceptPushPrimer);
+  pushPrimerDismiss?.addEventListener("click", dismissPushPrimer);
+  installHelpButton?.addEventListener("click", openInstallSheet);
+  installSheetClose?.addEventListener("click", closeInstallSheet);
+  installSheetDone?.addEventListener("click", closeInstallSheet);
   curbSheetAction?.addEventListener("click", () => {
     if (activeCurbSheetSegmentId) {
       toggleSegment(activeCurbSheetSegmentId);
     }
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && activeCurbSheetSegmentId) {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (installSheet && !installSheet.hidden) {
+      closeInstallSheet();
+      return;
+    }
+    if (activeCurbSheetSegmentId) {
       closeCurbSheet();
     }
   });
