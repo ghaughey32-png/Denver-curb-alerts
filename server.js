@@ -1031,7 +1031,10 @@ const COMPRESSIBLE_TYPES = new Set([
 // The cache is keyed on mtime so a rebuilt payload is never served from a stale entry.
 const compressedAssetCache = new Map();
 
-async function readCompressedAsset(filePath, file, encoding) {
+// Reads and compresses only on a miss. The stat comes first so a cache hit never touches the
+// 11 MB payload at all -- reading it into memory to then discard it would cost more than the
+// compression does, and the free Render instance this runs on has 512 MB to work with.
+async function readCompressedAsset(filePath, encoding) {
   const { mtimeMs } = await fs.stat(filePath);
   const key = `${filePath}:${encoding}`;
   const cached = compressedAssetCache.get(key);
@@ -1039,6 +1042,7 @@ async function readCompressedAsset(filePath, file, encoding) {
     return cached.body;
   }
 
+  const file = await fs.readFile(filePath);
   const compress = encoding === "br" ? zlib.brotliCompress : zlib.gzip;
   const options = encoding === "br"
     ? { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } }
@@ -1084,7 +1088,6 @@ async function serveStaticFile(response, pathname, { acceptEncoding = "", versio
   }
 
   try {
-    const file = await fs.readFile(filePath);
     const extension = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[extension] || "application/octet-stream";
     const headers = { "Content-Type": contentType };
@@ -1105,16 +1108,30 @@ async function serveStaticFile(response, pathname, { acceptEncoding = "", versio
     const baseType = contentType.split(";")[0].trim();
     const encoding = COMPRESSIBLE_TYPES.has(baseType) ? pickEncoding(acceptEncoding) : null;
     if (encoding) {
+      // Read this before writing the head: a missing file has to reach the 404 below, not a
+      // half-sent 200. fs.stat inside throws for one, the same way fs.readFile used to.
+      const body = await readCompressedAsset(filePath, encoding);
       headers["Content-Encoding"] = encoding;
       headers.Vary = "Accept-Encoding";
       response.writeHead(200, headers);
-      response.end(await readCompressedAsset(filePath, file, encoding));
+      response.end(body);
       return;
     }
 
+    // Read before writing the head, for the same reason as the compressed branch above: if this
+    // throws for a missing file the catch has to be able to send a 404, and it cannot once a 200
+    // has gone out. Getting this backwards crashed the process on any request for a missing
+    // non-compressible asset -- a stray favicon.ico was enough.
+    const file = await fs.readFile(filePath);
     response.writeHead(200, headers);
     response.end(file);
   } catch {
+    // Belt and braces: a throw after the head is out cannot become a 404, and must not take the
+    // process down with it either.
+    if (response.headersSent) {
+      response.end();
+      return;
+    }
     sendText(response, 404, "Not found");
   }
 }
