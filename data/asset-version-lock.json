@@ -1,0 +1,44 @@
+{
+  "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
+  "shell": {
+    "cacheName": "curb-alerts-shell-v134",
+    "files": {
+      "index.html": "2c2c9efe831e1dad23249e143f4e9b6531eda11af32a088f2c20085225403e4c",
+      "sw.js": "03f05a96ac18cf22b1ccca0385422137d63f36724e9336c7e813f1a4d76ccfda"
+    }
+  },
+  "assets": {
+    "app.js": {
+      "version": "20260826-e17-e25-broadway-ogden",
+      "sha256": "d6bb6efc90e72cea9f5619cf5a11fdb750f29bfe0234d80b36cb6c4e67060266"
+    },
+    "curb-geometry.js": {
+      "version": "20260813b",
+      "sha256": "6d58b788392e2ae0069619cc9ebddefcef6158a97682aba075b90093b7c05416"
+    },
+    "denver-city-limits.js": {
+      "version": "20260825-enclave-pink-withdrawn",
+      "sha256": "1d02ba41bd28832afe73bde400a3e7e07f4a9d348222289b29d4dd362456cbf2"
+    },
+    "denver-west-routes.js": {
+      "version": "20260826-e17-e25-broadway-ogden",
+      "sha256": "4f37b8d96faa39f6804a270ef818aac3072c95016286798e93a63aab5183512d"
+    },
+    "denver-west-routes.json": {
+      "version": "78",
+      "sha256": "b2f6f05620793bdcc040e9f97ceabd7a4a3e738c7eeb659e5c766ca40d1550db"
+    },
+    "icon.svg": {
+      "version": "20260808d",
+      "sha256": "489be48a97115d6b3ac99caf523f6d3a49a92c21812d039aa80999fb3164689f"
+    },
+    "manifest.webmanifest": {
+      "version": "20260808d",
+      "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
+    },
+    "styles.css": {
+      "version": "20260826-e17-e25-broadway-ogden",
+      "sha256": "d9b4e240d7bf9a7a129465ce9bf81b09150cb649eabf0f431d2b791e5598cfc0"
+    }
+  }
+}

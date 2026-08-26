@@ -4,6 +4,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
+const {
+  buildAssetVersionLock,
+  readAssetVersionLock,
+  findUnbumpedAssets
+} = require("../scripts/lib/asset-versions.js");
 
 function readPublicFile(name) {
   return fs.readFileSync(path.join(ROOT, "public", name), "utf8");
@@ -75,4 +80,37 @@ test("the service worker cache name is bumped alongside the app shell", () => {
 
   assert.ok(cacheName, "sw.js should declare CACHE_NAME");
   assert.match(cacheName, /^curb-alerts-shell-v\d+$/, "CACHE_NAME should stay on the curb-alerts-shell-v<n> scheme");
+});
+
+// The two tests above only prove index.html and sw.js agree with each other. They stayed green
+// through the one bug they exist to prevent: on 2026-08-26 a rebuilt 18 MB denver-west-routes.js
+// shipped under the tag it already had, because the bumper matched tags by string and that file's
+// tag had drifted away from the app's during four UI-only commits. Both files agreed — on a
+// version installed clients had already cached, and caches.match has no ignoreSearch, so they
+// would have gone on painting the previous inventory. Agreement is not freshness; the lock is what
+// makes freshness checkable, by recording what each asset looked like at the version it ships as.
+test("an asset whose bytes changed also carries a new version", () => {
+  const lock = readAssetVersionLock();
+  assert.ok(lock, "data/asset-version-lock.json should exist; run npm run lock:assets");
+
+  const current = buildAssetVersionLock();
+  assert.deepEqual(
+    findUnbumpedAssets(lock, current),
+    [],
+    "Assets changed without a new cache-busting version:\n  " +
+      `${findUnbumpedAssets(lock, current).join("\n  ")}\n` +
+      "Bump the ?v= tag in public/index.html and public/sw.js (CACHE_NAME for the shell), " +
+      "then run npm run lock:assets."
+  );
+});
+
+// A lock that is merely out of date hides nothing — every version above it moved, which is the
+// safe direction — but it stops protecting the assets it no longer describes, so it is not
+// allowed to rot either.
+test("the asset version lock describes what public/ currently ships", () => {
+  assert.deepEqual(
+    buildAssetVersionLock(),
+    readAssetVersionLock(),
+    "data/asset-version-lock.json is out of date; run npm run lock:assets"
+  );
 });

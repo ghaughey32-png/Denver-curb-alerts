@@ -12,6 +12,7 @@
     "map:area": "node scripts/map-area-approach-3.js",
     "sync:coverage": "node scripts/sync-expected-coverage.js",
     "sync:city-limits": "node scripts/sync-city-limits.js",
+    "lock:assets": "node scripts/lock-asset-versions.js",
     "check:city-limits": "node scripts/check-city-limits.js",
     "audit:inventory": "node --test test/inventory-auditor.test.js test/inventory-coverage.test.js",
     "test": "node --test test/*.test.js"

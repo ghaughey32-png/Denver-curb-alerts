@@ -37,6 +37,7 @@ Denver API integration. Don't duplicate that content here.
 | `npm run build:review-queue -- <overpass.json> [area-id]` | Builds a human-review queue. Never touches the published inventory. |
 | `npm run sync:coverage` | Offline reconciliation pass. No network. |
 | `npm run sync:city-limits` | Applies the city-limits rule to blocks imported before it existed. No network; follow with `sync:coverage`. |
+| `npm run lock:assets` | Re-records `data/asset-version-lock.json` after a hand-bumped `?v=` tag. No network. Refuses to record a change with no new version behind it. |
 | `npm run check:city-limits` | Audits our city line against Denver's own published boundary. Reports only, never writes. Cached after the first run. |
 
 Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id> <south> <west> <north> <east>`.
@@ -75,11 +76,13 @@ default. `add:area` sets one; anything else querying Overpass has to as well.
 
 **Never hand-edit generated artifacts.** Regenerate them with the script that owns them:
 
-- `public/denver-west-routes.json` and `public/denver-west-routes.js` (~9 MB each, same payload — the
+- `public/denver-west-routes.json` and `public/denver-west-routes.js` (~18 MB each, same payload — the
   `.js` assigns it to `window.DENVER_WEST_ROUTE_INVENTORY` for instant first paint). They are always
   written together and must stay in sync.
 - `data/inventory-coverage-report.json`
 - `data/mapping-cache-*.json`, `data/mapping-report-*.json`
+- `data/asset-version-lock.json` — written by `scripts/lib/asset-versions.js`, refreshed by
+  `npm run lock:assets`. Editing it by hand is how you silently disarm the freshness test below.
 
 **Bump the versioned constants together.** `add:area` and `scripts/lib/asset-versions.js` do this for
 you; reach for the manual route only for a change no pipeline script drives. Changing any file in
@@ -93,6 +96,22 @@ Two more versioned constants live in [public/app.js](public/app.js):
 `STATIC_ROUTE_INVENTORY_URL` (line ~1549) and `SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY` (line ~1548).
 `test/static-cache-version.test.js` enforces all of this — if it fails, fix the versions, don't
 weaken the test.
+
+**Agreement between those two files is not freshness, and the difference has bitten once.** They can
+agree perfectly on a version that is simply too old for the bytes now on disk, and then installed
+clients never refetch — `caches.match` has no `ignoreSearch`, so a precached `?v=A` answers nothing
+else and the asset quietly falls out of the update path. That happened on 2026-08-26: the bumper
+retagged by string-matching the current app tag, `denver-west-routes.js` had drifted onto an older
+tag during four UI-only commits, and a rebuilt 18 MB payload shipped under the tag clients already
+had. `data/asset-version-lock.json` closes it by recording each asset's sha256 *at the version it
+ships as*, so the test can tell a file that changed with its tag from one that changed without it.
+The shell files carry no `?v=` of their own, so `CACHE_NAME` is their version and the lock treats it
+as one — change `index.html` or `sw.js` and the cache name has to move too.
+
+The pipeline path needs nothing: `bumpAssetVersions` rewrites the lock itself, and refuses up front
+if an asset it does *not* retag (`curb-geometry.js`, `denver-city-limits.js`, `icon.svg`,
+`manifest.webmanifest`) is sitting there changed. The hand path is bump the tag in both files, then
+`npm run lock:assets`.
 
 **Record an area once, in `data/coverage-pilot-areas.json`.** Its bounds, whether it publishes pink
 fallbacks (`published`), and its coverage expectations (`coverage.expectedPublicBlocks`,
