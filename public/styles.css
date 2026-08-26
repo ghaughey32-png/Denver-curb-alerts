@@ -2749,3 +2749,95 @@ a.ghost-button {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   The reminder timing card was starving on a phone. Five padded boxes nest
+   there — panel-card > panel-step-section > saved-set-item > reminder-card >
+   reminder-head — and each took 32-36px of horizontal room, so on a 393px
+   screen the "Reminder timing" heading was left 178px: 45% of the display,
+   with every line of copy wrapping after three or four words.
+
+   The section wrapper is the redundant one. It sits inside the panel card and
+   repeats the same border, radius, background and shadow, so on a phone it
+   drops to a plain heading group and gives its width back. The cards that
+   carry real meaning — a saved set, a queued job, the readiness list — keep
+   their treatment.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .single-panel-view .panel-card {
+    padding: 14px;
+  }
+
+  .single-panel-view .panel-step-section {
+    padding: 18px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .single-panel-view .panel-step-section:first-child {
+    padding-top: 4px;
+  }
+
+  .single-panel-view .panel-step-section > .mini-head {
+    padding: 0 4px;
+  }
+
+  .saved-set-item,
+  .job-item {
+    padding: 14px;
+  }
+
+  .reminder-card {
+    margin-top: 14px;
+    padding: 0 12px 14px;
+    gap: 12px;
+  }
+
+  .reminder-head {
+    margin: 0 -12px;
+    padding: 16px 14px;
+    gap: 12px;
+  }
+
+  /* 48px of bell plus a 14px gap is a tenth of the screen; the heading needs it
+     more than the icon does. */
+  .reminder-head-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .reminder-head-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .reminder-group {
+    padding: 14px 0 2px;
+  }
+
+  .reminder-group-head {
+    padding: 0 4px 10px;
+  }
+
+  .reminder-row {
+    padding: 11px 8px;
+  }
+
+  .reminder-row-featured {
+    padding: 14px 10px;
+  }
+
+  .save-set-card,
+  .readiness-card {
+    padding: 14px;
+  }
+
+  .readiness-item {
+    padding: 11px;
+    column-gap: 10px;
+  }
+}
