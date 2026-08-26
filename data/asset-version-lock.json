@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v134",
+    "cacheName": "curb-alerts-shell-v138",
     "files": {
-      "index.html": "2c2c9efe831e1dad23249e143f4e9b6531eda11af32a088f2c20085225403e4c",
-      "sw.js": "03f05a96ac18cf22b1ccca0385422137d63f36724e9336c7e813f1a4d76ccfda"
+      "index.html": "3094d4915c5dc25c34c09d9f1dbbab1dd81a496837e9e2245d8d29f260384ade",
+      "sw.js": "c92c363ccf0c1e4f8ac1e9ebce95c31b3b926418b55a86c0369d37079d593119"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260826-e17-e25-broadway-ogden",
-      "sha256": "d6bb6efc90e72cea9f5619cf5a11fdb750f29bfe0234d80b36cb6c4e67060266"
+      "version": "20260826-overview-weight-1",
+      "sha256": "16eb88dff66a47a26f865c5cad4534e936907889d3ce1c0b62576dc3704f322b"
     },
     "curb-geometry.js": {
       "version": "20260813b",
@@ -20,13 +20,9 @@
       "version": "20260825-enclave-pink-withdrawn",
       "sha256": "1d02ba41bd28832afe73bde400a3e7e07f4a9d348222289b29d4dd362456cbf2"
     },
-    "denver-west-routes.js": {
-      "version": "20260826-e17-e25-broadway-ogden",
-      "sha256": "4f37b8d96faa39f6804a270ef818aac3072c95016286798e93a63aab5183512d"
-    },
     "denver-west-routes.json": {
-      "version": "78",
-      "sha256": "b2f6f05620793bdcc040e9f97ceabd7a4a3e738c7eeb659e5c766ca40d1550db"
+      "version": "82",
+      "sha256": "d2f04ccdf732a7d700be6d16632da7a083dcebe097fb7fb5af2703cbfe533da0"
     },
     "icon.svg": {
       "version": "20260808d",
@@ -37,7 +33,7 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260826-e17-e25-broadway-ogden",
+      "version": "20260826-overview-weight-1",
       "sha256": "d9b4e240d7bf9a7a129465ce9bf81b09150cb649eabf0f431d2b791e5598cfc0"
     }
   }

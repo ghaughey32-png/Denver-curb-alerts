@@ -5,10 +5,10 @@ const { addConfirmedValverdeCoverage } = require("./lib/confirmed-valverde-cover
 const { applyConfirmedVrainCoverage } = require("./lib/confirmed-vrain-coverage.js");
 const { applyConfirmedRegisAreaCoverage } = require("./lib/confirmed-regis-area-coverage.js");
 const { applyConfirmedPoloClubCoverage } = require("./lib/confirmed-polo-club-coverage.js");
+const { slimRoutesForPublication } = require("./lib/publish-payload.js");
 
 const ROOT = path.join(__dirname, "..");
 const JSON_PATH = path.join(ROOT, "public", "denver-west-routes.json");
-const SCRIPT_PATH = path.join(ROOT, "public", "denver-west-routes.js");
 const MANIFEST_PATH = path.join(ROOT, "data", "inventory-expected-blocks.json");
 const REPORT_PATH = path.join(ROOT, "data", "inventory-coverage-report.json");
 // Which areas publish pink fallbacks is a property of the area itself, so it is
@@ -64,8 +64,8 @@ async function main() {
   const audit = auditInventory({ routes: payload.routes, blocks: manifest.blocks, generateUnavailable: false });
   payload.routeCount = payload.routes.length;
   payload.areaLabel = areaLabel(COVERAGE_AREAS.payloadAreaLabel);
+  payload.routes = slimRoutesForPublication(payload.routes);
   await fs.writeFile(JSON_PATH, `${JSON.stringify(payload)}\n`, "utf8");
-  await fs.writeFile(SCRIPT_PATH, `window.DENVER_WEST_ROUTE_INVENTORY = ${JSON.stringify(payload)};\n`, "utf8");
   await fs.writeFile(REPORT_PATH, `${JSON.stringify({
     ...audit.report,
     generatedAt: new Date().toISOString(),

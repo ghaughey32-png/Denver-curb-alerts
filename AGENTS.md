@@ -76,9 +76,10 @@ default. `add:area` sets one; anything else querying Overpass has to as well.
 
 **Never hand-edit generated artifacts.** Regenerate them with the script that owns them:
 
-- `public/denver-west-routes.json` and `public/denver-west-routes.js` (~18 MB each, same payload — the
-  `.js` assigns it to `window.DENVER_WEST_ROUTE_INVENTORY` for instant first paint). They are always
-  written together and must stay in sync.
+- `public/denver-west-routes.json` (~11 MB), the published inventory. What it contains is decided in
+  one place, [scripts/lib/publish-payload.js](scripts/lib/publish-payload.js) — see the payload rule
+  below. There used to be a `public/denver-west-routes.js` beside it holding the identical payload
+  assigned to `window.DENVER_WEST_ROUTE_INVENTORY`; it is gone, and nothing should reintroduce it.
 - `data/inventory-coverage-report.json`
 - `data/mapping-cache-*.json`, `data/mapping-report-*.json`
 - `data/asset-version-lock.json` — written by `scripts/lib/asset-versions.js`, refreshed by
@@ -101,9 +102,9 @@ weaken the test.
 agree perfectly on a version that is simply too old for the bytes now on disk, and then installed
 clients never refetch — `caches.match` has no `ignoreSearch`, so a precached `?v=A` answers nothing
 else and the asset quietly falls out of the update path. That happened on 2026-08-26: the bumper
-retagged by string-matching the current app tag, `denver-west-routes.js` had drifted onto an older
-tag during four UI-only commits, and a rebuilt 18 MB payload shipped under the tag clients already
-had. `data/asset-version-lock.json` closes it by recording each asset's sha256 *at the version it
+retagged by string-matching the current app tag, the since-removed `denver-west-routes.js` had
+drifted onto an older tag during four UI-only commits, and a rebuilt 18 MB payload shipped under the
+tag clients already had. `data/asset-version-lock.json` closes it by recording each asset's sha256 *at the version it
 ships as*, so the test can tell a file that changed with its tag from one that changed without it.
 The shell files carry no `?v=` of their own, so `CACHE_NAME` is their version and the lock treats it
 as one — change `index.html` or `sw.js` and the cache name has to move too.
@@ -112,6 +113,74 @@ The pipeline path needs nothing: `bumpAssetVersions` rewrites the lock itself, a
 if an asset it does *not* retag (`curb-geometry.js`, `denver-city-limits.js`, `icon.svg`,
 `manifest.webmanifest`) is sitting there changed. The hand path is bump the tag in both files, then
 `npm run lock:assets`.
+
+**The map draws the viewport, not the city, and merges everything that shares a style.** Leaflet
+redraws every layer it owns on each pan and zoom, and the map holds about 19,700 street ways and
+39,000 curb segments. One polyline per way and three per segment — an invisible 30 px hit target, a
+white casing, the colour — came to **158,425 Leaflet layers**, each with its own id, bounds, event
+bucket and projection pass. Measured 2026-08-26 on a desktop: **482 ms** of blocked main thread for
+one zoom step, **5,036 ms** for one pan. Two changes fix it, in `renderStreetBases` and
+`renderSegments` in [public/app.js](public/app.js):
+
+- **Cull.** A padded bounding-box test against bounds cached on the record itself (`renderBounds`,
+  computed once — recomputing them per pan gives back exactly what the cull saved).
+- **Merge.** Leaflet takes an array of line strings as one multi-polyline, so everything sharing a
+  style collapses into one layer. Curbs carry six colours (`colors`) and the underlay two.
+
+Together: **75 layers**, a pan at block zoom that registers **no long task at all**, and 284 ms at
+the whole-city view. Both are needed — culling does nothing at city zoom, where everything is in
+view, and merging is what makes that case cheap.
+
+Merging is not free of consequences, and both of these are load bearing:
+
+- **A merged path is stroked once, so overlapping strokes no longer accumulate alpha.** At block
+  zoom curbs do not overlap and nothing changes. At the whole-city view thousands of them do, and
+  drawing 39,000 curbs at `weight: 4` there produced a solid smear instead of the old speckled
+  coverage picture. `isOverviewZoom()` (below `CURB_OVERVIEW_MAX_ZOOM`, 14) drops the street
+  underlay and the white casing — both exist to tell one curb from the one beside it, which is
+  meaningless at that scale — and draws curbs at `weight: 1`. That restores the original look and is
+  most of why the city view got cheap. Do not "fix" an overview-zoom appearance change by raising
+  opacity; that was tried and it made the smear worse.
+- **There is no longer a layer per curb to bind a click or a tooltip to.** `findSegmentNearPoint`
+  replaces 39,000 invisible hit targets with one hit test over `state.visibleSegments` — what the
+  last render actually put on screen — rejecting each by its cached bounding box first.
+  `CURB_HIT_TOLERANCE_PIXELS` is 15 because the old target was a 30 px-wide stroke, and it converts
+  through the zoom's metres-per-pixel so the tap target stays the size it has always been. The hover
+  label is built on demand in `getSegmentHoverLabel`; it used to be built for all 39,000 segments on
+  every render, each with its own `getNextSweepDate` call, to answer a hover landing on one of them.
+
+`moveend` matters as much as `zoomend` now. The old renderer listened only for `zoomend`, which was
+correct when it drew the whole city every time and panning could not reveal anything undrawn; with
+culling, a pan that reveals new ground has to redraw. Both go through `scheduleMapRender`, which
+coalesces into one animation frame so a drag does not queue a redraw per move event.
+
+**Everything in the published payload is downloaded before the map can draw, so decide what ships
+in one place.** [scripts/lib/publish-payload.js](scripts/lib/publish-payload.js) is that place, and
+all three writers of `public/denver-west-routes.json` go through it. Measured 2026-08-26, the page
+was fetching the inventory **twice** — a blocking `<script>` for `denver-west-routes.js` plus
+`app.js` fetching the `.json` with `{ cache: "reload" }`, which bypasses the HTTP cache outright — so
+every visit pulled 36.7 MB uncompressed. The `.js` was only ever the `catch` fallback; `app.js` now
+publishes the fetched payload to `window.DENVER_WEST_ROUTE_INVENTORY` itself, which is what
+`preserveKnownWeeklyRoutes` and `ensureWest10FederalDecaturCoverage` read to backfill routes a
+sampled live lookup can miss. With that copy gone, the dead fields dropped (`map.staticMapUrl`,
+3.90 MB, parsed into `map.path` at crawl time and read by nothing; `subscriptions`, 1.85 MB, Denver's
+own bookkeeping) and coordinates rounded, the wire cost is **786 KB against 36.7 MB**.
+
+Coordinates round to **seven** decimals, not six. The auditor samples a block every 8 m and matches
+anything within 12 m, and blocks sit within centimetres of that line — E Belleview at S Niagara is
+11.9 m from the pink route across the divided avenue, and six decimals (11 cm) tipped it from
+`unavailable` to `unexplained-gap`. Seven reclassifies nothing, verified block-for-block across all
+20,979 public blocks. **Rounding is lossy and not reversible**: re-running `rebuild:offline` over an
+already-rounded payload cannot restore precision, so if you change `COORDINATE_PRECISION`, regenerate
+from a payload that has not been rounded at the new setting yet, and re-run that block-for-block
+comparison.
+
+**The server compresses and the versioned URLs are immutable.** `serveStaticFile` in
+[server.js](server.js) negotiates brotli or gzip for text assets and memoizes the compressed bytes
+per `(file, encoding)`, keyed on mtime — the payload is far too large to recompress per request.
+A request carrying a `?v=` gets `max-age=31536000, immutable`, which is only safe because the asset
+lock above makes it a test failure for an asset's bytes to move without its version moving too;
+`index.html` and `sw.js` stay `no-store`. Do not add a bundler or a CDN layer to solve this again.
 
 **Record an area once, in `data/coverage-pilot-areas.json`.** Its bounds, whether it publishes pink
 fallbacks (`published`), and its coverage expectations (`coverage.expectedPublicBlocks`,
@@ -306,7 +375,8 @@ Denver sweeping API  → server.js /api/denver/sweeping  → scripts/build-stati
       samples each block's geometry every 8 m, classifies:
       scheduled | unavailable | excluded | unexplained-gap
 
-  → public/denver-west-routes.json + .js        (published, consumed by the client)
+  → scripts/lib/publish-payload.js  slimRoutesForPublication()
+  → public/denver-west-routes.json              (published, consumed by the client)
   → data/inventory-coverage-report.json         (diagnostic)
 ```
 

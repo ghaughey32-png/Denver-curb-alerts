@@ -11,10 +11,10 @@ const LOCK_PATH = path.join(ROOT, "data", "asset-version-lock.json");
 
 // Four constants across three files have to move together or an installed client
 // keeps serving a stale asset out of the service worker cache: the "?v=" tag on
-// app.js and denver-west-routes.js, the numeric inventory URL version, the
-// localStorage cache key, and CACHE_NAME. test/static-cache-version.test.js
-// enforces the agreement; this module is how the pipeline satisfies it without a
-// human editing four places by hand.
+// app.js, the numeric inventory URL version, the localStorage cache key, and
+// CACHE_NAME. test/static-cache-version.test.js enforces the agreement; this
+// module is how the pipeline satisfies it without a human editing four places by
+// hand.
 function readCurrentVersions() {
   const app = fs.readFileSync(APP_PATH, "utf8");
   const index = fs.readFileSync(INDEX_PATH, "utf8");
@@ -125,7 +125,7 @@ function bumpAssetVersions(assetTag) {
   // ride out under a version installed clients have cached. Catch it before writing anything.
   const untouched = findUnbumpedAssets(readAssetVersionLock()).filter((offense) => {
     const file = offense.match(/^public\/([A-Za-z0-9._-]+)/)?.[1];
-    return !["app.js", "styles.css", "index.html", "sw.js", "denver-west-routes.js", "denver-west-routes.json"].includes(file);
+    return !["app.js", "styles.css", "index.html", "sw.js", "denver-west-routes.json"].includes(file);
   });
   if (untouched.length) {
     throw new Error(`Bump these by hand first; this bump does not retag them:\n  ${untouched.join("\n  ")}`);
@@ -141,19 +141,15 @@ function bumpAssetVersions(assetTag) {
   const app = fs.readFileSync(APP_PATH, "utf8")
     .replace(/sloans-lake-full-inventory-cache-v\d+/g, `sloans-lake-full-inventory-cache-v${next.inventoryCacheVersion}`)
     .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
-  // The inventory script carries whatever tag was current the last time the payload moved, which
-  // is not the current app tag once a UI-only change has shipped in between. Retag it by name.
-  const retagInventoryScript = (source) =>
-    source.replace(/denver-west-routes\.js\?v=[A-Za-z0-9._-]+/g, `denver-west-routes.js?v=${next.assetTag}`);
-  const index = retagInventoryScript(
-    fs.readFileSync(INDEX_PATH, "utf8").replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
-  );
-  const serviceWorker = retagInventoryScript(
-    fs.readFileSync(SERVICE_WORKER_PATH, "utf8")
-      .replace(/curb-alerts-shell-v\d+/g, `curb-alerts-shell-v${next.shellVersion}`)
-      .replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
-      .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`)
-  );
+  // The inventory payload carries its own numeric version rather than the app tag, so it is
+  // retagged by name in both files below. public/denver-west-routes.js used to need the same
+  // treatment for the same reason; the page no longer loads a second copy of the payload as a
+  // script, so that file and its drift-prone tag are both gone.
+  const index = fs.readFileSync(INDEX_PATH, "utf8").replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`);
+  const serviceWorker = fs.readFileSync(SERVICE_WORKER_PATH, "utf8")
+    .replace(/curb-alerts-shell-v\d+/g, `curb-alerts-shell-v${next.shellVersion}`)
+    .replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
+    .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
 
   fs.writeFileSync(APP_PATH, app, "utf8");
   fs.writeFileSync(INDEX_PATH, index, "utf8");

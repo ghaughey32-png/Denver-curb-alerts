@@ -123,10 +123,10 @@ test("W Regis University frontage remains published as a pink unavailable route"
   assert.equal(route.sweepType, "Unavailable");
   assert.equal(route.dataUnavailable, true);
   assert.deepEqual(route.map.path, [
-    [39.7875309105346, -105.033082387858],
+    [39.7875309, -105.0330824],
     [39.787528, -105.03125],
     [39.787526, -105.0294],
-    [39.7875246979453, -105.027566078125]
+    [39.7875247, -105.0275661]
   ]);
 });
 
@@ -313,8 +313,8 @@ test("W Wesley has confirmed coverage from S Platte River Dr to S Jason St", () 
   assert.equal(route.to, "S JASON ST");
   assert.equal(route.leftSweepingRule, "South side: The 1st week of the month.");
   assert.equal(route.rightSweepingRule, "North side: The 1st week of the month.");
-  assert.deepEqual(route.map.path[0], [39.6730269895347, -104.998225795144]);
-  assert.deepEqual(route.map.path.at(-1), [39.6730363707072, -104.999451214552]);
+  assert.deepEqual(route.map.path[0], [39.673027, -104.9982258]);
+  assert.deepEqual(route.map.path.at(-1), [39.6730364, -104.9994512]);
 });
 
 test("S Platte River Dr has confirmed coverage from W Iliff Ave to W Wesley Ave", () => {
@@ -326,7 +326,7 @@ test("S Platte River Dr has confirmed coverage from W Iliff Ave to W Wesley Ave"
   assert.equal(route.to, "W WESLEY AVE");
   assert.equal(route.leftSweepingRule, "East side: The 1st week of the month.");
   assert.equal(route.rightSweepingRule, "West side: The 1st week of the month.");
-  assert.deepEqual(route.map.path.at(-1), [39.6730269895347, -104.998225795144]);
+  assert.deepEqual(route.map.path.at(-1), [39.673027, -104.9982258]);
 });
 
 test("E 26th through E 37th reaches York Street continuously", () => {

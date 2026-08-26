@@ -3,6 +3,7 @@ const https = require("node:https");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { URL } = require("node:url");
+const zlib = require("node:zlib");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -1013,7 +1014,67 @@ async function dispatchDueReminderPlans() {
   }
 }
 
-async function serveStaticFile(response, pathname) {
+// Compressible text assets. The inventory payload is ~12 MB of JSON that gzips to about a
+// tenth of that, which is the single largest thing standing between a visitor and a drawn map.
+const COMPRESSIBLE_TYPES = new Set([
+  "text/html",
+  "text/css",
+  "application/javascript",
+  "text/javascript",
+  "application/json",
+  "image/svg+xml",
+  "application/manifest+json"
+]);
+
+// Compressing 12 MB on every request would trade transfer time for server CPU, and public/ is
+// static for the life of the process, so each (file, encoding) pair is compressed once and kept.
+// The cache is keyed on mtime so a rebuilt payload is never served from a stale entry.
+const compressedAssetCache = new Map();
+
+async function readCompressedAsset(filePath, file, encoding) {
+  const { mtimeMs } = await fs.stat(filePath);
+  const key = `${filePath}:${encoding}`;
+  const cached = compressedAssetCache.get(key);
+  if (cached && cached.mtimeMs === mtimeMs) {
+    return cached.body;
+  }
+
+  const compress = encoding === "br" ? zlib.brotliCompress : zlib.gzip;
+  const options = encoding === "br"
+    ? { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } }
+    : { level: 6 };
+  const body = await new Promise((resolve, reject) => {
+    compress(file, options, (error, result) => (error ? reject(error) : resolve(result)));
+  });
+
+  compressedAssetCache.set(key, { mtimeMs, body });
+  return body;
+}
+
+// Brotli first, gzip second, uncompressed if the client offers neither. A bare substring test
+// would read "br;q=0" -- a client explicitly refusing brotli -- as an offer of it, so parse the
+// tokens and drop anything weighted to zero.
+function pickEncoding(acceptEncoding) {
+  const offered = new Set();
+  for (const part of String(acceptEncoding || "").toLowerCase().split(",")) {
+    const [token, ...parameters] = part.trim().split(";");
+    const quality = parameters
+      .map((parameter) => /^\s*q=([\d.]+)\s*$/.exec(parameter))
+      .find(Boolean);
+    if (quality && Number(quality[1]) <= 0) {
+      continue;
+    }
+    if (token.trim()) {
+      offered.add(token.trim());
+    }
+  }
+
+  if (offered.has("br")) return "br";
+  if (offered.has("gzip")) return "gzip";
+  return null;
+}
+
+async function serveStaticFile(response, pathname, { acceptEncoding = "", versioned = false } = {}) {
   const safePath = pathname === "/" ? "/index.html" : pathname;
   const filePath = path.join(PUBLIC_DIR, path.normalize(safePath));
 
@@ -1032,8 +1093,23 @@ async function serveStaticFile(response, pathname) {
       headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
     } else if (path.basename(filePath) === "sw.js") {
       headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+    } else if (versioned) {
+      // A "?v=" URL is immutable by construction: data/asset-version-lock.json and
+      // test/static-cache-version.test.js make it a build failure for an asset's bytes to move
+      // without its version moving too, so a year-long cache can never serve stale content.
+      headers["Cache-Control"] = "public, max-age=31536000, immutable";
     } else if (extension === ".js" || extension === ".css" || extension === ".webmanifest" || extension === ".svg") {
       headers["Cache-Control"] = "public, max-age=300";
+    }
+
+    const baseType = contentType.split(";")[0].trim();
+    const encoding = COMPRESSIBLE_TYPES.has(baseType) ? pickEncoding(acceptEncoding) : null;
+    if (encoding) {
+      headers["Content-Encoding"] = encoding;
+      headers.Vary = "Accept-Encoding";
+      response.writeHead(200, headers);
+      response.end(await readCompressedAsset(filePath, file, encoding));
+      return;
     }
 
     response.writeHead(200, headers);
@@ -1104,7 +1180,10 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  await serveStaticFile(response, url.pathname);
+  await serveStaticFile(response, url.pathname, {
+    acceptEncoding: request.headers["accept-encoding"],
+    versioned: url.searchParams.has("v")
+  });
 });
 
 server.listen(PORT, HOST, async () => {

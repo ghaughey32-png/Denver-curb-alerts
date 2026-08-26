@@ -5,10 +5,10 @@ const { addConfirmedValverdeCoverage } = require("./lib/confirmed-valverde-cover
 const { applyConfirmedVrainCoverage } = require("./lib/confirmed-vrain-coverage.js");
 const { applyConfirmedRegisAreaCoverage } = require("./lib/confirmed-regis-area-coverage.js");
 const { applyConfirmedPoloClubCoverage } = require("./lib/confirmed-polo-club-coverage.js");
+const { slimRoutesForPublication } = require("./lib/publish-payload.js");
 
 const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3000";
 const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
-const SCRIPT_OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.js");
 const EXPECTED_BLOCKS_PATH = path.join(__dirname, "..", "data", "inventory-expected-blocks.json");
 const COVERAGE_REPORT_PATH = path.join(__dirname, "..", "data", "inventory-coverage-report.json");
 const CONCURRENCY = 8;
@@ -960,19 +960,21 @@ async function auditAndPublish(routeMap, expectedBlockManifest) {
   await writeInventoryArtifacts(routeMap, coverageReport);
 }
 
-// Writes the three published artifacts. The .json and the .js carry the same
-// payload and are always written together, so keep them in one place.
+// Writes the two published artifacts. There used to be a third, denver-west-routes.js, holding
+// the identical payload assigned to window.DENVER_WEST_ROUTE_INVENTORY for a blocking <script>.
+// The client fetches the .json and only ever used the script as a catch fallback, so the page was
+// downloading the whole inventory twice on every visit; app.js now publishes the fetched payload
+// to that global itself.
 async function writeInventoryArtifacts(routeMap, coverageReport) {
   const payload = {
     version: 1,
     generatedAt: new Date().toISOString(),
     areaLabel: "Denver expanded: West Denver inventory plus RiNo from Blake–Arapahoe and 27th–33rd Streets",
     routeCount: routeMap.size,
-    routes: Array.from(routeMap.values())
+    routes: slimRoutesForPublication(Array.from(routeMap.values()))
   };
 
   await fs.writeFile(OUTPUT_PATH, `${JSON.stringify(payload)}\n`, "utf8");
-  await fs.writeFile(SCRIPT_OUTPUT_PATH, `window.DENVER_WEST_ROUTE_INVENTORY = ${JSON.stringify(payload)};\n`, "utf8");
   await fs.writeFile(COVERAGE_REPORT_PATH, `${JSON.stringify(coverageReport, null, 2)}\n`, "utf8");
   console.log(`Saved ${payload.routeCount} Denver routes; coverage: ${coverageReport.counts.scheduled} scheduled, ${coverageReport.counts.unavailable} unavailable, ${coverageReport.counts.excluded} excluded, ${coverageReport.counts["unexplained-gap"]} unexplained gaps.`);
 }

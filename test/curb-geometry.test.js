@@ -49,8 +49,8 @@ const inventory = require("../public/denver-west-routes.json");
 
 test("maps northeast-bound Boulder Street left/right onto its displayed curbs", () => {
   const boulderStreet = [
-    [39.7584085979085, -105.011814054771],
-    [39.762041001565, -105.00689955967]
+    [39.7584086, -105.0118141],
+    [39.762041, -105.0068996]
   ];
 
   assert.equal(getStreetOrientation(boulderStreet), "east-west");
@@ -223,9 +223,9 @@ test("W 11th Gateway North coverage joins the adjacent official endpoints", () =
   const westRoute = inventory.routes.find((route) => route.id === 5187);
   const eastRoute = inventory.routes.find((route) => route.id === 18240);
   const coveragePath = [
-    [39.7338791010489, -105.023379744091],
+    [39.7338791, -105.0233797],
     [39.7338784, -105.02256],
-    [39.7338776268528, -105.021747711029]
+    [39.7338776, -105.0217477]
   ];
 
   assert.ok(westRoute);
@@ -293,8 +293,8 @@ test("27th Street official route is continuous from Larimer through Blake to Wal
   assert.ok(route);
   assert.equal(route.from, "LARIMER ST");
   assert.equal(route.to, "WALNUT ST");
-  assert.deepEqual(route.map.path[0], [39.7595021964107, -104.984128022484]);
-  assert.deepEqual(route.map.path.at(-1), [39.7608300127708, -104.985886980374]);
+  assert.deepEqual(route.map.path[0], [39.7595022, -104.984128]);
+  assert.deepEqual(route.map.path.at(-1), [39.76083, -104.985887]);
   assert.match(route.leftSweepingRule, /4th Friday/i);
   assert.match(route.rightSweepingRule, /4th Thursday/i);
 });
@@ -360,7 +360,7 @@ test("W Maple railroad crossing to Pecos uses the verified city schedule", () =>
   assert.equal(route.to, "S PECOS ST");
   assert.match(route.leftSweepingRule, /South side: The 2nd Thursday/i);
   assert.match(route.rightSweepingRule, /North side: The 2nd Friday/i);
-  assert.deepEqual(route.map.path[0], [39.7139480704729, -105.004865723319]);
+  assert.deepEqual(route.map.path[0], [39.7139481, -105.0048657]);
 });
 
 test("S Pecos from Arizona to Louisiana uses the screenshot-confirmed schedule", () => {
@@ -389,7 +389,7 @@ test("S Pecos at Evans extends confirmed coverage north of Pacific without pink 
   assert.equal(route.streetName, "S PECOS ST");
   assert.equal(route.to, "W EVANS AVE");
   assert.deepEqual(route.map.path[0], [39.679963, -105.0063528]);
-  assert.deepEqual(route.map.path.at(-1), [39.6785885471175, -105.006408678511]);
+  assert.deepEqual(route.map.path.at(-1), [39.6785885, -105.0064087]);
   assert.match(route.leftSweepingRule, /East side: The 2nd Wednesday/i);
   assert.match(route.rightSweepingRule, /West side: The 2nd Tuesday/i);
   assert.equal(routes.some((candidate) => candidate.id === obsoleteFallbackId), false);

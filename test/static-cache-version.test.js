@@ -89,8 +89,10 @@ test("the service worker cache name is bumped alongside the app shell", () => {
 // version installed clients had already cached, and caches.match has no ignoreSearch, so they
 // would have gone on painting the previous inventory. Agreement is not freshness; the lock is what
 // makes freshness checkable, by recording what each asset looked like at the version it ships as.
-// Hashed once for both tests below. Almost every byte of it is the inventory payload, counted
-// twice because the .js mirrors the .json, and that is the one input here that grows with the map.
+// (That file is gone now — it was a second copy of the payload the page downloaded on every visit,
+// and removing it removed its drift-prone tag with it. The lock still guards the .json.)
+// Hashed once for both tests below. Almost every byte of it is the inventory payload, which is the
+// one input here that grows with the map.
 const publishedLock = readAssetVersionLock();
 const currentLock = buildAssetVersionLock();
 

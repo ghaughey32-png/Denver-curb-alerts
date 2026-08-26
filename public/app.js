@@ -1545,8 +1545,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v69";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=78";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v73";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=82";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const memoryStore = new Map();
@@ -1622,6 +1622,8 @@ const state = {
   baseLayerGroup: null,
   segmentLayerGroup: null,
   contextLayerGroup: null,
+  // What the last render actually put on screen; findSegmentNearPoint walks this, not the city.
+  visibleSegments: [],
   notificationTimers: new Map(),
   serviceWorkerRegistration: null
 };
@@ -3513,21 +3515,19 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
 
 async function loadStaticRouteInventory() {
   try {
-    let payload;
-    try {
-      const response = await fetch(STATIC_ROUTE_INVENTORY_URL, { cache: "reload" });
-      if (!response.ok) {
-        throw new Error("The saved Denver route inventory could not be loaded.");
-      }
-      payload = await response.json();
-    } catch (error) {
-      // Keep the generated script as an offline fallback, but prefer the JSON
-      // inventory so a stale fallback cannot hide newly mapped curb routes.
-      payload = window.DENVER_WEST_ROUTE_INVENTORY;
-      if (!payload) {
-        throw error;
-      }
+    // The URL carries a "?v=" the build bumps whenever the payload moves, so the HTTP cache is
+    // safe to use here. This used to pass { cache: "reload" }, which forced every visit to
+    // re-download the whole inventory, and the page loaded a second identical copy as a blocking
+    // <script> on top of that -- two full copies of the payload on the wire per visit.
+    const response = await fetch(STATIC_ROUTE_INVENTORY_URL);
+    if (!response.ok) {
+      throw new Error("The saved Denver route inventory could not be loaded.");
     }
+    const payload = await response.json();
+    // preserveKnownWeeklyRoutes and ensureWest10FederalDecaturCoverage read the full inventory off
+    // this global to backfill routes a sampled live lookup can miss. It used to be set by the
+    // blocking <script>; the fetched payload is the same bytes, so publish it here instead.
+    window.DENVER_WEST_ROUTE_INVENTORY = payload;
     const routeMap = new Map();
     (Array.isArray(payload.routes) ? payload.routes : []).forEach((route) => {
       if (route?.id != null && Array.isArray(route.map?.path) && route.map.path.length >= 2) {
@@ -4429,7 +4429,8 @@ function initializeMap() {
   state.baseLayerGroup = L.layerGroup().addTo(state.map);
   state.segmentLayerGroup = L.layerGroup().addTo(state.map);
   state.contextLayerGroup = L.layerGroup().addTo(state.map);
-  state.map.on("zoomend", renderSegments);
+  state.map.on("moveend zoomend", scheduleMapRender);
+  attachCurbInteraction();
   loadDenverBoundary();
   refreshMapViewport();
 }
@@ -4574,6 +4575,111 @@ function renderContext() {
   }
 }
 
+// Leaflet draws every layer it owns on each pan and zoom, and the map holds the whole city: about
+// 19,700 street ways and 39,000 curb segments. Drawing one polyline per way and three per segment
+// meant 158,000 Leaflet layers, each with its own id, bounds, event bucket and projection pass --
+// measured 2026-08-26 at 482 ms of blocked main thread for one zoom step and 5,036 ms for one pan,
+// on a desktop. Two changes fix it, and they compose:
+//
+//   Cull to the viewport. A padded bounding-box test per way or segment, against bounds cached on
+//   the record the first time it is drawn. At block zoom this alone leaves a few hundred of them.
+//
+//   Merge what survives. Leaflet takes an array of line strings as one multi-polyline, so every
+//   piece that shares a style collapses into a single layer. Curbs carry six colours (see `colors`)
+//   and the street underlay two, so the entire unselected map is eight layers instead of 157,000.
+//
+// What that costs is per-segment interactivity, because there is no longer a layer per curb to bind
+// a click or a tooltip to. attachCurbInteraction below replaces it with one hit test against the
+// culled list, which is the same answer by a cheaper route.
+//
+// Nothing here hides curbs at low zoom. Merging made the city view cheap enough that it did not
+// need to, and blanking the map at the zoom a first-time visitor lands on would trade a real
+// product signal -- the coloured spread that shows how much of Denver is covered -- for time the
+// merge already gave back.
+
+const RENDER_VIEWPORT_PAD_METRES = 400;
+
+// Below this the map is a coverage picture, not a curb picker: a block is a few pixels across, no
+// curb is individually tappable, and the street underlay and white casing -- both of which exist to
+// tell one curb from the one beside it -- are only smear. Dropping them at overview zooms is what
+// keeps the whole-city view cheap, and it also restores how that view used to look. Drawn as one
+// merged path per colour, a stroke no longer paints over its neighbours, so the alpha that used to
+// accumulate across thousands of overlapping curbs is gone and the colours read washed out; at
+// these zooms they are drawn opaque instead, which lands back where the per-segment renderer did.
+const CURB_OVERVIEW_MAX_ZOOM = 14;
+
+function isOverviewZoom() {
+  return (state.map?.getZoom?.() ?? 15) < CURB_OVERVIEW_MAX_ZOOM;
+}
+
+function getRenderBounds(geometry) {
+  if (!Array.isArray(geometry) || !geometry.length) {
+    return null;
+  }
+
+  let south = Infinity;
+  let north = -Infinity;
+  let west = Infinity;
+  let east = -Infinity;
+  for (const point of geometry) {
+    const lat = point[0];
+    const lon = point[1];
+    if (lat < south) south = lat;
+    if (lat > north) north = lat;
+    if (lon < west) west = lon;
+    if (lon > east) east = lon;
+  }
+
+  return { south, north, west, east };
+}
+
+// Cached on the record itself: the geometry never changes once a dataset is set, and recomputing
+// these for 39,000 segments on every pan would give back what the culling just saved.
+function getCachedRenderBounds(record) {
+  if (!record.renderBounds) {
+    record.renderBounds = getRenderBounds(record.geometry);
+  }
+  return record.renderBounds;
+}
+
+function getPaddedViewportBounds() {
+  if (!state.map) {
+    return null;
+  }
+
+  const bounds = state.map.getBounds();
+  const latPad = RENDER_VIEWPORT_PAD_METRES / SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const lonPad = RENDER_VIEWPORT_PAD_METRES / SEARCH_METRES_PER_DEGREE_LONGITUDE;
+
+  return {
+    south: bounds.getSouth() - latPad,
+    north: bounds.getNorth() + latPad,
+    west: bounds.getWest() - lonPad,
+    east: bounds.getEast() + lonPad
+  };
+}
+
+function intersectsRenderBounds(recordBounds, viewport) {
+  if (!recordBounds || !viewport) {
+    return false;
+  }
+
+  return (
+    recordBounds.south <= viewport.north &&
+    recordBounds.north >= viewport.south &&
+    recordBounds.west <= viewport.east &&
+    recordBounds.east >= viewport.west
+  );
+}
+
+function getVisibleRecords(records, viewport) {
+  if (!viewport) {
+    return [];
+  }
+
+  return records.filter((record) => intersectsRenderBounds(getCachedRenderBounds(record), viewport));
+}
+
 function renderStreetBases() {
   if (!state.baseLayerGroup) {
     return;
@@ -4581,22 +4687,41 @@ function renderStreetBases() {
 
   state.baseLayerGroup.clearLayers();
 
-  state.streetWays.forEach((way) => {
-    const shadowWeight = way.highway === "primary" ? 8 : 6;
-    const coreWeight = way.highway === "primary" ? 5 : 4;
+  if (isOverviewZoom()) {
+    return;
+  }
 
-    L.polyline(way.geometry, {
+  const viewport = getPaddedViewportBounds();
+  const visibleWays = getVisibleRecords(state.streetWays, viewport);
+  // Primary streets are drawn a touch heavier, so they are the one split the underlay needs.
+  const primaryGeometries = [];
+  const localGeometries = [];
+  visibleWays.forEach((way) => {
+    (way.highway === "primary" ? primaryGeometries : localGeometries).push(way.geometry);
+  });
+
+  [
+    { geometries: localGeometries, shadowWeight: 6, coreWeight: 4 },
+    { geometries: primaryGeometries, shadowWeight: 8, coreWeight: 5 }
+  ].forEach(({ geometries, shadowWeight, coreWeight }) => {
+    if (!geometries.length) {
+      return;
+    }
+
+    L.polyline(geometries, {
       color: "rgba(255,255,255,0.55)",
       weight: shadowWeight,
       opacity: 1,
-      lineCap: "round"
+      lineCap: "round",
+      interactive: false
     }).addTo(state.baseLayerGroup);
 
-    L.polyline(way.geometry, {
+    L.polyline(geometries, {
       color: "rgba(90,100,110,0.45)",
       weight: coreWeight,
       opacity: 1,
-      lineCap: "round"
+      lineCap: "round",
+      interactive: false
     }).addTo(state.baseLayerGroup);
   });
 }
@@ -4673,53 +4798,47 @@ function renderSegments() {
 
   state.segmentLayerGroup.clearLayers();
 
+  const viewport = getPaddedViewportBounds();
   const selectedStyle = getSelectedCurbStyle();
+  // The selection is drawn wherever it is, in view or not, so a saved curb never silently vanishes
+  // from the map while the user pans away from it. It is at most a handful of segments.
   const selectedSegments = state.curbSegments.filter((segment) => isSelected(segment.id));
-  const unselectedSegments = state.curbSegments.filter((segment) => !isSelected(segment.id));
+  const unselectedSegments = getVisibleRecords(state.curbSegments, viewport).filter(
+    (segment) => !isSelected(segment.id)
+  );
+  // What the pointer can hit. Selected curbs are included so their own tooltip still answers.
+  state.visibleSegments = [...unselectedSegments, ...selectedSegments];
 
-  // Add wide transparent hit targets first so Safari's canvas renderer paints
-  // the visible curb strokes above them instead of dimming or hiding short routes.
-  state.curbSegments.forEach((segment) => {
-    const selected = isSelected(segment.id);
-    const geometry = getSegmentRenderGeometry(segment, selectedStyle);
-    const touchTarget = L.polyline(geometry, {
-      color: "#000000",
-      weight: selected ? selectedStyle.touchWeight : 30,
-      opacity: 0,
-      lineCap: "round"
-    });
-    const nextSweepDate = getNextSweepDate(segment);
-    const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
-    const statusText = segment.schedule?.sweepType === "NotMaintained"
-      ? " | No Denver street sweeping — street not maintained by Denver"
-      : !segment.schedule || segment.schedule.sweepType === "Unavailable"
-        ? " | Schedule information unavailable — check Denver's website and posted signs"
-        : segment.schedule.relocationRequired === false
-          ? " | No car relocation required — tap for schedule details"
-        : "";
-    if (supportsHoverPointer()) {
-      touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${statusText}`, {
-        sticky: true,
-        className: "curb-tooltip"
-      });
-    }
-    touchTarget.on("click", () => openCurbSheet(segment.id));
-    touchTarget.addTo(state.segmentLayerGroup);
-  });
-
-  unselectedSegments.forEach((segment) => {
-    L.polyline(segment.geometry, {
+  // One casing under everything, then one layer per colour on top. Merging keeps the paint order
+  // the per-segment loop had -- every casing below every curb -- with eight layers instead of tens
+  // of thousands.
+  const overview = isOverviewZoom();
+  const unselectedGeometries = unselectedSegments.map((segment) => segment.geometry);
+  if (unselectedGeometries.length && !overview) {
+    L.polyline(unselectedGeometries, {
       color: "rgba(255, 255, 255, 0.28)",
       weight: 6,
       opacity: 0.45,
       lineCap: "round",
       interactive: false
     }).addTo(state.segmentLayerGroup);
+  }
 
-    L.polyline(segment.geometry, {
-      color: segment.color,
-      weight: 4,
-      opacity: 0.72,
+  const geometriesByColor = new Map();
+  unselectedSegments.forEach((segment) => {
+    const existing = geometriesByColor.get(segment.color);
+    if (existing) {
+      existing.push(segment.geometry);
+    } else {
+      geometriesByColor.set(segment.color, [segment.geometry]);
+    }
+  });
+
+  geometriesByColor.forEach((geometries, color) => {
+    L.polyline(geometries, {
+      color,
+      weight: overview ? 1 : 4,
+      opacity: overview ? 0.9 : 0.72,
       lineCap: "round",
       interactive: false
     }).addTo(state.segmentLayerGroup);
@@ -4746,9 +4865,7 @@ function renderSegments() {
   });
 
   selectedSegments.forEach((segment) => {
-    const geometry = getSelectedDisplayGeometry(segment, selectedStyle);
-
-    L.polyline(geometry, {
+    L.polyline(getSelectedDisplayGeometry(segment, selectedStyle), {
       color: segment.color,
       weight: selectedStyle.lineWeight,
       opacity: 1,
@@ -4758,27 +4875,209 @@ function renderSegments() {
   });
 
   selectedSegments.forEach((segment) => {
-    const geometry = getSelectedDisplayGeometry(segment, selectedStyle);
+    const midpoint = getGeometryMidpoint(getSelectedDisplayGeometry(segment, selectedStyle));
+    if (!midpoint) {
+      return;
+    }
 
-    const midpoint = getGeometryMidpoint(geometry);
-    if (midpoint) {
-      const marker = L.circleMarker(midpoint, {
-        radius: selectedStyle.markerRadius,
-        color: "#1f2f37",
-        weight: 2,
-        fillColor: "#ffd23f",
-        fillOpacity: 1
-      });
-      if (supportsHoverPointer()) {
-        marker.bindTooltip(`Selected: ${segment.street} - ${segment.sideLabel}`, {
-          sticky: true,
-          className: "curb-tooltip"
-        });
+    L.circleMarker(midpoint, {
+      radius: selectedStyle.markerRadius,
+      color: "#1f2f37",
+      weight: 2,
+      fillColor: "#ffd23f",
+      fillOpacity: 1,
+      interactive: false
+    }).addTo(state.segmentLayerGroup);
+  });
+}
+
+// The label the curb's own tooltip used to carry. It was built eagerly for all 39,000 segments on
+// every render -- a getNextSweepDate call and a string build each -- to answer a hover that lands on
+// one of them. It is built on demand now.
+function getSegmentHoverLabel(segment) {
+  const nextSweepDate = getNextSweepDate(segment);
+  const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
+  const statusText = segment.schedule?.sweepType === "NotMaintained"
+    ? " | No Denver street sweeping — street not maintained by Denver"
+    : !segment.schedule || segment.schedule.sweepType === "Unavailable"
+      ? " | Schedule information unavailable — check Denver's website and posted signs"
+      : segment.schedule.relocationRequired === false
+        ? " | No car relocation required — tap for schedule details"
+        : "";
+
+  if (isSelected(segment.id)) {
+    return `Selected: ${segment.street} - ${segment.sideLabel}`;
+  }
+
+  return `${segment.street} - ${segment.sideLabel}${nextDateText}${statusText}`;
+}
+
+// How near the pointer has to be to claim a curb, in metres on the ground. The old invisible hit
+// target was a 30 px-wide stroke, so half of it -- 15 px -- is the distance that used to register,
+// and converting it per zoom keeps the tap target the same size it has always been on screen.
+const CURB_HIT_TOLERANCE_PIXELS = 15;
+
+function getMetresPerPixel() {
+  const zoom = state.map?.getZoom?.() ?? 15;
+  const latitude = state.map?.getCenter?.()?.lat ?? 39.74;
+  return (156543.03392 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
+}
+
+// Distance from a point to a line segment, in metres, on the local flat approximation the search
+// code already uses. Denver spans a third of a degree; the error over that is centimetres.
+function getDistanceToGeometryEdgeMetres(point, start, end) {
+  const pointX = point[1] * SEARCH_METRES_PER_DEGREE_LONGITUDE;
+  const pointY = point[0] * SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const startX = start[1] * SEARCH_METRES_PER_DEGREE_LONGITUDE;
+  const startY = start[0] * SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const endX = end[1] * SEARCH_METRES_PER_DEGREE_LONGITUDE;
+  const endY = end[0] * SEARCH_METRES_PER_DEGREE_LATITUDE;
+
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+  const t = lengthSquared === 0
+    ? 0
+    : Math.max(0, Math.min(1, ((pointX - startX) * deltaX + (pointY - startY) * deltaY) / lengthSquared));
+  const closestX = startX + t * deltaX;
+  const closestY = startY + t * deltaY;
+
+  return Math.hypot(pointX - closestX, pointY - closestY);
+}
+
+// The one hit test that replaced 39,000 invisible hit-target polylines. It walks only the segments
+// the last render left on screen, and rejects each by its cached bounding box before touching its
+// geometry -- the same shape as findNearestSearchApproach and the inventory auditor's street index.
+function findSegmentNearPoint(latlng) {
+  const segments = state.visibleSegments;
+  if (!Array.isArray(segments) || !segments.length) {
+    return null;
+  }
+
+  const toleranceMetres = CURB_HIT_TOLERANCE_PIXELS * getMetresPerPixel();
+  const latPad = toleranceMetres / SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const lonPad = toleranceMetres / SEARCH_METRES_PER_DEGREE_LONGITUDE;
+  const point = [latlng.lat, latlng.lng];
+  let nearest = null;
+
+  for (const segment of segments) {
+    const bounds = getCachedRenderBounds(segment);
+    if (
+      !bounds ||
+      point[0] < bounds.south - latPad ||
+      point[0] > bounds.north + latPad ||
+      point[1] < bounds.west - lonPad ||
+      point[1] > bounds.east + lonPad
+    ) {
+      continue;
+    }
+
+    const geometry = segment.geometry;
+    for (let index = 1; index < geometry.length; index += 1) {
+      const distance = getDistanceToGeometryEdgeMetres(point, geometry[index - 1], geometry[index]);
+      if (distance <= toleranceMetres && (!nearest || distance < nearest.distance)) {
+        nearest = { segment, distance };
       }
-      marker.on("click", () => openCurbSheet(segment.id));
-      marker.addTo(state.segmentLayerGroup);
+    }
+  }
+
+  return nearest ? nearest.segment : null;
+}
+
+// Panning and zooming both change which curbs are on screen, so both have to redraw -- the old
+// renderer only listened for zoomend, because it drew the whole city every time and panning could
+// not reveal anything it had not already drawn. Coalescing into one animation frame keeps a
+// continuous drag from queueing a redraw per intermediate move event.
+let mapRenderFrameHandle = 0;
+
+function scheduleMapRender() {
+  if (mapRenderFrameHandle) {
+    return;
+  }
+
+  mapRenderFrameHandle = window.requestAnimationFrame(() => {
+    mapRenderFrameHandle = 0;
+    renderStreetBases();
+    renderSegments();
+  });
+}
+
+let curbHoverTooltip = null;
+let curbHoverSegmentId = null;
+let pendingHoverLatLng = null;
+let hoverFrameHandle = 0;
+
+function setCurbHoverCursor(isOverCurb) {
+  const container = state.map?.getContainer?.();
+  if (container) {
+    container.style.cursor = isOverCurb ? "pointer" : "";
+  }
+}
+
+function closeCurbHover() {
+  curbHoverSegmentId = null;
+  setCurbHoverCursor(false);
+  if (curbHoverTooltip && state.map?.hasLayer(curbHoverTooltip)) {
+    state.map.closeTooltip(curbHoverTooltip);
+  }
+}
+
+function updateCurbHover(latlng) {
+  const segment = findSegmentNearPoint(latlng);
+  if (!segment) {
+    closeCurbHover();
+    return;
+  }
+
+  if (curbHoverSegmentId !== segment.id) {
+    curbHoverSegmentId = segment.id;
+    curbHoverTooltip.setContent(getSegmentHoverLabel(segment));
+  }
+
+  curbHoverTooltip.setLatLng(latlng);
+  if (!state.map.hasLayer(curbHoverTooltip)) {
+    state.map.openTooltip(curbHoverTooltip);
+  }
+  setCurbHoverCursor(true);
+}
+
+// One click handler and one tooltip for the whole map, in place of a click handler and a tooltip on
+// each of 39,000 invisible hit-target polylines. The pointer answer is the same; what is gone is
+// the cost of keeping 39,000 layers around to give it.
+function attachCurbInteraction() {
+  if (!state.map) {
+    return;
+  }
+
+  state.map.on("click", (event) => {
+    const segment = findSegmentNearPoint(event.latlng);
+    if (segment) {
+      openCurbSheet(segment.id);
     }
   });
+
+  if (!supportsHoverPointer()) {
+    return;
+  }
+
+  curbHoverTooltip = L.tooltip({ className: "curb-tooltip", direction: "top", offset: [0, -8] });
+
+  state.map.on("mousemove", (event) => {
+    pendingHoverLatLng = event.latlng;
+    if (hoverFrameHandle) {
+      return;
+    }
+
+    hoverFrameHandle = window.requestAnimationFrame(() => {
+      hoverFrameHandle = 0;
+      if (pendingHoverLatLng) {
+        updateCurbHover(pendingHoverLatLng);
+        pendingHoverLatLng = null;
+      }
+    });
+  });
+
+  state.map.on("mouseout", closeCurbHover);
 }
 
 // The curb sheet is the app's first value moment. Everything it shows is already computed by the
@@ -6409,7 +6708,12 @@ function setActiveView(viewName, options = {}) {
   }
 
   if (viewName === "setup" && state.map) {
-    window.setTimeout(() => state.map.invalidateSize(), 80);
+    // Resizing the map changes which curbs the viewport covers, and invalidateSize does not fire
+    // moveend, so the cull has to be told to run again.
+    window.setTimeout(() => {
+      state.map.invalidateSize();
+      scheduleMapRender();
+    }, 80);
   }
 
   if (!options.skipScroll) {

@@ -1,6 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { auditInventory, normalizeStreetName } = require("./lib/inventory-auditor.js");
+const { slimRoutesForPublication } = require("./lib/publish-payload.js");
 
 const ROOT = path.join(__dirname, "..");
 const AREA_ID = process.argv[2];
@@ -9,7 +10,6 @@ const CONCURRENCY = 6;
 
 const manifestPath = path.join(ROOT, "data", "inventory-expected-blocks.json");
 const inventoryPath = path.join(ROOT, "public", "denver-west-routes.json");
-const scriptPath = path.join(ROOT, "public", "denver-west-routes.js");
 const cachePath = path.join(ROOT, "data", `mapping-cache-${AREA_ID}.json`);
 const reportPath = path.join(ROOT, "data", `mapping-report-${AREA_ID}.json`);
 
@@ -175,9 +175,9 @@ async function main() {
       automatedChecks: attemptsByBlock.get(gap.id) || []
     }))
   };
+  inventory.routes = slimRoutesForPublication(inventory.routes);
   await Promise.all([
     fs.writeFile(inventoryPath, `${JSON.stringify(inventory)}\n`),
-    fs.writeFile(scriptPath, `window.DENVER_WEST_ROUTE_INVENTORY = ${JSON.stringify(inventory)};\n`),
     fs.writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`),
     fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`)
   ]);
