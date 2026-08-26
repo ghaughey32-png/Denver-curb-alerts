@@ -579,6 +579,48 @@
         "expectedPublicBlocks": 348,
         "minimumScheduled": 341
       }
+    },
+    {
+      "id": "colfax-e25-i25-broadway",
+      "label": "W Colfax Avenue–East 25th Avenue, I-25–N Broadway",
+      "north": 39.7537,
+      "south": 39.7406,
+      "west": -105.0189,
+      "east": -104.9879,
+      "published": true,
+      "coverage": {
+        "testName": "W Colfax–East 25th from I-25–N Broadway",
+        "expectedPublicBlocks": 687,
+        "minimumScheduled": 584
+      }
+    },
+    {
+      "id": "e25-e37-i25-broadway",
+      "label": "East 25th Avenue–East 37th Avenue, I-25–N Broadway",
+      "north": 39.7685,
+      "south": 39.7537,
+      "west": -105.0163,
+      "east": -104.9879,
+      "published": true,
+      "coverage": {
+        "testName": "East 25th–East 37th from I-25–N Broadway",
+        "expectedPublicBlocks": 560,
+        "minimumScheduled": 509
+      }
+    },
+    {
+      "id": "e37-e45-i25-broadway",
+      "label": "East 37th Avenue–East 45th Avenue, I-25–N Broadway",
+      "north": 39.779,
+      "south": 39.7685,
+      "west": -104.9974,
+      "east": -104.9879,
+      "published": true,
+      "coverage": {
+        "testName": "East 37th–East 45th from I-25–N Broadway",
+        "expectedPublicBlocks": 83,
+        "minimumScheduled": 77
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -607,7 +649,10 @@
       "East 6th–East Colfax from Monaco–Yosemite",
       "East Evans–East Alameda from Monaco–I-225",
       "East Alameda–East Colfax from Yosemite–I-225",
-      "East 17th–East 25th from Broadway–Ogden"
+      "East 17th–East 25th from Broadway–Ogden",
+      "W Colfax–East 25th from I-25–N Broadway",
+      "East 25th–East 37th from I-25–N Broadway",
+      "East 37th–East 45th from I-25–N Broadway"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
