@@ -2841,3 +2841,8 @@ a.ghost-button {
     column-gap: 10px;
   }
 }
+
+/* An empty state on the alerts page is a long way from the map it is asking for. */
+.empty-state-action {
+  margin-top: 14px;
+}

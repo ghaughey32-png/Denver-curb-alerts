@@ -1607,9 +1607,9 @@ const state = {
   curbSegments: [],
   activeAreaLabel: "West Denver expanded: W Exposition–W Nevada from Federal–I-25, W Alameda (CO 26)–W 5th from Federal–I-25, plus the existing West Denver inventory",
   activeGeometryLabel: "Full known sweeping inventory",
-  activeMapTitle: "Sloan's Lake full neighborhood inventory",
+  activeMapTitle: "All mapped Denver curbs",
   activeMapKicker: "Interactive map",
-  activeSourceLabel: "Sloan's Lake full inventory",
+  activeSourceLabel: "Denver curb inventory",
   activeLookupAddress: "",
   activeContextMarkers: contextMarkers,
   userLocation: null,
@@ -2103,14 +2103,14 @@ function restoreCachedSloansLakeInventory() {
     curbSegments: cached.curbSegments,
     areaLabel: cached.areaLabel || "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
     geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
-    mapTitleText: cached.mapTitleText || "Sloan's Lake full neighborhood inventory",
+    mapTitleText: cached.mapTitleText || "All mapped Denver curbs",
     mapKickerText: cached.mapKickerText || "Interactive map",
-    sourceLabel: cached.sourceLabel || "Sloan's Lake full inventory",
+    sourceLabel: cached.sourceLabel || "Denver curb inventory",
     lookupAddress: "",
     context: Array.isArray(cached.context) ? cached.context : contextMarkers,
     mapNoteText:
       cached.mapNoteText ||
-      "This Sloan's Lake mode shows the full known sweepable street inventory we have mapped inside the pilot boundary. Click a colored curb line to select it for notifications."
+      "Every curb we have mapped across Denver. Tap a colored line to see when it gets swept."
   });
 
   return true;
@@ -2445,7 +2445,7 @@ function setMapDataset({ streetWays, curbSegments, areaLabel, geometryLabel, map
 
 function buildStreetData() {
   if (!EMBEDDED_GEOMETRY.length) {
-    throw new Error("The Sloan's Lake street geometry did not load.");
+    throw new Error("The street geometry did not load.");
   }
 
   const { streetWays, curbSegments } = buildEmbeddedDataset();
@@ -2455,12 +2455,12 @@ function buildStreetData() {
     curbSegments,
     areaLabel: "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
     geometryLabel: "Full known sweeping inventory",
-    mapTitleText: "Sloan's Lake full neighborhood inventory",
+    mapTitleText: "All mapped Denver curbs",
     mapKickerText: "Interactive map",
-    sourceLabel: "Sloan's Lake full inventory",
+    sourceLabel: "Denver curb inventory",
     context: contextMarkers,
     mapNoteText:
-      "This Sloan's Lake mode shows the full known sweepable street inventory we have mapped inside the pilot boundary. Click a colored curb line to select it for notifications."
+      "Every curb we have mapped across Denver. Tap a colored line to see when it gets swept."
   });
 }
 
@@ -2857,14 +2857,14 @@ function buildInventoryFromRouteMap(routeMap) {
   ensureWest10FederalDecaturCoverage(routeMap);
   applyLocalStreetNameOverrides(routeMap);
   const summary = {
-    address: "Sloan's Lake full neighborhood inventory",
+    address: "All mapped Denver curbs",
     routeCount: routeMap.size,
     scheduledCount: Array.from(routeMap.values()).filter((route) => route.sweepType === "Scheduled").length,
     routes: Array.from(routeMap.values())
   };
   const { streetWays: officialStreetWays, curbSegments: officialCurbSegments, context } = buildLookupStreetData(
     summary,
-    "Sloan's Lake full inventory"
+    "Denver curb inventory"
   );
   const { streetWays: embeddedStreetWays, curbSegments: embeddedCurbSegments } = buildEmbeddedDataset();
   const missingEmbeddedWays = getMissingEmbeddedWays(embeddedStreetWays, officialStreetWays);
@@ -3497,9 +3497,9 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
     curbSegments,
     areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
     geometryLabel: `Loading official Denver routes (${completedCount} of ${totalCount} lookups checked)`,
-    mapTitleText: "Sloan's Lake full neighborhood inventory",
-    mapKickerText: "Official Denver full-area lookup",
-    sourceLabel: "Sloan's Lake full inventory",
+    mapTitleText: "All mapped Denver curbs",
+    mapKickerText: "Live from Denver",
+    sourceLabel: "Denver curb inventory",
     context,
     mapNoteText:
       "Official Denver curb routes are appearing as they load. You can use the map now while the remaining streets fill in."
@@ -3547,14 +3547,14 @@ async function loadStaticRouteInventory() {
     const inventoryDataset = {
       streetWays,
       curbSegments,
-      areaLabel: payload.areaLabel || "Sloan's Lake expanded inventory",
+      areaLabel: payload.areaLabel || "Denver curb inventory",
       geometryLabel: `Saved official Denver inventory (${summary.routeCount} routes; built ${generatedLabel})`,
-      mapTitleText: "Sloan's Lake full neighborhood inventory",
-      mapKickerText: "Instant saved inventory",
+      mapTitleText: "All mapped Denver curbs",
+      mapKickerText: "Ready to use",
       sourceLabel: "Saved Denver route inventory",
       context,
       mapNoteText:
-        "This complete saved inventory loads immediately. Use Refresh full inventory only when you want to check Denver for updated routes and schedules."
+        "Every curb we have mapped across Denver. Tap a colored line to see when it gets swept."
     };
 
     setMapDataset(inventoryDataset);
@@ -3563,7 +3563,7 @@ async function loadStaticRouteInventory() {
     renderAll();
     hideMapLoadingOverlay();
     if (lookupStatus) {
-      lookupStatus.innerHTML = `<strong>${summary.routeCount} saved Denver routes loaded.</strong> The map is ready without waiting for a live city scan.`;
+      lookupStatus.innerHTML = "Tap the colored curb where you park to see when it gets swept.";
     }
     if (returnToPilotButton) {
       returnToPilotButton.disabled = false;
@@ -3580,7 +3580,7 @@ async function loadStaticRouteInventory() {
     }
     hideMapLoadingOverlay();
     if (lookupStatus) {
-      lookupStatus.textContent = `${error.message} The cached or built-in map is ready. Use Refresh full inventory if you want to retry Denver's live service.`;
+      lookupStatus.textContent = `${error.message} The map is still ready to use.`;
     }
     return false;
   }
@@ -3596,12 +3596,12 @@ async function loadSloansLakeFullInventory(options = {}) {
   }
   if (lookupStatus) {
     lookupStatus.textContent = hasCachedInventory
-      ? "Refreshing Sloan's Lake from Denver's official sweeping data so the full neighborhood map stays up to date..."
-      : "Loading Sloan's Lake from Denver's official sweeping data across the full neighborhood boundary...";
+      ? "Refreshing from Denver's official sweeping data so the map stays up to date..."
+      : "Loading Denver's official sweeping data...";
   }
   if (!hasCachedInventory) {
     showMapLoadingOverlay(
-      "Loading Sloan's Lake",
+      "Loading Denver curbs",
       "We're filling in the full neighborhood curb inventory now so the map opens complete instead of partial."
     );
   }
@@ -3630,7 +3630,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     const { summary, streetWays, curbSegments, context } = buildInventoryFromRouteMap(routeMap);
 
     if (!streetWays.length || !curbSegments.length) {
-      throw new Error("Denver did not return enough Sloan's Lake route geometry to draw the full neighborhood yet.");
+      throw new Error("Denver did not return enough route geometry to draw the map yet.");
     }
 
     setMapDataset({
@@ -3638,12 +3638,12 @@ async function loadSloansLakeFullInventory(options = {}) {
       curbSegments,
       areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
-      mapTitleText: "Sloan's Lake full neighborhood inventory",
-      mapKickerText: "Official Denver full-area lookup",
-      sourceLabel: "Sloan's Lake full inventory",
+      mapTitleText: "All mapped Denver curbs",
+      mapKickerText: "Live from Denver",
+      sourceLabel: "Denver curb inventory",
       context,
       mapNoteText:
-        "This Sloan's Lake mode samples Denver's official sweeping service across the full neighborhood boundary, then fills any remaining gaps with the original pilot curb inventory so the map stays as complete and clickable as possible."
+        "Sampled from Denver's official sweeping service, with any remaining gaps filled from our own curb inventory so the map stays complete."
     });
 
     saveSloansLakeInventoryCache({
@@ -3651,19 +3651,19 @@ async function loadSloansLakeFullInventory(options = {}) {
       curbSegments,
       areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
       geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
-      mapTitleText: "Sloan's Lake full neighborhood inventory",
-      mapKickerText: "Official Denver full-area lookup",
-      sourceLabel: "Sloan's Lake full inventory",
+      mapTitleText: "All mapped Denver curbs",
+      mapKickerText: "Live from Denver",
+      sourceLabel: "Denver curb inventory",
       context,
       mapNoteText:
-        "This Sloan's Lake mode samples Denver's official sweeping service across the full neighborhood boundary, then fills any remaining gaps with the original pilot curb inventory so the map stays as complete and clickable as possible."
+        "Sampled from Denver's official sweeping service, with any remaining gaps filled from our own curb inventory so the map stays complete."
     });
 
     refreshMapViewport();
     renderAll();
     if (lookupStatus) {
       lookupStatus.innerHTML =
-        "<strong>Sloan's Lake full inventory</strong> is loaded from Denver's official sweeping routes across the whole neighborhood boundary.";
+        "<strong>Denver curb inventory</strong> is loaded from Denver's official sweeping routes.";
     }
     hideMapLoadingOverlay();
   } catch (error) {
@@ -3672,7 +3672,7 @@ async function loadSloansLakeFullInventory(options = {}) {
     renderAll();
     if (lookupStatus) {
       lookupStatus.textContent =
-        error.message || "Unable to load the official Sloan's Lake inventory right now. The built-in neighborhood map is still available below.";
+        error.message || "Unable to load the official Denver inventory right now. The built-in map is still available below.";
     }
     hideMapLoadingOverlay();
   } finally {
@@ -3968,7 +3968,7 @@ async function searchAddressAndCenter(address) {
     const localMatch = findLocalSearchMatch(cleanedAddress);
     if (!localMatch || !isWithinDenverBounds(localMatch.lat, localMatch.lon)) {
       throw new Error(
-        `${denverLookupError} Try a Sloan's Lake street or cross street, like "23rd and King" or "Lowell and 17th".`
+        `${denverLookupError} Try a Denver street or cross street, like "23rd and King" or "Lowell and 17th".`
       );
     }
 
@@ -3980,7 +3980,7 @@ async function searchAddressAndCenter(address) {
       lookupAddressInput.value = cleanedAddress;
     }
     if (lookupStatus) {
-      lookupStatus.textContent = `Denver's lookup was unavailable, so I matched this to ${localMatch.matchedStreet} in the Sloan's Lake map. Tap a colored curb nearby to select reminders.`;
+      lookupStatus.textContent = `Denver's lookup was unavailable, so I matched this to ${localMatch.matchedStreet} on the Denver map. Tap a colored curb nearby to see its schedule.`;
     }
   } catch (error) {
     if (lookupStatus) {
@@ -4028,7 +4028,7 @@ async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", opt
       areaLabel: cleanedAddress,
       geometryLabel: `Live Denver route segments (${summary.routeCount || curbSegments.length} returned)`,
       mapTitleText: `${sourceLabel} live map`,
-      mapKickerText: "Denver live lookup",
+      mapKickerText: "Live from Denver",
       sourceLabel,
       lookupAddress: cleanedAddress,
       context,
