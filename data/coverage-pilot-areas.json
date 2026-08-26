@@ -565,6 +565,20 @@
         "expectedPublicBlocks": 157,
         "minimumScheduled": 106
       }
+    },
+    {
+      "id": "e17-e25-broadway-ogden",
+      "label": "E 17th Avenue–E 25th Avenue, N Broadway–N Ogden Street",
+      "north": 39.7537,
+      "south": 39.7427,
+      "west": -104.9879,
+      "east": -104.9736,
+      "published": true,
+      "coverage": {
+        "testName": "East 17th–East 25th from Broadway–Ogden",
+        "expectedPublicBlocks": 348,
+        "minimumScheduled": 341
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -592,7 +606,8 @@
       "East Alameda–East 6th from Monaco–Yosemite",
       "East 6th–East Colfax from Monaco–Yosemite",
       "East Evans–East Alameda from Monaco–I-225",
-      "East Alameda–East Colfax from Yosemite–I-225"
+      "East Alameda–East Colfax from Yosemite–I-225",
+      "East 17th–East 25th from Broadway–Ogden"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
