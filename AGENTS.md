@@ -182,6 +182,21 @@ A request carrying a `?v=` gets `max-age=31536000, immutable`, which is only saf
 lock above makes it a test failure for an asset's bytes to move without its version moving too;
 `index.html` and `sw.js` stay `no-store`. Do not add a bundler or a CDN layer to solve this again.
 
+**The expected-block manifest is written minified, and that is deliberate.** GitHub warns above
+50 MB and rejects a push outright at 100 MB. `data/inventory-expected-blocks.json` had reached
+**61.87 MB** pretty-printed at two-space indent — 2.97 million lines, of which almost half the bytes
+were whitespace. Written without the indent the same data is **36.00 MB**.
+[scripts/lib/expected-blocks.js](scripts/lib/expected-blocks.js) owns that decision and both writers
+go through it: `import-osm-expected-blocks.js` and `sync-city-limits.js`. The eight scripts and tests
+that only *read* the manifest were deliberately left alone — `JSON.parse` does not care about
+indentation — so nothing else had to change.
+
+Do not reindent it to make it readable; at 97,827 blocks it is not readable either way. If it
+outgrows 50 MB again, the next steps in order of cost are gzipping it (5.14 MB, but opaque to grep
+and diff) or splitting it per area the way `data/mapping-cache-<area-id>.json` already is. Rewriting
+git history to purge the old 62 MB blobs was considered and declined: it would force-push a shared
+branch, and the per-file limit only applies to new pushes, so the working file is what matters.
+
 **Record an area once, in `data/coverage-pilot-areas.json`.** Its bounds, whether it publishes pink
 fallbacks (`published`), and its coverage expectations (`coverage.expectedPublicBlocks`,
 `coverage.minimumScheduled`) are read from there by
@@ -534,5 +549,5 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
   empty leftover directory.
 - **Names are historical.** `denver-west-routes.*` and every `sloans-lake-*` localStorage key now hold
   city-wide and east-Denver data. Don't infer scope from the names.
-- `data/` is ~90 MB. `data/inventory-expected-blocks.json` alone is 16 MB. Grep with care, and never
-  read these files whole.
+- `data/` is ~360 MB, and `data/inventory-expected-blocks.json` alone is 36 MB across 97,827 blocks.
+  Grep with care, and never read these files whole.

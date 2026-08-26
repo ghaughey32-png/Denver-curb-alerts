@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { isGlendaleBlock, GLENDALE_EXCLUSION_REASON } = require("./lib/glendale-city-limits.js");
 const { isOutsideDenverBlock, OUTSIDE_DENVER_EXCLUSION_REASON } = require("./lib/denver-city-limits.js");
+const { writeExpectedBlocks } = require("./lib/expected-blocks.js");
 
 const [sourcePath, areaId, southArg, westArg, northArg, eastArg] = process.argv.slice(2);
 if (!sourcePath || !areaId || !eastArg) {
@@ -239,5 +240,5 @@ if (areaId === "w6-alameda-lipan-broadway") {
 const manifestPath = path.join(__dirname, "..", "data", "inventory-expected-blocks.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 manifest.blocks = [...manifest.blocks.filter((block) => !String(block.id).startsWith(`${areaId}-osm-`)), ...additions];
-fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+writeExpectedBlocks(manifest, manifestPath);
 console.log(`Imported ${additions.length} clipped intersection blocks for ${areaId}; ${additions.filter((block) => !block.excluded).length} require public-road coverage.`);

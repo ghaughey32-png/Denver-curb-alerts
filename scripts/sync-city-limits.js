@@ -47,6 +47,7 @@ const {
 } = require("./lib/denver-city-limits.js");
 const { isInsideGlendaleUnbuffered, GLENDALE_EXCLUSION_REASON } = require("./lib/glendale-city-limits.js");
 const { auditInventory } = require("./lib/inventory-auditor.js");
+const { writeExpectedBlocks } = require("./lib/expected-blocks.js");
 
 const ROOT = path.join(__dirname, "..");
 const MANIFEST_PATH = path.join(ROOT, "data", "inventory-expected-blocks.json");
@@ -122,7 +123,7 @@ function main() {
   }
   if (enclaved) console.log(`  ${enclaved} block(s) inside an enclave that Denver returned no schedule for`);
 
-  writeJson(MANIFEST_PATH, manifest);
+  writeExpectedBlocks(manifest, MANIFEST_PATH);
   for (const [area, count] of [...excludedByArea].sort((a, b) => b[1] - a[1])) {
     console.log(`  ${area}: ${count} block(s) excluded`);
   }
