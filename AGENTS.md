@@ -366,9 +366,29 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
   every address while the coordinate form (`?latitude=&longitude=`) works normally. This predates
   2026-08-22 — the `intersection-addresses` stage of `map:area` already scored 0 resolved out of 16
   attempts in the areas mapped before then, so it is a last-resort fallback and costs the pipeline
-  almost nothing. It does degrade the in-app address search, which falls back to a fuzzy match and
-  can land on the wrong quadrant (searching "Iowa and Bellaire" matches *N* Bellaire in Sloan's
-  Lake). Coordinate lookups carry all of the coverage; don't re-plumb the pipeline over this.
+  almost nothing. Re-confirmed 2026-08-26 against every address form — plain, with the city
+  appended, with and without a street type — all 400. Coordinate lookups carry all of the coverage;
+  don't re-plumb the pipeline over this.
+
+  **This means `findLocalSearchMatch` in `public/app.js` *is* the address search, not a fallback.**
+  It used to answer with the centroid of a street's whole geometry, which is not an address:
+  "3235 Larimer St" resolved four RiNo blocks southwest of the building. It now places the house
+  number by finding where Denver's numbered grid crosses the street — the 3200 and 3300 crossings —
+  and interpolating between them, which puts the same address within ~20 m. Two related bugs went
+  with it: street matching scored on substrings, so the "3235" of a house number matched 35TH ST and
+  the "17" of "e 17th ave" matched E 7TH AVE; and a cross-street query took the latitude of the
+  east-west match and the longitude of the north-south one, which is not an intersection at all —
+  that is why "Iowa and Bellaire" landed on *N* Bellaire in Sloan's Lake, and why diagonal Larimer
+  paired with itself as "LARIMER ST and LARIMER ST". Crossings are now the nearest actual approach
+  between two streets' geometries, which picks the quadrant on its own.
+
+  Denver numbers east-west avenues off the *named* north-south grid (1234 E 17th Ave sits at the
+  1200-block street, not at 12th), and nothing in the inventory maps those names to numbers, so
+  those addresses resolve to the street rather than the block. That is deliberate: the matcher
+  reports `kind: "street"`, the map opens wider, and the status line says it only matched the
+  street. Do not paper over it by dropping a block-zoom pin the data does not support.
+  `test/address-search.test.js` covers all of this and, like `test/curb-geometry.test.js`, reads
+  `public/app.js` as source text — renaming those functions breaks it by design.
 - **Re-importing an already-published area against a fresh Overpass extract drifts.** Verified on
   2026-08-22: re-running the importer for `dakota-louisiana-broadway-colorado` returned the same 2728
   blocks but 930 public instead of 927, because Polo Club Road had lost its `access=private` tag in

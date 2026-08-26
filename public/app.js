@@ -1545,8 +1545,8 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v67";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=76";
+const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v68";
+const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=77";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const memoryStore = new Map();
@@ -3806,6 +3806,32 @@ function getPathCenter(geometry) {
   };
 }
 
+// Denver's own address endpoint has answered HTTP 400 for every address since
+// before 2026-08-22, so in practice every in-app search lands on the local
+// matcher below. It used to answer with the centroid of a street's entire
+// geometry, which is not an address at all: "3235 Larimer St" resolved to
+// 39.760234,-104.983176, about 690 m — four RiNo blocks — southwest of the real
+// building. The published inventory already carries Denver's numbered grid, so
+// we find where the 3200 and 3300 crossings meet the street and interpolate
+// between them instead. That places the same address within ~20 m.
+const SEARCH_DIRECTION_LETTERS = {
+  west: "w",
+  east: "e",
+  north: "n",
+  south: "s",
+  w: "w",
+  e: "e",
+  n: "n",
+  s: "s"
+};
+
+// A cross street has to actually touch the street we are placing the number on.
+// Denver's blocks run about 120 m, so anything further apart than this is a
+// different part of town that happens to share a number.
+const SEARCH_CROSS_STREET_TOLERANCE_METRES = 150;
+const SEARCH_METRES_PER_DEGREE_LATITUDE = 111320;
+const SEARCH_METRES_PER_DEGREE_LONGITUDE = 85570;
+
 function normalizeSearchStreetText(value) {
   return String(value || "")
     .toLowerCase()
@@ -3816,9 +3842,54 @@ function normalizeSearchStreetText(value) {
     .trim();
 }
 
+// The quadrant letter is deliberately kept out of the group key above — a bare
+// "bannock st" should still find both N and S Bannock — but once a query does
+// supply one it is the only thing separating N Bellaire from S Bellaire, which
+// is how "Iowa and Bellaire" used to land in Sloan's Lake.
+function parseSearchStreetDirections(value) {
+  const tokens = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter(Boolean);
+
+  return new Set(tokens.map((token) => SEARCH_DIRECTION_LETTERS[token]).filter(Boolean));
+}
+
+// Denver house numbers lead the address. The five digits of a ZIP code must
+// never be read as one, and an ordinal like the "23rd" in "23rd and King" is a
+// street name rather than a number.
+function parseSearchHouseNumber(query) {
+  const match = String(query || "").trim().match(/^(\d{1,5})\b/);
+  if (!match) {
+    return null;
+  }
+
+  const houseNumber = Number(match[1]);
+  return Number.isFinite(houseNumber) && houseNumber > 0 ? houseNumber : null;
+}
+
+// Street matching sees only the street part of the query. Leaving the house
+// number in let "3235 larimer" score a 60 against 35TH ST, because the old
+// token test asked whether "3235" merely contained "35".
+function getSearchStreetText(query) {
+  return String(query || "")
+    .trim()
+    .replace(/^\d{1,5}\b/, " ")
+    .replace(/\b\d{5}(-\d{4})?\b/g, " ")
+    .replace(/\bdenver\b/gi, " ")
+    .trim();
+}
+
+let searchStreetGroupCache = null;
+
 function getSearchStreetGroups() {
-  const groups = new Map();
   const streetWays = state.streetWays.length ? state.streetWays : buildEmbeddedDataset().streetWays;
+  if (searchStreetGroupCache && searchStreetGroupCache.source === streetWays) {
+    return searchStreetGroupCache.groups;
+  }
+
+  const groups = new Map();
 
   streetWays.forEach((way) => {
     const key = normalizeSearchStreetText(way.name);
@@ -3829,15 +3900,46 @@ function getSearchStreetGroups() {
     const existing = groups.get(key) || {
       key,
       name: way.name,
-      orientations: new Set(),
+      blocks: [],
       geometry: []
     };
-    existing.orientations.add(way.orientation);
-    existing.geometry.push(...(Array.isArray(way.geometry) ? way.geometry : []));
+    const geometry = (Array.isArray(way.geometry) ? way.geometry : []).filter(
+      (point) => Array.isArray(point) && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1]))
+    );
+    existing.blocks.push({
+      name: way.name,
+      directions: parseSearchStreetDirections(way.name),
+      geometry
+    });
+    existing.geometry.push(...geometry);
     groups.set(key, existing);
   });
 
-  return Array.from(groups.values());
+  searchStreetGroupCache = { source: streetWays, groups: Array.from(groups.values()) };
+  return searchStreetGroupCache.groups;
+}
+
+// Narrowing to the quadrant the user typed also renames the group, so the
+// status line says "N BANNOCK ST" instead of whichever block happened to sort
+// first.
+function narrowSearchGroupToDirections(group, directions) {
+  if (!directions.size) {
+    return group;
+  }
+
+  const blocks = group.blocks.filter((block) =>
+    Array.from(block.directions).some((direction) => directions.has(direction))
+  );
+  if (!blocks.length || blocks.length === group.blocks.length) {
+    return group;
+  }
+
+  return {
+    ...group,
+    name: blocks[0].name,
+    blocks,
+    geometry: blocks.flatMap((block) => block.geometry)
+  };
 }
 
 function scoreStreetSearchMatch(group, normalizedQuery) {
@@ -3853,52 +3955,204 @@ function scoreStreetSearchMatch(group, normalizedQuery) {
     return 80;
   }
 
+  // Whole tokens only. A substring test let the "17" of "e 17th ave" satisfy
+  // the key "7", so E 17th Ave scored a match against E 7th Ave.
+  const queryTokens = new Set(normalizedQuery.split(" ").filter(Boolean));
   const groupTokens = group.key.split(" ").filter(Boolean);
-  if (groupTokens.length && groupTokens.every((token) => normalizedQuery.includes(token))) {
+  if (groupTokens.length && groupTokens.every((token) => queryTokens.has(token))) {
     return 60;
   }
 
   return 0;
 }
 
+function getSearchPointDistanceMetres(pointA, pointB) {
+  const latDiff = (Number(pointA[0]) - Number(pointB[0])) * SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const lonDiff = (Number(pointA[1]) - Number(pointB[1])) * SEARCH_METRES_PER_DEGREE_LONGITUDE;
+  return Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
+}
+
+function getSearchGeometryBounds(geometry, padMetres) {
+  const latPad = padMetres / SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const lonPad = padMetres / SEARCH_METRES_PER_DEGREE_LONGITUDE;
+
+  return geometry.reduce(
+    (bounds, point) => ({
+      south: Math.min(bounds.south, Number(point[0]) - latPad),
+      north: Math.max(bounds.north, Number(point[0]) + latPad),
+      west: Math.min(bounds.west, Number(point[1]) - lonPad),
+      east: Math.max(bounds.east, Number(point[1]) + lonPad)
+    }),
+    { south: Infinity, north: -Infinity, west: Infinity, east: -Infinity }
+  );
+}
+
+function isPointWithinSearchBounds(point, bounds) {
+  const lat = Number(point[0]);
+  const lon = Number(point[1]);
+  return lat >= bounds.south && lat <= bounds.north && lon >= bounds.west && lon <= bounds.east;
+}
+
+// Rejects candidate blocks by bounding box before walking their geometry, the
+// same shape as the inventory auditor's street index — a bare pairwise scan of
+// two long streets is thousands of distance calls per keystroke.
+function findNearestSearchApproach(streetGroup, crossGroup) {
+  let nearest = null;
+
+  crossGroup.blocks.forEach((crossBlock) => {
+    if (!crossBlock.geometry.length) {
+      return;
+    }
+
+    const bounds = getSearchGeometryBounds(crossBlock.geometry, SEARCH_CROSS_STREET_TOLERANCE_METRES);
+    streetGroup.blocks.forEach((block) => {
+      block.geometry.forEach((point) => {
+        if (!isPointWithinSearchBounds(point, bounds)) {
+          return;
+        }
+
+        crossBlock.geometry.forEach((crossPoint) => {
+          const distance = getSearchPointDistanceMetres(point, crossPoint);
+          if (!nearest || distance < nearest.distance) {
+            nearest = { distance, point, streetName: block.name, crossStreet: crossBlock.name };
+          }
+        });
+      });
+    });
+  });
+
+  return nearest && nearest.distance <= SEARCH_CROSS_STREET_TOLERANCE_METRES ? nearest : null;
+}
+
+function findSearchHundredBlockCrossing(streetGroup, hundredBlock, groupsByKey) {
+  const crossGroup = groupsByKey.get(String(hundredBlock));
+  if (!crossGroup) {
+    return null;
+  }
+
+  return findNearestSearchApproach(streetGroup, crossGroup);
+}
+
+// Denver numbers a block by the cross street that opens it: 3235 Larimer sits
+// between the 32nd and 33rd crossings, roughly 35% of the way along. Where only
+// the opening crossing is on the map we stop at the corner rather than guess.
+function placeHouseNumberOnStreet(streetGroup, houseNumber, groupsByKey) {
+  const hundredBlock = Math.floor(houseNumber / 100);
+  const blockStart = findSearchHundredBlockCrossing(streetGroup, hundredBlock, groupsByKey);
+  if (!blockStart) {
+    return null;
+  }
+
+  const blockEnd = findSearchHundredBlockCrossing(streetGroup, hundredBlock + 1, groupsByKey);
+  if (!blockEnd) {
+    return {
+      lat: Number(blockStart.point[0]),
+      lon: Number(blockStart.point[1]),
+      crossStreet: blockStart.crossStreet
+    };
+  }
+
+  const alongBlock = (houseNumber % 100) / 100;
+  return {
+    lat: Number(blockStart.point[0]) + (Number(blockEnd.point[0]) - Number(blockStart.point[0])) * alongBlock,
+    lon: Number(blockStart.point[1]) + (Number(blockEnd.point[1]) - Number(blockStart.point[1])) * alongBlock,
+    crossStreet: blockStart.crossStreet
+  };
+}
+
+// A cross-street query used to take the latitude of the east-west match and the
+// longitude of the north-south one. That is not an intersection: "Iowa and
+// Bellaire" paired west Denver's W Iowa Ave with N Bellaire St — two streets
+// that never meet — and landed a mile from the E Iowa/S Bellaire corner, which
+// is the wrong-quadrant failure the README warns about. Asking where the two
+// geometries actually come closest picks the quadrant on its own, and a
+// diagonal street can no longer cross itself.
+const SEARCH_MAX_CROSSING_CANDIDATES = 4;
+
+function findBestSearchCrossing(matches, normalizedQuery) {
+  const candidates = [];
+  matches.forEach((match) => {
+    if (candidates.length < SEARCH_MAX_CROSSING_CANDIDATES && !candidates.some((candidate) => candidate.key === match.key)) {
+      candidates.push(match);
+    }
+  });
+
+  // Report the corner the way it was asked for: "23rd and King", not "King and
+  // 23rd", which is the order the score sort happens to leave them in.
+  candidates.sort((a, b) => normalizedQuery.indexOf(a.key) - normalizedQuery.indexOf(b.key));
+
+  let best = null;
+  for (let index = 0; index < candidates.length; index += 1) {
+    for (let other = index + 1; other < candidates.length; other += 1) {
+      const approach = findNearestSearchApproach(candidates[index], candidates[other]);
+      if (approach && (!best || approach.distance < best.distance)) {
+        best = approach;
+      }
+    }
+  }
+
+  return best;
+}
+
+function getPathCenterFromGroup(group) {
+  return getPathCenter(group.geometry);
+}
+
 function findLocalSearchMatch(query) {
-  const normalizedQuery = normalizeSearchStreetText(query);
-  const matches = getSearchStreetGroups()
+  const streetText = getSearchStreetText(query);
+  const normalizedQuery = normalizeSearchStreetText(streetText);
+  const directions = parseSearchStreetDirections(streetText);
+  const groups = getSearchStreetGroups();
+  const groupsByKey = new Map(groups.map((group) => [group.key, group]));
+  const matches = groups
     .map((group) => ({ ...group, score: scoreStreetSearchMatch(group, normalizedQuery) }))
     .filter((group) => group.score > 0)
-    .sort((a, b) => b.score - a.score || b.key.length - a.key.length);
+    .sort((a, b) => b.score - a.score || b.key.length - a.key.length)
+    .map((group) => narrowSearchGroupToDirections(group, directions));
 
   if (!matches.length) {
     return null;
   }
 
-  const eastWestMatch = matches.find((match) => match.orientations.has("east-west"));
-  const northSouthMatch = matches.find((match) => match.orientations.has("north-south"));
-
-  if (eastWestMatch && northSouthMatch) {
-    const eastWestCenter = getPathCenter(eastWestMatch.geometry);
-    const northSouthCenter = getPathCenter(northSouthMatch.geometry);
-
-    if (eastWestCenter && northSouthCenter) {
+  const houseNumber = parseSearchHouseNumber(query);
+  if (houseNumber) {
+    const placed = placeHouseNumberOnStreet(matches[0], houseNumber, groupsByKey);
+    if (placed) {
       return {
-        lat: eastWestCenter.lat,
-        lon: northSouthCenter.lon,
-        label: `${eastWestMatch.name} and ${northSouthMatch.name}`,
-        matchedStreet: `${eastWestMatch.name} and ${northSouthMatch.name}`
+        lat: placed.lat,
+        lon: placed.lon,
+        label: `${houseNumber} ${matches[0].name}`,
+        matchedStreet: matches[0].name,
+        crossStreet: placed.crossStreet,
+        kind: "address"
       };
     }
   }
 
+  const crossing = findBestSearchCrossing(matches, normalizedQuery);
+  if (crossing) {
+    return {
+      lat: Number(crossing.point[0]),
+      lon: Number(crossing.point[1]),
+      label: `${crossing.streetName} and ${crossing.crossStreet}`,
+      matchedStreet: `${crossing.streetName} and ${crossing.crossStreet}`,
+      kind: "crossing"
+    };
+  }
+
   const bestMatch = matches[0];
-  const center = getPathCenter(bestMatch.geometry);
+  const center = getPathCenterFromGroup(bestMatch);
   if (!center) {
     return null;
   }
 
+  // Nothing here locates the address along the street, so this is the middle of
+  // the whole street and the caller has to say so.
   return {
     ...center,
     label: bestMatch.name,
-    matchedStreet: bestMatch.name
+    matchedStreet: bestMatch.name,
+    kind: "street"
   };
 }
 
@@ -3916,9 +4170,27 @@ function focusMapOnSearchedLocation() {
     return;
   }
 
-  state.map.setView([state.searchedLocation.lat, state.searchedLocation.lon], Math.max(state.map.getZoom(), 17), {
+  // A street-only match is the middle of the whole street, so it gets a wider
+  // view. Dropping the pin at block zoom would claim a precision we do not have.
+  const targetZoom = state.searchedLocation.kind === "street" ? 15 : 17;
+  state.map.setView([state.searchedLocation.lat, state.searchedLocation.lon], Math.max(state.map.getZoom(), targetZoom), {
     animate: true
   });
+}
+
+// Denver's lookup is down, so the status line has to be straight about how the
+// map got where it is: a placed house number, a corner, or just the street.
+function buildLocalMatchStatusText(localMatch) {
+  if (localMatch.kind === "street") {
+    return `Denver's address lookup is down and I could only match the street, not the number. The map is centered on ${localMatch.matchedStreet} — scroll along it to find your block.`;
+  }
+
+  if (localMatch.kind === "crossing") {
+    return `Denver's address lookup is down, so I matched this to ${localMatch.matchedStreet} on the curb map. Tap a colored curb nearby to see its schedule.`;
+  }
+
+  const nearCrossStreet = localMatch.crossStreet ? ` near ${localMatch.crossStreet}` : "";
+  return `Denver's address lookup is down, so I placed ${localMatch.label} on ${localMatch.matchedStreet}${nearCrossStreet} from the curb map. Tap a colored curb nearby to see its schedule.`;
 }
 
 async function searchAddressAndCenter(address) {
@@ -3980,7 +4252,7 @@ async function searchAddressAndCenter(address) {
       lookupAddressInput.value = cleanedAddress;
     }
     if (lookupStatus) {
-      lookupStatus.textContent = `Denver's lookup was unavailable, so I matched this to ${localMatch.matchedStreet} on the Denver map. Tap a colored curb nearby to see its schedule.`;
+      lookupStatus.textContent = buildLocalMatchStatusText(localMatch);
     }
   } catch (error) {
     if (lookupStatus) {
