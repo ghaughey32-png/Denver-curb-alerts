@@ -89,16 +89,19 @@ test("the service worker cache name is bumped alongside the app shell", () => {
 // version installed clients had already cached, and caches.match has no ignoreSearch, so they
 // would have gone on painting the previous inventory. Agreement is not freshness; the lock is what
 // makes freshness checkable, by recording what each asset looked like at the version it ships as.
-test("an asset whose bytes changed also carries a new version", () => {
-  const lock = readAssetVersionLock();
-  assert.ok(lock, "data/asset-version-lock.json should exist; run npm run lock:assets");
+// Hashed once for both tests below. Almost every byte of it is the inventory payload, counted
+// twice because the .js mirrors the .json, and that is the one input here that grows with the map.
+const publishedLock = readAssetVersionLock();
+const currentLock = buildAssetVersionLock();
 
-  const current = buildAssetVersionLock();
+test("an asset whose bytes changed also carries a new version", () => {
+  assert.ok(publishedLock, "data/asset-version-lock.json should exist; run npm run lock:assets");
+
+  const unbumped = findUnbumpedAssets(publishedLock, currentLock);
   assert.deepEqual(
-    findUnbumpedAssets(lock, current),
+    unbumped,
     [],
-    "Assets changed without a new cache-busting version:\n  " +
-      `${findUnbumpedAssets(lock, current).join("\n  ")}\n` +
+    `Assets changed without a new cache-busting version:\n  ${unbumped.join("\n  ")}\n` +
       "Bump the ?v= tag in public/index.html and public/sw.js (CACHE_NAME for the shell), " +
       "then run npm run lock:assets."
   );
@@ -109,8 +112,8 @@ test("an asset whose bytes changed also carries a new version", () => {
 // allowed to rot either.
 test("the asset version lock describes what public/ currently ships", () => {
   assert.deepEqual(
-    buildAssetVersionLock(),
-    readAssetVersionLock(),
+    currentLock,
+    publishedLock,
     "data/asset-version-lock.json is out of date; run npm run lock:assets"
   );
 });
