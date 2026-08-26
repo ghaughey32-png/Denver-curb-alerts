@@ -50,12 +50,17 @@ function bumpAssetVersions(assetTag) {
   const app = fs.readFileSync(APP_PATH, "utf8")
     .replace(/sloans-lake-full-inventory-cache-v\d+/g, `sloans-lake-full-inventory-cache-v${next.inventoryCacheVersion}`)
     .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
-  const index = fs.readFileSync(INDEX_PATH, "utf8")
-    .replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`);
-  const serviceWorker = fs.readFileSync(SERVICE_WORKER_PATH, "utf8")
-    .replace(/curb-alerts-shell-v\d+/g, `curb-alerts-shell-v${next.shellVersion}`)
-    .replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
-    .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
+  const retagInventoryScript = (source) =>
+    source.replace(/denver-west-routes\.js\?v=[A-Za-z0-9._-]+/g, `denver-west-routes.js?v=${next.assetTag}`);
+  const index = retagInventoryScript(
+    fs.readFileSync(INDEX_PATH, "utf8").replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
+  );
+  const serviceWorker = retagInventoryScript(
+    fs.readFileSync(SERVICE_WORKER_PATH, "utf8")
+      .replace(/curb-alerts-shell-v\d+/g, `curb-alerts-shell-v${next.shellVersion}`)
+      .replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
+      .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`)
+  );
 
   fs.writeFileSync(APP_PATH, app, "utf8");
   fs.writeFileSync(INDEX_PATH, index, "utf8");
