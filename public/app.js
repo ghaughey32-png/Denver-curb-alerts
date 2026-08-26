@@ -1652,6 +1652,14 @@ const mapLoadingOverlay = document.querySelector("#map-loading-overlay");
 const mapLoadingTitle = document.querySelector("#map-loading-title");
 const mapLoadingMessage = document.querySelector("#map-loading-message");
 const useMyLocationButton = document.querySelector("#use-my-location-button");
+const curbSheet = document.querySelector("#curb-sheet");
+const curbSheetSide = document.querySelector("#curb-sheet-side");
+const curbSheetStreet = document.querySelector("#curb-sheet-street");
+const curbSheetHeadline = document.querySelector("#curb-sheet-headline");
+const curbSheetRule = document.querySelector("#curb-sheet-rule");
+const curbSheetNotice = document.querySelector("#curb-sheet-notice");
+const curbSheetAction = document.querySelector("#curb-sheet-action");
+const curbSheetClose = document.querySelector("#curb-sheet-close");
 const onboardingCard = document.querySelector("#onboarding-card");
 const onboardingDismissButton = document.querySelector("#dismiss-onboarding-button");
 const notificationStatus = document.querySelector("#notification-status");
@@ -3680,6 +3688,15 @@ function refreshMapViewport() {
     return;
   }
 
+  // The map is the landing surface now, and a whole-city fit has no tappable curb in it. A
+  // returning user has already told us which block they care about, so open there instead of
+  // making them find it again. A first-time user still gets the city view and the locate button.
+  const selectedGeometry = getSelectedSegments().flatMap((segment) => segment.geometry || []);
+  if (selectedGeometry.length) {
+    state.map.fitBounds(L.latLngBounds(selectedGeometry), { padding: [40, 40], maxZoom: 17 });
+    return;
+  }
+
   bounds.extend([39.7506, -105.0435]);
   bounds.extend([39.7399, -105.0272]);
   bounds.extend([W5_TO_ALAMEDA_EAST_BOUNDS.north, W5_TO_ALAMEDA_EAST_BOUNDS.west]);
@@ -4103,7 +4120,7 @@ function initializeMap() {
   }
 
   state.map = L.map("map", {
-    zoomControl: true,
+    zoomControl: false,
     preferCanvas: true,
     minZoom: 11,
     maxBounds: L.latLngBounds(
@@ -4112,6 +4129,8 @@ function initializeMap() {
     ),
     maxBoundsViscosity: 1
   });
+
+  L.control.zoom({ position: "bottomright" }).addTo(state.map);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -4361,6 +4380,10 @@ function getSegmentRenderGeometry(segment, selectedStyle) {
   return isSelected(segment.id) ? getSelectedDisplayGeometry(segment, selectedStyle) : segment.geometry;
 }
 
+function supportsHoverPointer() {
+  return typeof window.matchMedia === "function" && window.matchMedia("(hover: hover)").matches;
+}
+
 function renderSegments() {
   if (!state.segmentLayerGroup) {
     return;
@@ -4392,11 +4415,13 @@ function renderSegments() {
         : segment.schedule.relocationRequired === false
           ? " | No car relocation required — tap for schedule details"
         : "";
-    touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${statusText}`, {
-      sticky: true,
-      className: "curb-tooltip"
-    });
-    touchTarget.on("click", () => toggleSegment(segment.id));
+    if (supportsHoverPointer()) {
+      touchTarget.bindTooltip(`${segment.street} - ${segment.sideLabel}${nextDateText}${statusText}`, {
+        sticky: true,
+        className: "curb-tooltip"
+      });
+    }
+    touchTarget.on("click", () => openCurbSheet(segment.id));
     touchTarget.addTo(state.segmentLayerGroup);
   });
 
@@ -4462,14 +4487,133 @@ function renderSegments() {
         fillColor: "#ffd23f",
         fillOpacity: 1
       });
-      marker.bindTooltip(`Selected: ${segment.street} - ${segment.sideLabel}`, {
-        sticky: true,
-        className: "curb-tooltip"
-      });
-      marker.on("click", () => toggleSegment(segment.id));
+      if (supportsHoverPointer()) {
+        marker.bindTooltip(`Selected: ${segment.street} - ${segment.sideLabel}`, {
+          sticky: true,
+          className: "curb-tooltip"
+        });
+      }
+      marker.on("click", () => openCurbSheet(segment.id));
       marker.addTo(state.segmentLayerGroup);
     }
   });
+}
+
+// The curb sheet is the app's first value moment. Everything it shows is already computed by the
+// time a curb is rendered, so answering "when does this get swept?" costs nothing but the surface
+// to say it on. It deliberately opens on tap without selecting anything: seeing the schedule is the
+// value, turning on a reminder is the commitment, and asking for the commitment first is what
+// pushed the payoff four screens down the page.
+let activeCurbSheetSegmentId = null;
+
+function openCurbSheet(segmentId) {
+  if (!curbSheet) {
+    // Without the sheet markup, fall back to the original select-on-tap behavior.
+    toggleSegment(segmentId);
+    return;
+  }
+
+  activeCurbSheetSegmentId = segmentId;
+  renderCurbSheet();
+}
+
+function closeCurbSheet() {
+  activeCurbSheetSegmentId = null;
+  if (curbSheet) {
+    curbSheet.hidden = true;
+    curbSheet.classList.remove("is-open");
+  }
+  document.body.classList.remove("curb-sheet-open");
+}
+
+function buildCurbSheetCopy(segment) {
+  const schedule = segment.schedule;
+
+  if (!schedule || schedule.sweepType === "Unavailable") {
+    return {
+      headline: "Schedule information unavailable",
+      rule: "",
+      notice: "We do not have reliable schedule information for this curb. Check Denver's website and follow posted signs before parking.",
+      canRemind: true
+    };
+  }
+
+  if (schedule.sweepType === "NotMaintained") {
+    return {
+      headline: "No Denver street sweeping",
+      rule: "",
+      notice: "The City and County of Denver identifies this street as not city-maintained, so sweeping reminders are unavailable.",
+      canRemind: false
+    };
+  }
+
+  const relocationNotice = schedule.relocationRequired === false
+    ? "Street sweeping is scheduled, but you do not need to move your car. Follow posted signs and any other parking restrictions."
+    : "";
+
+  if (schedule.sweepType === "Nightly") {
+    return {
+      headline: "Nightly sweep route",
+      rule: schedule.rule,
+      notice: relocationNotice,
+      canRemind: true
+    };
+  }
+
+  if (schedule.sweepType === "Weekly") {
+    return {
+      headline: `Sweep window: ${schedule.rule}`,
+      rule: "No specific move day on this route.",
+      notice: relocationNotice,
+      canRemind: true
+    };
+  }
+
+  const nextSweepDate = getNextSweepDate(segment);
+  return {
+    headline: nextSweepDate ? `Next sweep: ${formatDateObject(nextSweepDate)}` : "No upcoming sweep found",
+    rule: schedule.rule,
+    notice: relocationNotice,
+    canRemind: true
+  };
+}
+
+function renderCurbSheet() {
+  if (!curbSheet) {
+    return;
+  }
+
+  const segment = activeCurbSheetSegmentId ? getSegmentById(activeCurbSheetSegmentId) : null;
+  if (!segment) {
+    closeCurbSheet();
+    return;
+  }
+
+  const copy = buildCurbSheetCopy(segment);
+  const selected = isSelected(segment.id);
+
+  curbSheetSide.textContent = segment.sideLabel;
+  curbSheetSide.style.background = segment.color;
+  curbSheetStreet.textContent = segment.street;
+  curbSheetHeadline.textContent = copy.headline;
+
+  curbSheetRule.textContent = copy.rule;
+  curbSheetRule.hidden = !copy.rule;
+
+  curbSheetNotice.textContent = copy.notice;
+  curbSheetNotice.hidden = !copy.notice;
+
+  curbSheetAction.disabled = !copy.canRemind;
+  curbSheetAction.textContent = !copy.canRemind
+    ? "Reminders unavailable for this curb"
+    : selected
+      ? "Reminder on — tap to remove"
+      : "Remind me about this curb";
+  curbSheetAction.classList.toggle("is-on", copy.canRemind && selected);
+
+  curbSheet.hidden = false;
+  curbSheet.classList.add("is-open");
+  document.body.classList.add("curb-sheet-open");
 }
 
 function toggleSegment(segmentId) {
@@ -4481,11 +4625,13 @@ function toggleSegment(segmentId) {
 
   saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
   renderAll();
+  renderCurbSheet();
 }
 
 function clearCurrentSelection() {
   state.currentSelectionIds = [];
   saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
+  closeCurbSheet();
   renderAll();
 }
 
@@ -5910,7 +6056,7 @@ function initializeViewNavigation() {
     }
   });
 
-  setActiveView(viewFromHash() || "landing", { skipHash: true, instant: true });
+  setActiveView(viewFromHash() || "setup", { skipHash: true, instant: true });
 }
 
 function applyTimeToDate(baseDate, timeValue) {
@@ -5933,6 +6079,17 @@ function applyTimeToDate(baseDate, timeValue) {
 function registerEvents() {
   clearButton.addEventListener("click", clearCurrentSelection);
   useMyLocationButton?.addEventListener("click", requestUserLocation);
+  curbSheetClose?.addEventListener("click", closeCurbSheet);
+  curbSheetAction?.addEventListener("click", () => {
+    if (activeCurbSheetSegmentId) {
+      toggleSegment(activeCurbSheetSegmentId);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && activeCurbSheetSegmentId) {
+      closeCurbSheet();
+    }
+  });
   onboardingDismissButton?.addEventListener("click", dismissOnboarding);
   saveSetButton.addEventListener("click", saveCurrentAsSet);
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);

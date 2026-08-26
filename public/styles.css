@@ -2299,3 +2299,277 @@ a.ghost-button {
     border-radius: 24px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Time-to-value layout: the map is the product, so it gets the screen.
+   The search bar and the locate button ride on top of the map instead of
+   stacking above it, the colour legend and privacy copy fold into a <details>
+   below it, and the curb sheet delivers the sweep date at the moment of tap.
+   --------------------------------------------------------------------------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Leaflet's own panes sit at z-index 400-700 inside the frame, so the overlay
+   has to clear them while still leaving the zoom control reachable. */
+.map-overlay-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 900;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.map-overlay-top > * {
+  pointer-events: auto;
+}
+
+.map-overlay-top .map-search-bar {
+  margin-top: 0;
+  padding: 8px;
+  gap: 8px;
+  align-items: center;
+  background: rgba(251, 248, 242, 0.94);
+  border: 1px solid rgba(31, 47, 55, 0.14);
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(31, 47, 55, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.map-overlay-top .map-search-bar .primary-button {
+  padding: 11px 16px;
+}
+
+.map-overlay-top .text-input {
+  min-height: 44px;
+}
+
+/* Promoted from a ghost button: for a "where did I park" app, centring the map
+   on the user is the fastest path to their own curb, and deferred/contextual
+   location asks grant far better than an upfront one. */
+.locate-button {
+  white-space: nowrap;
+  box-shadow: 0 10px 28px rgba(31, 47, 55, 0.18);
+}
+
+.map-meta {
+  margin-top: 12px;
+}
+
+.map-meta h2 {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.map-details {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  border-radius: 18px;
+}
+
+.map-details > summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--muted);
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.map-details .legend {
+  margin-top: 12px;
+}
+
+.map-secondary-actions {
+  margin-top: 12px;
+}
+
+/* The curb sheet. Desktop anchors it to the bottom-left of the viewport so it
+   never covers the map's centre; mobile gets a full-width bottom sheet. */
+.curb-sheet {
+  position: fixed;
+  z-index: 1600;
+  left: 20px;
+  bottom: 20px;
+  width: min(420px, calc(100% - 40px));
+}
+
+.curb-sheet[hidden] {
+  display: none;
+}
+
+.curb-sheet-inner {
+  position: relative;
+  padding: 20px 22px 22px;
+  background: rgba(251, 248, 242, 0.97);
+  border: 1px solid rgba(31, 47, 55, 0.12);
+  border-top: 5px solid rgba(180, 93, 42, 0.62);
+  border-radius: 26px;
+  box-shadow: 0 22px 60px rgba(31, 47, 55, 0.26);
+  backdrop-filter: blur(12px);
+}
+
+.curb-sheet-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  border-radius: 999px;
+}
+
+.curb-sheet-side {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.curb-sheet-street {
+  margin: 10px 0 0;
+  padding-right: 44px;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+/* The answer the user came for. */
+.curb-sheet-headline {
+  margin: 10px 0 0;
+  font-size: 1.5rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.curb-sheet-rule {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.curb-sheet-notice {
+  margin: 12px 0 0;
+  padding: 11px 13px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(31, 47, 55, 0.1);
+  border-radius: 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.curb-sheet-action {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.curb-sheet-action.is-on {
+  background: rgba(47, 158, 68, 0.16);
+  border: 1px solid rgba(47, 158, 68, 0.34);
+  color: #1c5c2c;
+  box-shadow: none;
+}
+
+.curb-sheet-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  /* Full-bleed map. A 420px map inside a scrolling document turns every pan
+     into an accidental page scroll, so the map takes the viewport instead. */
+  .setup-view .map-card {
+    padding: 0 0 18px;
+    border-radius: 24px;
+    overflow: hidden;
+  }
+
+  .setup-view .map-frame {
+    margin-top: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+  }
+
+  .setup-view #map {
+    height: calc(100dvh - 190px);
+    min-height: 420px;
+  }
+
+  .setup-view .lookup-status,
+  .setup-view .map-meta,
+  .setup-view .map-details {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .map-overlay-top {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .map-overlay-top .map-search-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .map-overlay-top .map-search-bar .primary-button {
+    width: auto;
+  }
+
+  .locate-button {
+    width: 100%;
+  }
+
+  .curb-sheet {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+  }
+
+  .curb-sheet-inner {
+    border-radius: 26px 26px 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  }
+
+  /* The report button owns the bottom of the screen; the sheet needs it. */
+  body.curb-sheet-open .floating-report {
+    display: none;
+  }
+}
