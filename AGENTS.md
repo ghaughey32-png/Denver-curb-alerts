@@ -69,6 +69,21 @@ versions alone, `--origin` to point the crawl at a different server.
 Pick the rectangle so it clears the far curb of each boundary street — about 0.0005° past the
 centerline is the convention the existing areas follow. It is not worth agonizing over.
 
+**But do agonize over the edge values, because `add:area` only checks for overlap.** Two areas that
+abut without sharing an exact edge value leave a sliver nothing ever imports, and the refusal that
+catches stacking says nothing about it. `e26-e37-gilpin-york` and `e26-e37-josephine-colorado` ended
+at 39.7685 while `e38-e45-blake-colorado` began at 39.7692, and the 78 m strip between them ran
+2.3 km from Gilpin to Colorado. It was not empty: it held five blocks of E 38th Avenue plus one
+crossing block of every named street in between, 32 public blocks in all, every one rendering blank.
+Closed 2026-08-27 as `e37-e38-gilpin-colorado`.
+
+To find these, grid the region at 0.001° (~80 m, finer than any real sliver), drop every cell that
+falls inside some area's rectangle, drop every cell `isPointInsideDenver` rejects, and flood-fill
+what is left into clusters. Genuine unmapped neighbourhoods come out as blobs; seams come out as
+lines one or two cells thick, which is the signature to look for. Single-cell-wide columns at a
+shared edge are usually just grid resolution against a ~9 m mismatch — check the actual edge values
+before chasing one.
+
 Overpass answers 406 to any request without a User-Agent header, which is what Node sends by
 default. `add:area` sets one; anything else querying Overpass has to as well.
 
