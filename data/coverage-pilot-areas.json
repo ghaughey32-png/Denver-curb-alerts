@@ -663,6 +663,20 @@
         "expectedPublicBlocks": 174,
         "minimumScheduled": 168
       }
+    },
+    {
+      "id": "e17-e26-york-colorado",
+      "label": "East 17th Avenue–East 26th Avenue, N York Street–N Colorado Boulevard",
+      "north": 39.7544,
+      "south": 39.7432,
+      "west": -104.959,
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "East 17th–East 26th from York–Colorado",
+        "expectedPublicBlocks": 114,
+        "minimumScheduled": 99
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -697,7 +711,8 @@
       "East 37th–East 45th from I-25–N Broadway",
       "East 25th–East 37th from Broadway–Ogden",
       "East 37th–East 45th from Broadway–Blake",
-      "East 26th–East 38th from Ogden–Gilpin"
+      "East 26th–East 38th from Ogden–Gilpin",
+      "East 17th–East 26th from York–Colorado"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
