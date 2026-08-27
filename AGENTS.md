@@ -77,12 +77,30 @@ at 39.7685 while `e38-e45-blake-colorado` began at 39.7692, and the 78 m strip b
 crossing block of every named street in between, 32 public blocks in all, every one rendering blank.
 Closed 2026-08-27 as `e37-e38-gilpin-colorado`.
 
-To find these, grid the region at 0.001° (~80 m, finer than any real sliver), drop every cell that
-falls inside some area's rectangle, drop every cell `isPointInsideDenver` rejects, and flood-fill
-what is left into clusters. Genuine unmapped neighbourhoods come out as blobs; seams come out as
-lines one or two cells thick, which is the signature to look for. Single-cell-wide columns at a
-shared edge are usually just grid resolution against a ~9 m mismatch — check the actual edge values
-before chasing one.
+To find these, grid the region at 0.0003° (~33 m by ~26 m), drop every cell that falls inside some
+area's rectangle, drop every cell `isPointInsideDenver` rejects, and flood-fill what is left into
+clusters. Genuine unmapped neighbourhoods come out as blobs; seams come out as lines one or two
+cells thick, which is the signature to look for.
+
+The step used to be 0.001° here, described as finer than any real sliver. It is not. The gap
+between `e8-e17-york-colorado` (east -104.9404) and `e6-e17-colorado-monaco` (west -104.9398) is
+51 m, and at 0.001° that is the single-cell column this paragraph used to tell you to dismiss as
+grid resolution. Do not dismiss one — read the two edge values and see. Closed 2026-08-27 as
+`e8-e17-colorado-infill`, along with the 267 × 769 m corner nothing covered between
+`e6-colfax-monaco-yosemite`, `e6-e17-colorado-monaco` and `e17-e26-colorado-quebec`, closed as
+`colfax-e17-monaco-quebec`.
+
+Comparing edge values pairwise finds the mismatches faster than the grid, but it over-reports: two
+areas can disagree about an edge and still have the space between them covered by a third. After
+`e8-e17-colorado-infill` the pair above still reads as a 51 m mismatch, because it is one. The
+flood-filled clusters are the ground truth for whether anything is actually uncovered.
+
+The remaining seam as of 2026-08-27 is E Alameda Avenue itself: `dakota-louisiana-broadway-colorado`
+and `dakota-louisiana-colorado-monaco` end at 39.7098 while `alameda-e7-lincoln-colorado` and
+`alameda-e5-colorado-monaco` begin at 39.7107, leaving a 100 m band that runs about 6.4 km from
+Broadway to Monaco. East of Colorado it holds E Leetsdale Drive, E Mar Vista Place and a crossing
+stub of every named street from Birch to Monaco; west of Colorado it holds E Alameda Avenue. Both
+`alameda-*` areas are labelled as starting at Alameda, so this is a miss, not a decision.
 
 Overpass answers 406 to any request without a User-Agent header, which is what Node sends by
 default. `add:area` sets one; anything else querying Overpass has to as well.
