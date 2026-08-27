@@ -705,6 +705,34 @@
         "expectedPublicBlocks": 946,
         "minimumScheduled": 895
       }
+    },
+    {
+      "id": "colfax-e17-monaco-quebec",
+      "label": "East Colfax Avenue–East 17th Avenue, Monaco Street Parkway–North Quebec Street",
+      "north": 39.7432,
+      "south": 39.7407,
+      "west": -104.9118,
+      "east": -104.9027,
+      "published": true,
+      "coverage": {
+        "testName": "East Colfax–East 17th from Monaco–Quebec",
+        "expectedPublicBlocks": 44,
+        "minimumScheduled": 44
+      }
+    },
+    {
+      "id": "e8-e17-colorado-infill",
+      "label": "East 8th Avenue–East 17th Avenue at the Colorado Boulevard infill",
+      "north": 39.7432,
+      "south": 39.7288,
+      "west": -104.9404,
+      "east": -104.9398,
+      "published": true,
+      "coverage": {
+        "testName": "East 8th–East 17th along Colorado Boulevard",
+        "expectedPublicBlocks": 20,
+        "minimumScheduled": 16
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -742,7 +770,9 @@
       "East 26th–East 38th from Ogden–Gilpin",
       "East 17th–East 26th from York–Colorado",
       "East 37th–East 38th from Gilpin–Colorado",
-      "East Colfax–East Smith Road from Quebec–Boston"
+      "East Colfax–East Smith Road from Quebec–Boston",
+      "East Colfax–East 17th from Monaco–Quebec",
+      "East 8th–East 17th along Colorado Boulevard"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
