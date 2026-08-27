@@ -376,6 +376,17 @@ need to move your car* on curb those cities sweep and ticket. Both invariants ar
 `test/inventory-coverage.test.js`: no pink inside an enclave, and Denver's scheduled curb on the
 ring roads still published.
 
+**Pink was reworded on 2026-08-27 and that does not retire any of the rules above.** Every
+argument in this section — Glendale, the outer city line, Polo Club, Tennyson — is written against
+pink meaning *you do not need to move your car*, which it no longer says; it now says *we found no
+Denver schedule here, check with Denver*. The new wording is less actively wrong on curb another
+city sweeps, so the harm those exclusions prevent is smaller than the prose claims. It is still
+harm. Pink over Glendale asserts something about Denver's data that is true and something about the
+curb that is misleading — the block is swept on a published Glendale schedule, and pointing the user
+at Denver's website sends them somewhere that will never answer. Keep excluding it. Read the older
+paragraphs' *you do not need to move your car* as *pink is the wrong answer here*, which is what
+they were reaching for.
+
 The rule is deliberately not applied past the **outer** city line. Out there the same ambiguity
 exists with no enclave to bound it, and most of what it would catch is shared boundary streets where
 pink is often Denver's own. `check:city-limits` reports those for a human instead.
@@ -476,8 +487,87 @@ why a specific Denver route id is patched or suppressed. Preserve those comments
   address so reruns are cheap. Empty successful results are cached too.
 - **Mapping report** — `data/mapping-report-<area>.json`, per-stage stats plus `unresolved[]` blocks
   flagged `needs-human-review`.
-- **Color semantics** — pink = schedule unavailable, *you do not need to move your car*;
-  gray `#7b8790` = not maintained by Denver, reminders disabled.
+- **Color semantics** — pink = *we found no sweeping schedule published by the City and County of
+  Denver for this curb; check with Denver and use caution*. It is a caution state, not an all-clear:
+  Denver may sweep and ticket a block it returned nothing for. Changed 2026-08-27 — pink used to be
+  worded as *you do not need to move your car*, and the older prose in this file still argues from
+  that reading (see the note under the enclave rules).
+  Gray `#7b8790` = not maintained by Denver, reminders disabled.
+  Plum `#8e44ad` = swept on a schedule you never have to move for — Denver's `relocationRequired`
+  flag, added 2026-08-27. It used to be drawn in the plain side colour, so 28% of the map was
+  claiming a move day it did not have; only tapping a curb revealed it. All three schedule states
+  override the side colour, and `getCurbColor` in `public/app.js` is the one place that decides.
+  Pick a seventh colour the same way this one was picked, not by eye: teal was the obvious choice
+  and it sits at a CIELAB deltaE of **1.0** from the pink under simulated deuteranopia, which would
+  have made *you are fine here* and *we have no data, be careful* the same colour for red-green
+  colourblind users. Plum is the furthest from all six in both normal vision and deuteranopia.
+
+**`relocationRequired` keys on `isPosted`, not on sweep type.** Denver posts signs where it
+enforces, so an unposted route is one you cannot be ticketed on and a posted one is not, whatever
+its `SweepType`. The predicate used to read `sweepType === "Weekly" || (sweepType === "Scheduled" &&
+isPosted === false && !sourceNote)` — the `Weekly` branch never asked about posting at all, and
+`Weekly` is 6,459 of the 6,523 routes the flag fires on. **395 of those are `IsPosted: true`**, and
+every one was telling the driver they did not need to move on a street with sweeping signs up.
+Corrected 2026-08-27, and it is why the colour had to wait for the flag: painting the old predicate
+plum would have advertised safety on 790 curb sides Denver posts.
+
+**`Nightly` is deliberately excluded from the flag. Investigated 2026-08-27 and closed: leave it.**
+The posted/unposted rule above would, read mechanically, make the 1,455 unposted `Nightly` routes
+(~2,900 curb sides) plum as well. Three things say not to, and they are recorded here so this does
+not get re-opened from scratch.
+
+*The corroborating signal that carries the Weekly case is missing.* Weekly earns its plum from three
+independent agreeing sources: the `isPosted` field, the geography, and the rule text — posted Weekly
+routes name a specific weekday ("The 1st Wednesday of the month"), unposted ones name only a week
+("The 4th week"). For `Nightly` the rule text is **byte-identical** either way, "Night Sweeps" on
+posted and unposted alike. Only the bare flag is left, with nothing behind it.
+
+*Denver's own two sources contradict each other here.* The Open Data "Street Sweep Schedule" layer
+(`ODC_ADMN_STREETSWEEPSCHEDULE_A/FeatureServer/17`, whose fields are documented as including
+"whether or not the schedule is posted along the street") holds 51 schedule records, of which
+**exactly one is a Night schedule — `5A1111N0`, `POSTED = N`**. By that table night sweeping is
+unposted city-wide. The route API disagrees: 2,287 `Nightly` routes, 832 of them `isPosted: true`.
+That is not stale payload — 7 of 8 were re-confirmed against the live proxy at their own centroids,
+on N Broadway and N Speer. The split is geographically coherent (posted downtown; N Federal's 101
+segments and N Sheridan's 55 unposted end to end; Colfax and Alameda flipping at Colorado
+Boulevard), so both sources are internally sensible and simply disagree. Do not "resolve" this by
+picking one.
+
+*And on an arterial, sweeping is not the binding parking constraint.* These routes are Federal,
+Sheridan, Colfax, Colorado, Evans. Plum says *you do not need to move your car*; a driver reads that
+as *I can leave it here overnight*, which on those streets may be wrong for reasons that have
+nothing to do with sweeping. The notice hedges — "Follow posted signs and any other parking
+restrictions" — but the colour is what actually gets read.
+
+**What the app shows there today is already honest, which is the fourth reason.** An earlier version
+of this paragraph claimed unposted `Nightly` curbs were "telling drivers to check a move day they
+may not have". They are not. `buildCurbSheetCopy` gives them the headline "Nightly sweep route" and
+the rule "<side>: Night Sweeps", with **no notice at all** — accurate for a route that carries no
+dates (only 8 of the 1,455 have any) and names no day. They sit in the side-colour bucket without
+asserting a move day, so the gap being closed was smaller than it looked.
+
+If this is ever revisited, the useful change is not plum. `Nightly` is genuinely a third thing —
+no date, no named day, swept while you are asleep — and deserves its own treatment rather than
+being folded into either existing bucket.
+
+**Southeast Denver really is almost all plum, and that is not a bug.** It looks alarming — from
+Hampden south the map is a solid purple field — and it was checked hard on 2026-08-27 before being
+accepted. `isPosted` is present on 100% of crawled routes (5,539 of 5,539 in
+`belleview-quincy-colorado-i225`), so this is not `Boolean(undefined)` quietly defaulting a missing
+field to false. Denver sweeps residential streets only where signs are posted, and the citation
+applies only in posted areas, so unposted streets carry no sweeping parking restriction at all.
+
+The geography corroborates it: posted share climbs 0% → 84% from the far south to the northern
+core, and **no posted route exists anywhere south of latitude 39.668**, across 1,612 routes. That is
+Denver's historic dense core versus its post-war southeast, which is exactly where you would expect
+signs and no signs. The route text corroborates it too, and this is the tell worth remembering:
+**posted routes name a specific weekday** ("The 1st Wednesday of the month" — what a sign can state)
+while **unposted routes name only a week** ("The 4th week of the month" — an internal sweeping plan).
+Confirmed against the live proxy at Hampden and Belleview versus Capitol Hill and Highlands.
+
+So do not "correct" the purple by making the predicate stricter. The mirror-image question — whether
+unposted `Nightly` should be plum too — was investigated on the same day and closed; see the
+`Nightly` note above rather than re-deriving it.
 
 ## Code style
 

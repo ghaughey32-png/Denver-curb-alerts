@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v152",
+    "cacheName": "curb-alerts-shell-v154",
     "files": {
-      "index.html": "d96f66ba19e3ff1ef98e0f139f841d71b2c67e6e89d0a49419aaee9c7c8cfa4e",
-      "sw.js": "4993574c1cc79d6224232f8780403bed3ed76d4b8af1562ce1e7567f5d2e73cf"
+      "index.html": "e73198d382af0828b3105b3b8d3b21c6d90e94100f1a20e95d6569ad619becb8",
+      "sw.js": "494d4f21fcb42ab8d571999d46e8f12fb75c179d38388a9950e45d27b79c8034"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260827-alameda-infill-lincoln-colorado",
-      "sha256": "02d5f548e5c87b39cd680e0f53d0a682a6af343c3c52725d03aa598051a4b777"
+      "version": "20260827-no-relocation-plum",
+      "sha256": "5072c417cc529779943e82d76d71a3321079882b265e41a5ea283d2bfa6b77da"
     },
     "curb-geometry.js": {
       "version": "20260813b",
@@ -33,8 +33,8 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260827-alameda-infill-lincoln-colorado",
-      "sha256": "d9b4e240d7bf9a7a129465ce9bf81b09150cb649eabf0f431d2b791e5598cfc0"
+      "version": "20260827-no-relocation-plum",
+      "sha256": "1d88e769a530c23e7439eb31db675d94006eb25296d12f3fbc0daf2d6fe4a307"
     }
   }
 }

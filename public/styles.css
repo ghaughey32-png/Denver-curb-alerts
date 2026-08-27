@@ -872,6 +872,10 @@ button {
   background: #7b8790;
 }
 
+.plum {
+  background: #8e44ad;
+}
+
 .leaflet-tooltip.you-are-here-label {
   background: rgba(31, 47, 55, 0.9);
   border: none;

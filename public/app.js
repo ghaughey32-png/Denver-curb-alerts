@@ -1567,8 +1567,30 @@ const colors = {
   east: "#d64545",
   west: "#2f6fed",
   unavailable: "#ff2d8d",
-  notMaintained: "#7b8790"
+  notMaintained: "#7b8790",
+  // Plum, for curbs Denver sweeps on a schedule you never have to move for. It was picked against
+  // the other six rather than for taste: the obvious teal sits at a CIELAB deltaE of 1.0 from the
+  // pink once deuteranopia is simulated, which would have made "you are fine here" and "we have no
+  // data, be careful" the same colour for red-green colourblind users. Plum is the furthest from
+  // all six in both normal vision (35.7) and simulated deuteranopia (31.3).
+  noRelocation: "#8e44ad"
 };
+
+// Every curb colour is decided here so the live and embedded datasets cannot drift apart. Order
+// matters: the three schedule states each override the north/south/east/west side colour, because
+// what the curb *is* matters more to a parked driver than which side of the street it sits on.
+function getCurbColor(schedule, sideColor) {
+  if (schedule?.sweepType === "NotMaintained") {
+    return colors.notMaintained;
+  }
+  if (!schedule || schedule.sweepType === "Unavailable") {
+    return colors.unavailable;
+  }
+  if (schedule.relocationRequired === false) {
+    return colors.noRelocation;
+  }
+  return sideColor;
+}
 
 const contextMarkers = [
   {
@@ -2352,7 +2374,7 @@ function buildEmbeddedDataset() {
         street: way.name,
         sideKey: sideDef.sideKey,
         sideLabel: `${capitalize(sideDef.sideKey)} curb`,
-        color: scheduleInfo ? sideDef.color : colors.unavailable,
+        color: getCurbColor(scheduleInfo, sideDef.color),
         geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
         highway: way.highway,
         schedule: scheduleInfo
@@ -2583,9 +2605,15 @@ function buildLiveScheduleInfoForSide(route, sideKey) {
       // Official unposted scheduled routes likewise do not require relocation.
       // Hand-filled coverage routes remain unknown instead of being presented
       // as a confirmed no-move route.
+      //
+      // `isPosted` is the load-bearing half and it applies to both branches. Denver posts signs
+      // where it enforces, so an unposted route is one you cannot be ticketed on; a posted one is
+      // not, whatever its sweep type. This used to read `route.sweepType === "Weekly" || ...`,
+      // which never asked about posting at all, and 395 Weekly routes that Denver marks
+      // `IsPosted: true` were being presented as confirmed no-move curbs. Measured 2026-08-27.
       relocationRequired:
-        route.sweepType === "Weekly" ||
-        (route.sweepType === "Scheduled" && route.isPosted === false && !route.sourceNote)
+        route.isPosted === false &&
+        (route.sweepType === "Weekly" || (route.sweepType === "Scheduled" && !route.sourceNote))
           ? false
           : null,
       nextDate: scheduleDates.nextDate,
@@ -2639,11 +2667,7 @@ function buildLookupStreetData(summary, sourceLabel) {
         street: way.name,
         sideKey: sideDef.sideKey,
         sideLabel: `${capitalize(sideDef.sideKey)} curb`,
-        color: schedule?.sweepType === "NotMaintained"
-          ? colors.notMaintained
-          : schedule && schedule.sweepType !== "Unavailable"
-            ? sideDef.color
-            : colors.unavailable,
+        color: getCurbColor(schedule, sideDef.color),
         geometry: way.geometry.map((point) => offsetPoint(point, way.orientation, sideDef.sideKey)),
         highway: way.highway,
         schedule
@@ -4900,7 +4924,7 @@ function getSegmentHoverLabel(segment) {
   const statusText = segment.schedule?.sweepType === "NotMaintained"
     ? " | No Denver street sweeping — street not maintained by Denver"
     : !segment.schedule || segment.schedule.sweepType === "Unavailable"
-      ? " | Schedule information unavailable — check Denver's website and posted signs"
+      ? " | No Denver sweeping schedule found — check with Denver and posted signs, and use caution"
       : segment.schedule.relocationRequired === false
         ? " | No car relocation required — tap for schedule details"
         : "";
@@ -5112,9 +5136,9 @@ function buildCurbSheetCopy(segment) {
 
   if (!schedule || schedule.sweepType === "Unavailable") {
     return {
-      headline: "Schedule information unavailable",
+      headline: "No Denver sweeping schedule found",
       rule: "",
-      notice: "We do not have reliable schedule information for this curb. Check Denver's website and follow posted signs before parking.",
+      notice: "We did not find street sweeping information for this curb published by the City and County of Denver. That is not the same as no sweeping — check with Denver, follow posted signs, and use caution before parking.",
       canRemind: true
     };
   }
@@ -5254,7 +5278,7 @@ function renderCurrentSelection() {
 
 function buildSelectionMeta(segment) {
   if (!segment.schedule) {
-    return `${segment.sideLabel} of ${segment.street} | Schedule information unavailable`;
+    return `${segment.sideLabel} of ${segment.street} | No Denver sweeping schedule found — check with Denver, and use caution`;
   }
 
   if (segment.schedule.sweepType === "Nightly") {
@@ -5262,7 +5286,7 @@ function buildSelectionMeta(segment) {
   }
 
   if (segment.schedule.sweepType === "Unavailable") {
-    return `${segment.sideLabel} of ${segment.street} | Schedule information unavailable`;
+    return `${segment.sideLabel} of ${segment.street} | No Denver sweeping schedule found — check with Denver, and use caution`;
   }
 
   if (segment.schedule.sweepType === "NotMaintained") {
