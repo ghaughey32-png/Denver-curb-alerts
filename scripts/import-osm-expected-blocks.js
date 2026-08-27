@@ -12,6 +12,20 @@ if (!sourcePath || !areaId || !eastArg) {
 
 const bounds = { south: Number(southArg), west: Number(westArg), north: Number(northArg), east: Number(eastArg) };
 const publicHighways = new Set(["residential", "living_street", "unclassified", "tertiary", "secondary", "primary"]);
+// Polo Club is a gated private community; scripts/lib/confirmed-polo-club-coverage.js publishes the
+// gray not-maintained routes for it and every block there is meant to be excluded. Exclusion keys on
+// access=private, and these four ways have lost that tag upstream in OpenStreetMap while the other
+// twenty-eight ways of the same two streets still carry it. Denver returns zero sweeping routes for
+// both roads, so without this list a fresh extract imports them as public streets and publishes pink
+// over gated private road — pink tells the user they do not need to move their car. Editing the
+// cached .osm extract instead does not survive: data/osm-extract-*.osm is gitignored.
+const privateWayIds = new Set([
+  "16985371",  // Polo Club Road
+  "515376359", // Polo Field Lane
+  "515376361", // Polo Field Lane
+  "515376364"  // Polo Field Lane
+]);
+const isPrivateWay = (way) => way.tags.access === "private" || privateWayIds.has(way.id);
 const decode = (value = "") => value.replaceAll("&quot;", '"').replaceAll("&apos;", "'").replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">");
 const xml = fs.readFileSync(sourcePath, "utf8");
 const nodes = new Map();
@@ -30,7 +44,7 @@ for (const match of xml.matchAll(/<way\b[^>]*\bid="(\d+)"[^>]*>([\s\S]*?)<\/way>
 
 const nodeWays = new Map();
 for (const way of ways) {
-  if (!publicHighways.has(way.tags.highway) || !way.tags.name || way.tags.access === "private") continue;
+  if (!publicHighways.has(way.tags.highway) || !way.tags.name || isPrivateWay(way)) continue;
   for (const nodeId of new Set(way.nodeIds)) {
     if (!nodeWays.has(nodeId)) nodeWays.set(nodeId, new Set());
     nodeWays.get(nodeId).add(way.tags.name.toUpperCase());
@@ -88,7 +102,7 @@ function endpointLabel(nodeId, streetName) {
 
 let additions = [];
 for (const way of ways) {
-  const excluded = !publicHighways.has(way.tags.highway) || !way.tags.name || way.tags.access === "private";
+  const excluded = !publicHighways.has(way.tags.highway) || !way.tags.name || isPrivateWay(way);
   let start = 0;
   for (let index = 1; index < way.nodeIds.length; index += 1) {
     const isIntersection = (nodeWays.get(way.nodeIds[index])?.size || 0) > 1;

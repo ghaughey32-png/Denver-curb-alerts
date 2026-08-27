@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v149",
+    "cacheName": "curb-alerts-shell-v152",
     "files": {
-      "index.html": "b1ba0fc4270b288aea2a88b06fa44903947bd669e4344b2d65886a5702f951a9",
-      "sw.js": "1842957fb25f78bb2c1b6d864f5cede25410ed0a68e5e006ae3e6dc973f5127f"
+      "index.html": "d96f66ba19e3ff1ef98e0f139f841d71b2c67e6e89d0a49419aaee9c7c8cfa4e",
+      "sw.js": "4993574c1cc79d6224232f8780403bed3ed76d4b8af1562ce1e7567f5d2e73cf"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260827-e8-e17-colorado-infill",
-      "sha256": "313d058e6003d176e6d06bf43f1638d1bc4847bf24cc7246470cce3a5fdf8228"
+      "version": "20260827-alameda-infill-lincoln-colorado",
+      "sha256": "02d5f548e5c87b39cd680e0f53d0a682a6af343c3c52725d03aa598051a4b777"
     },
     "curb-geometry.js": {
       "version": "20260813b",
@@ -21,8 +21,8 @@
       "sha256": "1d02ba41bd28832afe73bde400a3e7e07f4a9d348222289b29d4dd362456cbf2"
     },
     "denver-west-routes.json": {
-      "version": "93",
-      "sha256": "0023c80ab0fcd0ebe7f574e6ad3dc0a9600ed6c997df9dd26dda59f2fe5439d6"
+      "version": "96",
+      "sha256": "aabb83e59ff79b90d638c9fe293226b715fd14310f2b9b0f67c1d621b00c5d65"
     },
     "icon.svg": {
       "version": "20260808d",
@@ -33,7 +33,7 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260827-e8-e17-colorado-infill",
+      "version": "20260827-alameda-infill-lincoln-colorado",
       "sha256": "d9b4e240d7bf9a7a129465ce9bf81b09150cb649eabf0f431d2b791e5598cfc0"
     }
   }

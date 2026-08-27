@@ -733,6 +733,48 @@
         "expectedPublicBlocks": 20,
         "minimumScheduled": 16
       }
+    },
+    {
+      "id": "alameda-infill-colorado-monaco",
+      "label": "East Alameda Avenue infill, Colorado Boulevard–South Monaco Street Parkway",
+      "north": 39.7107,
+      "south": 39.7098,
+      "west": -104.9404,
+      "east": -104.9118,
+      "published": true,
+      "coverage": {
+        "testName": "East Alameda infill from Colorado–Monaco",
+        "expectedPublicBlocks": 23,
+        "minimumScheduled": 22
+      }
+    },
+    {
+      "id": "alameda-infill-broadway-colorado",
+      "label": "East Alameda Avenue infill, South Broadway–Colorado Boulevard",
+      "north": 39.7104,
+      "south": 39.7098,
+      "west": -104.9877,
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "East Alameda infill from Broadway–Colorado",
+        "expectedPublicBlocks": 47,
+        "minimumScheduled": 42
+      }
+    },
+    {
+      "id": "alameda-infill-lincoln-colorado",
+      "label": "East Alameda Avenue infill, South Lincoln Street–Colorado Boulevard",
+      "north": 39.7107,
+      "south": 39.7104,
+      "west": -104.987,
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "East Alameda infill from Lincoln–Colorado",
+        "expectedPublicBlocks": 40,
+        "minimumScheduled": 40
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -772,7 +814,10 @@
       "East 37th–East 38th from Gilpin–Colorado",
       "East Colfax–East Smith Road from Quebec–Boston",
       "East Colfax–East 17th from Monaco–Quebec",
-      "East 8th–East 17th along Colorado Boulevard"
+      "East 8th–East 17th along Colorado Boulevard",
+      "East Alameda infill from Colorado–Monaco",
+      "East Alameda infill from Broadway–Colorado",
+      "East Alameda infill from Lincoln–Colorado"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }

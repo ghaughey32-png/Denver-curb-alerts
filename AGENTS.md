@@ -95,12 +95,39 @@ areas can disagree about an edge and still have the space between them covered b
 `e8-e17-colorado-infill` the pair above still reads as a 51 m mismatch, because it is one. The
 flood-filled clusters are the ground truth for whether anything is actually uncovered.
 
-The remaining seam as of 2026-08-27 is E Alameda Avenue itself: `dakota-louisiana-broadway-colorado`
-and `dakota-louisiana-colorado-monaco` end at 39.7098 while `alameda-e7-lincoln-colorado` and
-`alameda-e5-colorado-monaco` begin at 39.7107, leaving a 100 m band that runs about 6.4 km from
-Broadway to Monaco. East of Colorado it holds E Leetsdale Drive, E Mar Vista Place and a crossing
-stub of every named street from Birch to Monaco; west of Colorado it holds E Alameda Avenue. Both
-`alameda-*` areas are labelled as starting at Alameda, so this is a miss, not a decision.
+`dakota-louisiana-broadway-colorado` and `dakota-louisiana-colorado-monaco` ended at 39.7098 while
+`alameda-e7-lincoln-colorado` and `alameda-e5-colorado-monaco` began at 39.7107, leaving a 100 m
+band that ran about 6.4 km from Broadway to Monaco. It did **not** hold E Alameda Avenue, despite
+the area names either side of it — Alameda runs at 39.7110–39.7124 and was always inside the
+`alameda-*` areas. What the band held was E Cherry Creek North and South Drive, E Mar Vista Place,
+W Nevada Place, and a crossing stub of roughly fifty named north–south streets from Broadway to
+Monaco: 110 public blocks, 104 of them scheduled. Closed 2026-08-27.
+
+It took three areas rather than one, and the shape is worth understanding before adding a fourth
+somewhere near it. `w6-alameda-lipan-broadway` reaches south to 39.7104, three hundredths of a
+degree into the band, but only west of Lincoln (-104.987) — so the band is an L, not a rectangle:
+`alameda-infill-broadway-colorado` takes 39.7098–39.7104 across the full width to Broadway,
+`alameda-infill-lincoln-colorado` takes 39.7104–39.7107 from Lincoln east, and
+`alameda-infill-colorado-monaco` takes the whole height east of Colorado. Cutting the first one off
+at Lincoln instead would have dropped S Broadway's own stub.
+
+**The band runs straight through Polo Club, and that needed a code change, not a data one.** Polo
+Club is the gated community `scripts/lib/confirmed-polo-club-coverage.js` publishes gray
+not-maintained routes for, and every block there is meant to be excluded. Exclusion keys on
+`access=private` alone, and four of its thirty-two ways — `Polo Club Road` 16985371 and
+`Polo Field Lane` 515376359, 515376361, 515376364 — have lost that tag upstream. This is the same
+drift recorded further down this file, still unrepaired and now on more ways. Denver returns zero
+sweeping routes for both roads, confirmed against the proxy, so a fresh extract imports the four as
+public streets and publishes them as pink — *you do not need to move your car* — on gated private
+road.
+
+Patching the cached `.osm` was the obvious fix and it is the wrong one: `data/osm-extract-*.osm` is
+gitignored, so the patch would live on one machine and the next person to import would republish the
+pink without ever seeing why. The list lives in `privateWayIds` in
+[scripts/import-osm-expected-blocks.js](scripts/import-osm-expected-blocks.js) instead, where it is
+committed and applies to any extract. Verified by re-importing `alameda-infill-broadway-colorado`
+from a deliberately unpatched extract: all 138 blocks identical, all 33 Polo Club and Hyde Park
+blocks excluded. Drop a way id from that set only when OpenStreetMap has the tag back.
 
 Overpass answers 406 to any request without a User-Agent header, which is what Node sends by
 default. `add:area` sets one; anything else querying Overpass has to as well.
