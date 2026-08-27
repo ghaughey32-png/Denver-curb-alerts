@@ -621,6 +621,34 @@
         "expectedPublicBlocks": 83,
         "minimumScheduled": 77
       }
+    },
+    {
+      "id": "e25-e37-broadway-ogden",
+      "label": "East 25th Avenue–East 37th Avenue, N Broadway–N Ogden Street",
+      "north": 39.7685,
+      "south": 39.7537,
+      "west": -104.9879,
+      "east": -104.9736,
+      "published": true,
+      "coverage": {
+        "testName": "East 25th–East 37th from Broadway–Ogden",
+        "expectedPublicBlocks": 339,
+        "minimumScheduled": 285
+      }
+    },
+    {
+      "id": "e37-e45-broadway-blake",
+      "label": "East 37th Avenue–East 45th Avenue, N Broadway–Blake Street",
+      "north": 39.779,
+      "south": 39.7685,
+      "west": -104.9879,
+      "east": -104.9736,
+      "published": true,
+      "coverage": {
+        "testName": "East 37th–East 45th from Broadway–Blake",
+        "expectedPublicBlocks": 149,
+        "minimumScheduled": 129
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -652,7 +680,9 @@
       "East 17th–East 25th from Broadway–Ogden",
       "W Colfax–East 25th from I-25–N Broadway",
       "East 25th–East 37th from I-25–N Broadway",
-      "East 37th–East 45th from I-25–N Broadway"
+      "East 37th–East 45th from I-25–N Broadway",
+      "East 25th–East 37th from Broadway–Ogden",
+      "East 37th–East 45th from Broadway–Blake"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
