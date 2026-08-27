@@ -649,6 +649,20 @@
         "expectedPublicBlocks": 149,
         "minimumScheduled": 129
       }
+    },
+    {
+      "id": "e26-e38-ogden-gilpin",
+      "label": "East 26th Avenue–East 38th Avenue, N Ogden Street–N Gilpin Street",
+      "north": 39.7692,
+      "south": 39.7558,
+      "west": -104.9736,
+      "east": -104.9674,
+      "published": true,
+      "coverage": {
+        "testName": "East 26th–East 38th from Ogden–Gilpin",
+        "expectedPublicBlocks": 174,
+        "minimumScheduled": 168
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -682,7 +696,8 @@
       "East 25th–East 37th from I-25–N Broadway",
       "East 37th–East 45th from I-25–N Broadway",
       "East 25th–East 37th from Broadway–Ogden",
-      "East 37th–East 45th from Broadway–Blake"
+      "East 37th–East 45th from Broadway–Blake",
+      "East 26th–East 38th from Ogden–Gilpin"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
