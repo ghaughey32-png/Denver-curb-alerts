@@ -1624,6 +1624,12 @@ const state = {
   reminderPlanSyncPending: false,
   reminderPlanSyncQueued: false,
   lastSyncedReminderPlanHash: "",
+  account: null,
+  accountMode: "signin",
+  accountPending: false,
+  accountStatus: { message: "", tone: "" },
+  accountLibrarySyncedHash: "",
+  accountLibrarySyncQueued: false,
   scheduledTestMessage: "",
   streetWays: [],
   curbSegments: [],
@@ -1685,6 +1691,26 @@ const curbSheetRule = document.querySelector("#curb-sheet-rule");
 const curbSheetNotice = document.querySelector("#curb-sheet-notice");
 const curbSheetAction = document.querySelector("#curb-sheet-action");
 const curbSheetClose = document.querySelector("#curb-sheet-close");
+const accountStatusChip = document.querySelector("#account-status-chip");
+const accountSignedOutCard = document.querySelector("#account-signed-out");
+const accountSignedInCard = document.querySelector("#account-signed-in");
+const accountForm = document.querySelector("#account-form");
+const accountEmailInput = document.querySelector("#account-email-input");
+const accountPasswordInput = document.querySelector("#account-password-input");
+const accountPasswordHint = document.querySelector("#account-password-hint");
+const accountSubmitButton = document.querySelector("#account-submit-button");
+const accountModeButtons = Array.from(document.querySelectorAll("[data-account-mode]"));
+const accountEmailLabel = document.querySelector("#account-email-label");
+const accountPlanLabel = document.querySelector("#account-plan-label");
+const accountSignOutButton = document.querySelector("#account-sign-out-button");
+const accountPasswordToggle = document.querySelector("#account-password-toggle");
+const accountPasswordForm = document.querySelector("#account-password-form");
+const accountCurrentPasswordInput = document.querySelector("#account-current-password-input");
+const accountNewPasswordInput = document.querySelector("#account-new-password-input");
+const accountDeleteToggle = document.querySelector("#account-delete-toggle");
+const accountDeleteForm = document.querySelector("#account-delete-form");
+const accountDeletePasswordInput = document.querySelector("#account-delete-password-input");
+const accountStatusBox = document.querySelector("#account-status");
 const pushPrimer = document.querySelector("#push-primer");
 const pushPrimerTitle = document.querySelector("#push-primer-title");
 const pushPrimerBody = document.querySelector("#push-primer-body");
@@ -5329,7 +5355,7 @@ function saveCurrentAsSet() {
   };
 
   state.savedSets = [nextSet, ...state.savedSets];
-  saveJson(SAVED_SETS_KEY, state.savedSets);
+  persistSavedSets();
   saveJson(PUSH_PRIMER_DISMISSED_KEY, false);
   setNameInput.value = "";
   renderAll();
@@ -5372,7 +5398,7 @@ function applySavedSet(setId) {
 
 function deleteSavedSet(setId) {
   state.savedSets = state.savedSets.filter((set) => set.id !== setId);
-  saveJson(SAVED_SETS_KEY, state.savedSets);
+  persistSavedSets();
   renderAll();
 }
 
@@ -5397,7 +5423,7 @@ function updateSavedSet(setId, updates) {
     return;
   }
 
-  saveJson(SAVED_SETS_KEY, state.savedSets);
+  persistSavedSets();
   renderAll();
 }
 
@@ -6656,6 +6682,397 @@ function renderStats() {
   segmentCount.textContent = String(state.curbSegments.length);
 }
 
+// Accounts.
+//
+// The app is anonymous by default and stays that way: every function below is a no-op when nobody
+// is signed in, and the saved curb sets in localStorage remain the working copy either way. Signing
+// in adds a second home for them on the server so a new phone can pick them up, and gives the
+// coming paid plan something durable to attach to. A push endpoint could never do that job — it is
+// per-install, and it changes when the user reinstalls the PWA.
+
+function persistSavedSets() {
+  saveJson(SAVED_SETS_KEY, state.savedSets);
+  queueAccountLibrarySync();
+}
+
+// The raw localStorage list, not state.savedSets. hydrateSavedSet drops any set whose curb segments
+// are not in the currently loaded inventory, and the inventory loads asynchronously after boot — so
+// state.savedSets can be legitimately empty while localStorage holds three sets. Uploading that
+// emptiness would delete the account's real library on the very first sync after a cold start.
+function getLocalSavedSetsForAccount() {
+  return loadJson(SAVED_SETS_KEY, []).map((set) => ({
+    id: String(set.id || ""),
+    name: String(set.name || ""),
+    sourceLabel: String(set.sourceLabel || ""),
+    lookupAddress: String(set.lookupAddress || ""),
+    segmentIds: Array.isArray(set.segmentIds) ? set.segmentIds.map((segmentId) => String(segmentId)) : [],
+    createdAt: String(set.createdAt || "")
+  }));
+}
+
+async function accountRequest(pathname, options = {}) {
+  if (!window.fetch) {
+    throw new Error("This browser cannot sign in.");
+  }
+
+  const response = await fetch(buildApiUrl(pathname), {
+    method: options.method || "GET",
+    // Without this the session cookie is neither sent nor stored, and every request looks signed out.
+    credentials: "include",
+    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const error = new Error(payload?.error || "Something went wrong. Try again.");
+    error.status = response.status;
+    throw error;
+  }
+
+  return payload;
+}
+
+function setAccountStatus(message, tone = "") {
+  state.accountStatus = { message, tone };
+  renderAccountStatus();
+}
+
+function renderAccountStatus() {
+  if (!accountStatusBox) {
+    return;
+  }
+
+  const { message, tone } = state.accountStatus;
+  accountStatusBox.hidden = !message;
+  accountStatusBox.textContent = message;
+  accountStatusBox.classList.toggle("is-error", tone === "error");
+  accountStatusBox.classList.toggle("is-working", tone === "working");
+}
+
+function describeAccountPlan(account) {
+  const entitlement = account?.entitlement;
+
+  if (!entitlement || !entitlement.active) {
+    return { label: "Free plan", paid: false };
+  }
+
+  if (entitlement.status === "past_due") {
+    return { label: "Payment failed — still active", paid: true };
+  }
+
+  if (entitlement.status === "trialing") {
+    return { label: "Free trial", paid: true };
+  }
+
+  return { label: "Reminders plan — active", paid: true };
+}
+
+function renderAccount() {
+  if (!accountSignedOutCard || !accountSignedInCard) {
+    return;
+  }
+
+  const account = state.account;
+
+  accountSignedOutCard.hidden = Boolean(account);
+  accountSignedInCard.hidden = !account;
+
+  if (accountStatusChip) {
+    accountStatusChip.textContent = account ? "Signed in" : "Not signed in";
+  }
+
+  if (account) {
+    if (accountEmailLabel) {
+      accountEmailLabel.textContent = account.email;
+    }
+
+    const plan = describeAccountPlan(account);
+    if (accountPlanLabel) {
+      accountPlanLabel.textContent = plan.label;
+      accountPlanLabel.classList.toggle("is-paid", plan.paid);
+    }
+  }
+
+  const signingUp = state.accountMode === "signup";
+  accountModeButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.accountMode === state.accountMode);
+  });
+
+  if (accountSubmitButton) {
+    accountSubmitButton.textContent = signingUp ? "Create account" : "Sign in";
+    accountSubmitButton.disabled = state.accountPending;
+  }
+
+  if (accountPasswordInput) {
+    accountPasswordInput.autocomplete = signingUp ? "new-password" : "current-password";
+  }
+
+  if (accountPasswordHint) {
+    accountPasswordHint.hidden = !signingUp;
+  }
+
+  renderAccountStatus();
+}
+
+function setAccountMode(mode) {
+  state.accountMode = mode === "signup" ? "signup" : "signin";
+  setAccountStatus("", "");
+  renderAccount();
+}
+
+async function loadCurrentAccount() {
+  try {
+    const payload = await accountRequest("/api/accounts/me");
+    state.account = payload.account || null;
+  } catch {
+    // Being unable to reach the account API is not worth an error message on a map that works
+    // offline. The user is simply treated as signed out until the next load.
+    state.account = null;
+  }
+
+  renderAccount();
+
+  // Merging on every load, not only on the sign-in that created the session. A session cookie
+  // outlives the localStorage it was created beside — a returning user on a new browser, or one
+  // whose site data was cleared, arrives already signed in with an empty local library. Without
+  // this, the first curb they saved would upload a one-item list over everything the account held.
+  // It is also what keeps the invariant the upload depends on: the local list is always a superset
+  // of the server list before anything is written back.
+  if (state.account) {
+    await mergeAccountLibrary();
+  }
+}
+
+async function submitAccountForm(event) {
+  event.preventDefault();
+
+  if (state.accountPending) {
+    return;
+  }
+
+  const email = accountEmailInput?.value.trim() || "";
+  const password = accountPasswordInput?.value || "";
+  const signingUp = state.accountMode === "signup";
+
+  if (!email || !password) {
+    setAccountStatus("Enter your email and password.", "error");
+    return;
+  }
+
+  state.accountPending = true;
+  setAccountStatus(signingUp ? "Creating your account…" : "Signing in…", "working");
+  renderAccount();
+
+  try {
+    const payload = await accountRequest(signingUp ? "/api/accounts" : "/api/sessions", {
+      method: "POST",
+      body: {
+        email,
+        password,
+        // Ties this browser's push subscription to the account, so a reminder the server sends can
+        // be attributed to a person rather than to an anonymous endpoint.
+        pushEndpoint: state.pushSubscription?.endpoint || ""
+      }
+    });
+
+    state.account = payload.account || null;
+    if (accountPasswordInput) {
+      accountPasswordInput.value = "";
+    }
+
+    const adopted = await mergeAccountLibrary();
+    setAccountStatus(buildSignInMessage(signingUp, adopted), "");
+  } catch (error) {
+    setAccountStatus(error.message, "error");
+  } finally {
+    state.accountPending = false;
+    renderAccount();
+  }
+}
+
+function buildSignInMessage(signingUp, adoptedCount) {
+  if (adoptedCount > 0) {
+    return `Signed in. ${adoptedCount} saved curb set${adoptedCount === 1 ? "" : "s"} restored from your account.`;
+  }
+
+  if (signingUp) {
+    return "Account created. Your saved curb sets are backed up here from now on.";
+  }
+
+  return "Signed in. Your saved curb sets are backed up to your account.";
+}
+
+// Sign-in is a merge, never a replace. Someone who saved a curb on this phone while signed out and
+// has different curbs saved on the account should end up with both; silently dropping either side
+// is how a user loses the reminder that was the entire point of the app.
+async function mergeAccountLibrary() {
+  if (!state.account) {
+    return 0;
+  }
+
+  let remoteSets = [];
+  try {
+    const payload = await accountRequest("/api/accounts/me/library");
+    remoteSets = Array.isArray(payload?.library?.savedSets) ? payload.library.savedSets : [];
+  } catch {
+    return 0;
+  }
+
+  const localSets = getLocalSavedSetsForAccount();
+  const localIds = new Set(localSets.map((set) => set.id));
+  const adopted = remoteSets.filter((set) => set.id && !localIds.has(set.id));
+
+  if (adopted.length) {
+    saveJson(SAVED_SETS_KEY, [...loadJson(SAVED_SETS_KEY, []), ...adopted]);
+    loadSavedState();
+    renderAll();
+  }
+
+  await syncAccountLibrary({ force: true });
+  return adopted.length;
+}
+
+async function syncAccountLibrary(options = {}) {
+  if (!state.account) {
+    return;
+  }
+
+  const savedSets = getLocalSavedSetsForAccount();
+  const payloadHash = JSON.stringify(savedSets);
+
+  if (!options.force && payloadHash === state.accountLibrarySyncedHash) {
+    return;
+  }
+
+  try {
+    await accountRequest("/api/accounts/me/library", { method: "POST", body: { savedSets } });
+    state.accountLibrarySyncedHash = payloadHash;
+  } catch (error) {
+    if (error.status === 401) {
+      // The session expired underneath us. Fall back to signed out rather than retrying forever.
+      state.account = null;
+      renderAccount();
+    }
+  }
+}
+
+function queueAccountLibrarySync() {
+  if (!state.account || state.accountLibrarySyncQueued) {
+    return;
+  }
+
+  state.accountLibrarySyncQueued = true;
+  window.setTimeout(async () => {
+    state.accountLibrarySyncQueued = false;
+    await syncAccountLibrary();
+  }, 0);
+}
+
+async function signOutAccount() {
+  if (state.accountPending) {
+    return;
+  }
+
+  state.accountPending = true;
+  setAccountStatus("Signing out…", "working");
+
+  try {
+    await accountRequest("/api/sessions", { method: "DELETE" });
+  } catch {
+    // Whatever the server said, this browser is done with the session.
+  }
+
+  state.account = null;
+  state.accountLibrarySyncedHash = "";
+  hideAccountSubforms();
+  // The saved sets stay in localStorage on purpose. Signing out is not a request to delete the
+  // reminders already running on this phone.
+  setAccountStatus("Signed out. Your saved curb sets are still on this device.", "");
+  state.accountPending = false;
+  renderAccount();
+}
+
+function hideAccountSubforms() {
+  if (accountPasswordForm) {
+    accountPasswordForm.hidden = true;
+    accountPasswordForm.reset();
+  }
+
+  if (accountDeleteForm) {
+    accountDeleteForm.hidden = true;
+    accountDeleteForm.reset();
+  }
+}
+
+function toggleAccountSubform(form) {
+  if (!form) {
+    return;
+  }
+
+  const shouldOpen = form.hidden;
+  hideAccountSubforms();
+  form.hidden = !shouldOpen;
+  setAccountStatus("", "");
+}
+
+async function submitAccountPasswordChange(event) {
+  event.preventDefault();
+
+  const currentPassword = accountCurrentPasswordInput?.value || "";
+  const newPassword = accountNewPasswordInput?.value || "";
+
+  setAccountStatus("Updating your password…", "working");
+
+  try {
+    await accountRequest("/api/accounts/me/password", {
+      method: "POST",
+      body: { currentPassword, newPassword }
+    });
+    hideAccountSubforms();
+    setAccountStatus("Password updated. Your other devices were signed out.", "");
+  } catch (error) {
+    setAccountStatus(error.message, "error");
+  }
+}
+
+async function submitAccountDeletion(event) {
+  event.preventDefault();
+
+  const password = accountDeletePasswordInput?.value || "";
+
+  setAccountStatus("Deleting your account…", "working");
+
+  try {
+    await accountRequest("/api/accounts/me", { method: "DELETE", body: { password } });
+    state.account = null;
+    state.accountLibrarySyncedHash = "";
+    hideAccountSubforms();
+    setAccountStatus("Your account was deleted. Saved curbs on this device are untouched.", "");
+    renderAccount();
+  } catch (error) {
+    setAccountStatus(error.message, "error");
+  }
+}
+
+function registerAccountEvents() {
+  accountForm?.addEventListener("submit", submitAccountForm);
+  accountModeButtons.forEach((button) => {
+    button.addEventListener("click", () => setAccountMode(button.dataset.accountMode));
+  });
+  accountSignOutButton?.addEventListener("click", signOutAccount);
+  accountPasswordToggle?.addEventListener("click", () => toggleAccountSubform(accountPasswordForm));
+  accountDeleteToggle?.addEventListener("click", () => toggleAccountSubform(accountDeleteForm));
+  accountPasswordForm?.addEventListener("submit", submitAccountPasswordChange);
+  accountDeleteForm?.addEventListener("submit", submitAccountDeletion);
+}
+
 function renderAll() {
   buildNotificationJobs();
   scheduleBrowserNotifications();
@@ -6670,6 +7087,7 @@ function renderAll() {
   renderNotificationStatus();
   renderPushPrimer();
   renderReminderReadiness();
+  renderAccount();
   renderStats();
   queueReminderPlanSync();
 }
@@ -6781,6 +7199,7 @@ function applyTimeToDate(baseDate, timeValue) {
 
 function registerEvents() {
   clearButton.addEventListener("click", clearCurrentSelection);
+  registerAccountEvents();
   useMyLocationButton?.addEventListener("click", requestUserLocation);
   curbSheetClose?.addEventListener("click", closeCurbSheet);
   pushPrimerAccept?.addEventListener("click", acceptPushPrimer);
@@ -6881,6 +7300,7 @@ try {
 
 renderAll();
 initializePushFeatures();
+loadCurrentAccount();
 loadStaticRouteInventory();
 
 function capitalize(value) {

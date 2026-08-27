@@ -1,11 +1,11 @@
-const CACHE_NAME = "curb-alerts-shell-v154";
+const CACHE_NAME = "curb-alerts-shell-v157";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css?v=20260827-no-relocation-plum",
+  "/styles.css?v=20260827-accounts-privacy",
   "/curb-geometry.js?v=20260813b",
   "/denver-city-limits.js?v=20260825-enclave-pink-withdrawn",
-  "/app.js?v=20260827-no-relocation-plum",
+  "/app.js?v=20260827-accounts-privacy",
   "/denver-west-routes.json?v=96",
   "/manifest.webmanifest?v=20260808d",
   "/icon.svg?v=20260808d"

@@ -12,9 +12,12 @@ sweeping rules, and schedules web-push reminders.
 Deliberately minimal stack:
 
 - `server.js` — a zero-framework `node:http` server. Static files + `/api/*`. No Express.
+- `lib/accounts.js` — the only thing outside `server.js` that is server runtime rather than
+  pipeline tooling, which is why it is not under `scripts/lib/`. Pure functions, no I/O.
 - `public/app.js` — the entire client, ~6000 lines of vanilla JS loaded by a plain `<script>` tag.
 - **No bundler, no transpiler, no build step for client code.** What is in `public/` is what ships.
 - Two dependencies (`pg`, `web-push`), both lazily `require`d so the app boots without `npm install`.
+  Accounts added none: `node:crypto` has scrypt, and there is no bcrypt or session framework here.
 - CommonJS everywhere, including tests and scripts. There is no `"type": "module"`.
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
@@ -473,6 +476,88 @@ Hand-curated coverage patches live in [scripts/lib/](scripts/lib/) as `confirmed
 modules and as patch functions inside `build-static-inventory.js`. Each carries a comment explaining
 why a specific Denver route id is patched or suppressed. Preserve those comments.
 
+## Accounts and payments
+
+Added 2026-08-27. Accounts are **optional and always will be**: every screen works signed out, saved
+curb sets stay in `localStorage`, and `state.account === null` makes every account function on the
+client a no-op. What signing in buys is that a saved set is no longer stranded in one browser, and
+that a payment has something durable to attach to.
+
+That last part is the reason accounts came first. Before this, the closest thing to an identity was
+the **push subscription endpoint** — per-install, regenerated when the user reinstalls the PWA, and
+the key that `data/push-subscriptions.json` and `data/reminder-plans.json` are still stored under.
+You cannot bill an endpoint. Both records now carry an `accountId` as well, set when a signed-in
+browser registers its device, which is the join the payment work will need.
+
+**No new dependencies, and don't add one here.** `node:crypto` covers all of it: scrypt for password
+hashing (16384/8/1, self-describing hash strings so the cost can be raised without invalidating old
+ones), `randomBytes` for session tokens, `timingSafeEqual` for the comparison. bcrypt, jsonwebtoken
+and every session middleware would each be a dependency and a build step this project does not have.
+
+**The billing fields exist already, and Stripe is the assumed processor.** `buildDefaultBilling()`
+puts `plan`, `status`, `stripeCustomerId`, `stripeSubscriptionId`, `currentPeriodEnd` and
+`cancelAtPeriodEnd` on every account from the first one, so payments are a matter of filling them in
+rather than migrating every row. `status` deliberately uses Stripe's own vocabulary because a webhook
+is what will write it. `getEntitlement()` is the single place that decides whether someone is paid up,
+and it **counts `past_due` as entitled**: the card failed and Stripe is still retrying, and cutting a
+paying customer's sweeping reminders off mid-dunning turns a failed payment into a parking ticket.
+
+Stripe Checkout fits this stack without a dependency either — it is a hosted redirect and a webhook,
+both plain HTTPS. Reach for `https.request` before `npm install stripe`.
+
+**Sessions are server-side records, not signed tokens.** `data/sessions.json` (or the `sessions`
+collection) stores the **sha256 of** each token, never the token, so a leaked dump does not hand the
+reader a set of live logins. That is also what makes "changing your password signs out your other
+devices" possible, which a stateless JWT could not do without a revocation list that is a session
+table by another name.
+
+**The session cookie is `SameSite=Lax`, and that is a payment decision.** Strict is dropped on a
+top-level redirect back from a third-party origin, which is exactly the return trip from Stripe's
+hosted checkout — the customer would land on a signed-out page immediately after paying.
+
+**Adding an origin to `CREDENTIALED_ORIGINS` in `server.js` grants it the ability to act as a
+signed-in user.** The API answers `Access-Control-Allow-Origin: *` to everyone, which is right for
+the map data and incompatible with cookies by design; a request from a listed origin gets that
+origin echoed with `Allow-Credentials` instead. Only origins this app is actually served from belong
+there. If the Render URL changes, this list is the thing that breaks sign-in.
+
+**Sign-in and sign-up say different things about whether an address exists, on purpose.** Sign-in
+returns one message for a wrong password and for no such account, and spends a full scrypt
+verification against a decoy hash when the account is missing so the timing does not leak either.
+Sign-up cannot hide it — a duplicate-email error is the only honest answer to a taken address — and
+that trade is worth revisiting if email verification ever gates account creation.
+
+**The client uploads from `localStorage`, never from `state.savedSets`, and merges before it
+uploads.** `hydrateSavedSet` prunes any set whose curb segments are not in the currently loaded
+inventory, and the inventory loads asynchronously *after* boot — so `state.savedSets` is legitimately
+empty for a moment while `localStorage` holds three sets. Uploading from the in-memory list would
+delete the account's library on every cold start. For the same reason `loadCurrentAccount` merges the
+server's library down at boot, not only on the sign-in that created the session: a session cookie
+outlives the storage beside it, so a returning customer on a cleared browser arrives already signed
+in with nothing local, and their next save would have uploaded a one-item list over everything.
+Merging first keeps the invariant the upload relies on — the local list is always a superset of the
+server's. Three source-text assertions in `test/accounts.test.js` guard all of this.
+
+The remaining limitation is honest last-write-wins across simultaneously-open devices: two browsers
+each holding different sets will not learn about each other until one of them reloads. Fixing that
+means per-set timestamps and tombstones, which is not worth it before there are customers.
+
+**`npm test` now spawns real servers.** `test/accounts.test.js` stands `server.js` up against a temp
+`DATA_DIR` for six of its cases, because password handling is exactly the code where unit tests of
+the pieces pass while the wiring leaks. It costs about a second — scrypt is slow on purpose. Do not
+lower the scrypt cost to speed the suite up.
+
+**Three bulk reads were open to anyone and are now behind the admin token.** `GET /api/subscriptions`,
+`GET /api/push/subscriptions` and `GET /api/reminder-plans` with no `endpoint` returned every user's
+records to any caller. The push listing included each device's `p256dh` and `auth` keys, which is a
+working ability to send notifications to every user of the app. The per-device lookup the client
+actually uses — `/api/reminder-plans?endpoint=` — is unchanged.
+
+**Still missing before this is a finished product**, in the order it will be wanted: email
+verification, password reset (both need an email provider, which the app has never had), and rate
+limiting that survives a deploy — the current counters are in-process, so a restart hands out a
+fresh budget of guesses.
+
 ## Domain vocabulary
 
 - **Route** — a Denver-returned street segment with left/right sweeping rules, directions, schedules,
@@ -601,7 +686,10 @@ The user alternates between tools on this repo. These rules keep that from corru
 `HOST`, `PORT`, `DATABASE_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — see
 [.env.example](.env.example). Two more are undocumented there:
 
-- `ISSUE_REPORT_ADMIN_TOKEN` — gates reads of `/api/issue-reports` via `Authorization: Bearer <token>`.
+- `ISSUE_REPORT_ADMIN_TOKEN` — gates every bulk read that returns other people's data, not just
+  issue reports, via `Authorization: Bearer <token>`. Unset by default, which closes them.
+- `DATA_DIR` — where the JSON collections live. Unset everywhere except `test/accounts.test.js`,
+  which points it at a temp directory so a test run cannot write accounts into the working copy.
 - `APP_ORIGIN` — which server the pipeline scripts query. Defaults to localhost for
   `build-static-inventory.js`, **production** for `map-area-approach-3.js`.
 

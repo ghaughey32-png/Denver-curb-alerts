@@ -9,6 +9,7 @@ This is a working Denver pilot for a parking-protection app that helps people av
 - Shows left-side and right-side sweeping rules separately
 - Includes a web app manifest and service worker so the app can be installed like an app once it is hosted on `https://`
 - Includes device push subscription plumbing for a hosted web-push setup
+- Offers an optional account (email and password) so saved curb sets follow you to a new phone or a cleared browser
 - Supports scheduled-route reminder planning with a default cadence:
   - Day before at 6:00 PM
   - Day of at 7:00 AM
@@ -19,8 +20,9 @@ This is a working Denver pilot for a parking-protection app that helps people av
 ## What this version does not do yet
 
 - It does not send real iPhone push notifications until you host it on `https://`, add VAPID keys, and install dependencies
-- It does not authenticate users
 - It does not ingest every Denver street segment ahead of time for map-first browsing across the whole city
+- It does not verify email addresses or offer a password reset yet, because it has no email provider wired up
+- It does not take payments yet, though every account already carries the plan and subscription fields a payment would fill in
 - It does not include snow removal yet
 
 ## Why the app is built this way
@@ -167,12 +169,33 @@ On your iPhone:
 
 If the server keys are configured correctly, the app will save the device subscription and send the test push through the service worker path instead of the local preview path.
 
+## Accounts
+
+Signing in is optional and the map never asks you to. Everything — searching an address, tapping a
+curb, saving a set, scheduling reminders — works exactly as it always has without one, and saved
+curb sets are still kept in the browser either way.
+
+What an account adds is that those saved sets are also kept on the server, so they come back on a
+new phone, in a different browser, or after clearing your site data. The panel lives under
+**My alerts → Your account**.
+
+- **Signing in merges, it never replaces.** Curbs saved on this device while signed out are kept,
+  and anything on the account that this device does not have is added alongside them.
+- **Signing out leaves your saved curbs on the device.** It is not a request to stop the reminders
+  already running here.
+- **Changing your password signs out your other devices**, which is the point of changing it.
+- **Deleting your account** removes the saved sets and stops reminders on every device, and asks for
+  your password first. It cannot be undone.
+
+Passwords are stored as scrypt hashes and never in plain text. The session is an HttpOnly cookie, so
+page scripts cannot read it. Sign-in attempts are throttled per address and per email.
+
 ## Recommended next step for production
 
 If we keep pushing this toward a real consumer app, the best next architecture is:
 
 1. Keep the Denver lookup behind our own backend so we control caching, retries, and future city integrations.
-2. Add user accounts so one person can manage multiple saved curb-side sets across devices.
+2. ~~Add user accounts so one person can manage multiple saved curb-side sets across devices.~~ Done — see **Accounts** above. Email verification, password reset, and payments are the remaining pieces.
 3. Add service-worker web push for the PWA or move to a mobile app shell for more reliable notifications.
 4. Add a background job that expands each saved schedule into concrete reminders and sends them through push, SMS, or email.
 5. Add a city data ingestion job so users can browse the map first instead of starting from address lookup.

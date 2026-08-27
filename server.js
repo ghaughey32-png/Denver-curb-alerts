@@ -5,24 +5,32 @@ const path = require("node:path");
 const { URL } = require("node:url");
 const zlib = require("node:zlib");
 
+const accounts = require("./lib/accounts.js");
+
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
-const DATA_DIR = path.join(ROOT, "data");
+// Overridable so test/accounts.test.js can stand a real server up against a throwaway directory
+// instead of writing accounts and sessions into the working copy. Unset everywhere else.
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, "data");
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const ISSUE_REPORT_ADMIN_TOKEN = process.env.ISSUE_REPORT_ADMIN_TOKEN || "";
 const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
 const PUSH_SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "push-subscriptions.json");
 const REMINDER_PLANS_FILE = path.join(DATA_DIR, "reminder-plans.json");
 const ISSUE_REPORTS_FILE = path.join(DATA_DIR, "issue-reports.json");
+const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json");
+const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const DENVER_API_BASE = "https://www.denvergov.org/api/";
 const REMINDER_DISPATCH_INTERVAL_MS = 60 * 1000;
 const COLLECTION_KEYS = {
   subscriptions: "subscriptions",
   pushSubscriptions: "push-subscriptions",
   reminderPlans: "reminder-plans",
-  issueReports: "issue-reports"
+  issueReports: "issue-reports",
+  accounts: "accounts",
+  sessions: "sessions"
 };
 
 const MIME_TYPES = {
@@ -39,8 +47,29 @@ let databaseSchemaReady = false;
 let databaseEnabled = Boolean(DATABASE_URL);
 let storageBackend = databaseEnabled ? "database" : "file";
 
-function setApiCorsHeaders(response) {
-  response.setHeader("Access-Control-Allow-Origin", "*");
+// A session cookie will not travel on a wildcard origin, and it must not: the CORS spec makes
+// Access-Control-Allow-Origin: * and Allow-Credentials mutually exclusive precisely so that a
+// public API cannot be talked into acting as a logged-in user. The map's read-only endpoints stay
+// open to anyone, and a request from an origin we actually run on gets that origin echoed with
+// credentials allowed instead. Adding an origin here grants it the ability to act as a signed-in
+// user from the browser, so add only origins this app is served from.
+const CREDENTIALED_ORIGINS = new Set([
+  "https://denver-curb-alerts-2.onrender.com",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+]);
+
+function setApiCorsHeaders(request, response) {
+  const origin = String(request.headers.origin || "");
+
+  if (origin && CREDENTIALED_ORIGINS.has(origin)) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Access-Control-Allow-Credentials", "true");
+    response.setHeader("Vary", "Origin");
+  } else {
+    response.setHeader("Access-Control-Allow-Origin", "*");
+  }
+
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
 }
@@ -50,13 +79,19 @@ function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload, null, 2));
 }
 
-function hasIssueReportAdminAccess(request) {
+// Reads that return other people's data. The token is optional in the environment and absent by
+// default, which means these listings are closed unless an operator deliberately opens them.
+function hasAdminAccess(request) {
   if (!ISSUE_REPORT_ADMIN_TOKEN) {
     return false;
   }
 
   const authorization = request.headers.authorization || "";
   return authorization === `Bearer ${ISSUE_REPORT_ADMIN_TOKEN}`;
+}
+
+function hasIssueReportAdminAccess(request) {
+  return hasAdminAccess(request);
 }
 
 function sendText(response, statusCode, text) {
@@ -78,7 +113,9 @@ async function ensureDataFiles() {
     ensureJsonFile(SUBSCRIPTIONS_FILE),
     ensureJsonFile(PUSH_SUBSCRIPTIONS_FILE),
     ensureJsonFile(REMINDER_PLANS_FILE),
-    ensureJsonFile(ISSUE_REPORTS_FILE)
+    ensureJsonFile(ISSUE_REPORTS_FILE),
+    ensureJsonFile(ACCOUNTS_FILE),
+    ensureJsonFile(SESSIONS_FILE)
   ]);
 }
 
@@ -208,7 +245,9 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.subscriptions, SUBSCRIPTIONS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.pushSubscriptions, PUSH_SUBSCRIPTIONS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.issueReports, ISSUE_REPORTS_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.issueReports, ISSUE_REPORTS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.accounts, ACCOUNTS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE)
     ]);
     storageBackend = "database";
   } catch (error) {
@@ -332,6 +371,147 @@ async function writeIssueReports(reports) {
   await writeCollectionToFile(ISSUE_REPORTS_FILE, reports);
 }
 
+async function readAccounts() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.accounts);
+  }
+
+  return readCollectionFromFile(ACCOUNTS_FILE);
+}
+
+async function writeAccounts(records) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.accounts, records);
+    return;
+  }
+
+  await writeCollectionToFile(ACCOUNTS_FILE, records);
+}
+
+async function readSessions() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.sessions);
+  }
+
+  return readCollectionFromFile(SESSIONS_FILE);
+}
+
+async function writeSessions(records) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.sessions, records);
+    return;
+  }
+
+  await writeCollectionToFile(SESSIONS_FILE, records);
+}
+
+// Render terminates TLS in front of us, so the socket here is plain http even in production and
+// request.socket.encrypted would drop the Secure attribute from every cookie we set. The proxy
+// header is the only thing that knows. Locally there is no header and no TLS, which is what lets a
+// session work over http://127.0.0.1:3000 during development.
+function isSecureRequest(request) {
+  const forwarded = String(request.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+
+  if (forwarded) {
+    return forwarded === "https";
+  }
+
+  return Boolean(request.socket && request.socket.encrypted);
+}
+
+function getRequestIp(request) {
+  const forwarded = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || (request.socket && request.socket.remoteAddress) || "unknown";
+}
+
+async function resolveSession(request) {
+  const jar = accounts.parseCookies(request.headers.cookie);
+  const token = jar[accounts.SESSION_COOKIE_NAME];
+
+  if (!token) {
+    return { account: null, session: null };
+  }
+
+  const tokenHash = accounts.hashSessionToken(token);
+  const sessions = await readSessions();
+  const session = sessions.find((item) => item.tokenHash === tokenHash);
+
+  if (!session || accounts.isSessionExpired(session)) {
+    return { account: null, session: null };
+  }
+
+  const accountList = await readAccounts();
+  const account = accountList.find((item) => item.id === session.accountId);
+
+  return account ? { account, session } : { account: null, session: null };
+}
+
+async function startSession(request, response, account) {
+  const { token, tokenHash } = accounts.createSessionToken();
+  const sessions = accounts.pruneExpiredSessions(await readSessions());
+  const record = accounts.buildSessionRecord({
+    accountId: account.id,
+    tokenHash,
+    userAgent: request.headers["user-agent"] || ""
+  });
+
+  await writeSessions([record, ...sessions]);
+  response.setHeader("Set-Cookie", accounts.buildSessionCookie(token, { secure: isSecureRequest(request) }));
+  return record;
+}
+
+// Sign-in throttling. In memory on purpose: this is one small Node process, a shared counter would
+// mean a round trip to Postgres on every attempt, and the failure mode of losing the counters on
+// deploy is that an attacker gets a fresh budget once a week. Both the email and the address are
+// keyed so that neither guessing one account's password from many addresses nor spraying many
+// accounts from one address gets an unlimited number of tries.
+const SIGN_IN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const SIGN_IN_MAX_ATTEMPTS_PER_EMAIL = 8;
+const SIGN_IN_MAX_ATTEMPTS_PER_ADDRESS = 30;
+const signInAttempts = new Map();
+
+function pruneSignInAttempts(now) {
+  signInAttempts.forEach((entry, key) => {
+    if (now - entry.firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
+      signInAttempts.delete(key);
+    }
+  });
+}
+
+function countSignInAttempts(key, now) {
+  const entry = signInAttempts.get(key);
+
+  if (!entry || now - entry.firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
+    return 0;
+  }
+
+  return entry.count;
+}
+
+function recordSignInFailure(key, now) {
+  const entry = signInAttempts.get(key);
+
+  if (!entry || now - entry.firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
+    signInAttempts.set(key, { count: 1, firstAttemptAt: now });
+    return;
+  }
+
+  entry.count += 1;
+}
+
+function clearSignInFailures(keys) {
+  keys.forEach((key) => signInAttempts.delete(key));
+}
+
+function isSignInThrottled(emailKey, addressKey, now) {
+  pruneSignInAttempts(now);
+
+  return (
+    countSignInAttempts(emailKey, now) >= SIGN_IN_MAX_ATTEMPTS_PER_EMAIL ||
+    countSignInAttempts(addressKey, now) >= SIGN_IN_MAX_ATTEMPTS_PER_ADDRESS
+  );
+}
+
 function getWebPushLibrary() {
   try {
     return require("web-push");
@@ -389,11 +569,12 @@ function mergeReminderJobs(existingJobs, nextJobs) {
   });
 }
 
-function buildReminderPlanRecord(existingPlan, subscriptionRecord, endpoint, savedSets, jobs) {
+function buildReminderPlanRecord(existingPlan, subscriptionRecord, endpoint, savedSets, jobs, accountId = null) {
   const now = new Date().toISOString();
   return {
     id: existingPlan?.id || `plan_${Date.now()}`,
     endpoint,
+    accountId: accountId || subscriptionRecord.accountId || existingPlan?.accountId || null,
     subscriptionId: subscriptionRecord.id,
     deviceLabel: subscriptionRecord.deviceLabel || "",
     updatedAt: now,
@@ -552,6 +733,11 @@ async function handleDenverLookup(response, url) {
 
 async function handleSubscriptions(request, response, url) {
   if (request.method === "GET") {
+    if (!hasAdminAccess(request)) {
+      sendJson(response, 403, { error: "Not authorized." });
+      return;
+    }
+
     const subscriptions = await readSubscriptions();
     sendJson(response, 200, subscriptions);
     return;
@@ -614,6 +800,11 @@ async function handlePushConfig(response) {
 
 async function handlePushSubscriptions(request, response, url) {
   if (request.method === "GET") {
+    if (!hasAdminAccess(request)) {
+      sendJson(response, 403, { error: "Not authorized." });
+      return;
+    }
+
     const subscriptions = await readPushSubscriptions();
     sendJson(response, 200, {
       count: subscriptions.length,
@@ -632,12 +823,14 @@ async function handlePushSubscriptions(request, response, url) {
         return;
       }
 
+      const { account } = await resolveSession(request);
       const subscriptions = await readPushSubscriptions();
       const existing = subscriptions.find((item) => item.endpoint === subscription.endpoint);
       const now = new Date().toISOString();
       const record = {
         id: existing?.id || `push_${Date.now()}`,
         endpoint: subscription.endpoint,
+        accountId: account?.id || existing?.accountId || null,
         keys: subscription.keys,
         userAgent: body.userAgent || request.headers["user-agent"] || "",
         deviceLabel: body.deviceLabel || "",
@@ -686,6 +879,11 @@ async function handleReminderPlans(request, response, url) {
     const plans = await readReminderPlans();
 
     if (!endpoint) {
+      if (!hasAdminAccess(request)) {
+        sendJson(response, 403, { error: "Not authorized." });
+        return;
+      }
+
       sendJson(response, 200, {
         count: plans.length,
         plans
@@ -726,9 +924,10 @@ async function handleReminderPlans(request, response, url) {
         return;
       }
 
+      const { account } = await resolveSession(request);
       const plans = await readReminderPlans();
       const existing = plans.find((item) => item.endpoint === endpoint);
-      const nextPlan = buildReminderPlanRecord(existing, subscriptionRecord, endpoint, savedSets, jobs);
+      const nextPlan = buildReminderPlanRecord(existing, subscriptionRecord, endpoint, savedSets, jobs, account?.id || null);
       const nextPlans = existing
         ? plans.map((item) => (item.endpoint === endpoint ? nextPlan : item))
         : [nextPlan, ...plans];
@@ -823,6 +1022,322 @@ async function handleIssueReports(request, response, url) {
 
     await writeIssueReports(nextReports);
     sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed." });
+}
+
+async function updateAccount(accountId, mutate) {
+  const records = await readAccounts();
+  const existing = records.find((item) => item.id === accountId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const next = {
+    ...mutate(existing),
+    updatedAt: new Date().toISOString()
+  };
+
+  await writeAccounts(records.map((item) => (item.id === accountId ? next : item)));
+  return next;
+}
+
+// Signing in against an address with no account still costs a full scrypt verification, so the
+// response time does not tell an attacker which addresses are registered. The decoy hash is derived
+// from a random string generated at boot and never matches anything.
+let timingDecoyHashPromise = null;
+
+function getTimingDecoyHash() {
+  if (!timingDecoyHashPromise) {
+    timingDecoyHashPromise = accounts.hashPassword(accounts.createSessionToken().token);
+  }
+
+  return timingDecoyHashPromise;
+}
+
+async function handleAccounts(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch (error) {
+    sendJson(response, 400, { error: "Invalid sign-up payload.", details: error.message });
+    return;
+  }
+
+  const email = accounts.normalizeEmail(body.email);
+  const password = String(body.password || "");
+
+  if (!accounts.isValidEmail(email)) {
+    sendJson(response, 400, { error: "Enter a valid email address." });
+    return;
+  }
+
+  const passwordCheck = accounts.validatePassword(password, email);
+  if (!passwordCheck.ok) {
+    sendJson(response, 400, { error: passwordCheck.error });
+    return;
+  }
+
+  // Creating accounts is throttled by address for the same reason signing in is: without it, one
+  // script can fill the accounts collection.
+  const addressKey = `signup:${getRequestIp(request)}`;
+  const now = Date.now();
+  if (isSignInThrottled("signup:none", addressKey, now)) {
+    sendJson(response, 429, { error: "Too many attempts. Try again in a few minutes." });
+    return;
+  }
+
+  const existingAccounts = await readAccounts();
+  if (existingAccounts.some((item) => item.email === email)) {
+    // This does confirm the address is registered, which sign-in deliberately refuses to do. There
+    // is no way around it on a sign-up form without email verification gating account creation, and
+    // that trade is worth revisiting when verification lands.
+    recordSignInFailure(addressKey, now);
+    sendJson(response, 409, { error: "An account with that email already exists. Try signing in." });
+    return;
+  }
+
+  const passwordHash = await accounts.hashPassword(password);
+  const record = accounts.buildAccountRecord({ email, passwordHash });
+  record.library = { savedSets: [], updatedAt: record.createdAt };
+
+  await writeAccounts([record, ...existingAccounts]);
+  await startSession(request, response, record);
+  await attachSessionToDevices(record.id, body.pushEndpoint);
+
+  sendJson(response, 201, { account: accounts.toPublicAccount(record) });
+}
+
+async function handleSessions(request, response) {
+  if (request.method === "POST") {
+    let body;
+    try {
+      body = JSON.parse(await readRequestBody(request));
+    } catch (error) {
+      sendJson(response, 400, { error: "Invalid sign-in payload.", details: error.message });
+      return;
+    }
+
+    const email = accounts.normalizeEmail(body.email);
+    const password = String(body.password || "");
+    const now = Date.now();
+    const emailKey = `signin:${email}`;
+    const addressKey = `signin:${getRequestIp(request)}`;
+
+    if (isSignInThrottled(emailKey, addressKey, now)) {
+      sendJson(response, 429, { error: "Too many sign-in attempts. Try again in a few minutes." });
+      return;
+    }
+
+    const accountList = await readAccounts();
+    const account = accountList.find((item) => item.email === email);
+    const passwordMatches = account
+      ? await accounts.verifyPassword(password, account.passwordHash)
+      : await accounts.verifyPassword(password, await getTimingDecoyHash());
+
+    if (!account || !passwordMatches) {
+      recordSignInFailure(emailKey, now);
+      recordSignInFailure(addressKey, now);
+      // One message for both failures. Telling the user which half was wrong tells an attacker
+      // which addresses have accounts.
+      sendJson(response, 401, { error: "That email and password don't match an account." });
+      return;
+    }
+
+    clearSignInFailures([emailKey, addressKey]);
+    await startSession(request, response, account);
+    await attachSessionToDevices(account.id, body.pushEndpoint);
+
+    sendJson(response, 200, { account: accounts.toPublicAccount(account) });
+    return;
+  }
+
+  if (request.method === "DELETE") {
+    const jar = accounts.parseCookies(request.headers.cookie);
+    const token = jar[accounts.SESSION_COOKIE_NAME];
+
+    if (token) {
+      const tokenHash = accounts.hashSessionToken(token);
+      const sessions = accounts.pruneExpiredSessions(await readSessions());
+      await writeSessions(sessions.filter((item) => item.tokenHash !== tokenHash));
+    }
+
+    response.setHeader("Set-Cookie", accounts.buildExpiredSessionCookie({ secure: isSecureRequest(request) }));
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed." });
+}
+
+// A device is still identified to the push service by its endpoint; signing in is what ties that
+// endpoint to a person. Without this, a paid account on a new phone would have no way to say which
+// push subscription belongs to it, and the reminder dispatcher would have nothing to bill against.
+async function attachSessionToDevices(accountId, pushEndpoint) {
+  const endpoint = String(pushEndpoint || "");
+  if (!endpoint) {
+    return;
+  }
+
+  const subscriptions = await readPushSubscriptions();
+  if (subscriptions.some((item) => item.endpoint === endpoint && item.accountId !== accountId)) {
+    await writePushSubscriptions(
+      subscriptions.map((item) => (item.endpoint === endpoint ? { ...item, accountId } : item))
+    );
+  }
+
+  const plans = await readReminderPlans();
+  if (plans.some((item) => item.endpoint === endpoint && item.accountId !== accountId)) {
+    await writeReminderPlans(plans.map((item) => (item.endpoint === endpoint ? { ...item, accountId } : item)));
+  }
+}
+
+async function handleCurrentAccount(request, response) {
+  const { account } = await resolveSession(request);
+
+  if (request.method === "GET") {
+    // A signed-out visitor is not an error here. The whole app works without an account, so the
+    // client asks this on every load and renders whichever answer it gets.
+    sendJson(response, 200, { account: accounts.toPublicAccount(account) });
+    return;
+  }
+
+  if (!account) {
+    sendJson(response, 401, { error: "Sign in first." });
+    return;
+  }
+
+  if (request.method === "DELETE") {
+    let body;
+    try {
+      body = JSON.parse(await readRequestBody(request));
+    } catch {
+      body = {};
+    }
+
+    const confirmed = await accounts.verifyPassword(String(body.password || ""), account.passwordHash);
+    if (!confirmed) {
+      sendJson(response, 403, { error: "Enter your current password to delete the account." });
+      return;
+    }
+
+    // Deleting the account takes the reminders with it. Leaving orphaned push subscriptions behind
+    // would keep sending notifications to a phone whose owner just asked to be forgotten.
+    const [accountList, sessions, plans, pushSubscriptions] = await Promise.all([
+      readAccounts(),
+      readSessions(),
+      readReminderPlans(),
+      readPushSubscriptions()
+    ]);
+
+    await Promise.all([
+      writeAccounts(accountList.filter((item) => item.id !== account.id)),
+      writeSessions(sessions.filter((item) => item.accountId !== account.id)),
+      writeReminderPlans(plans.filter((item) => item.accountId !== account.id)),
+      writePushSubscriptions(pushSubscriptions.filter((item) => item.accountId !== account.id))
+    ]);
+
+    response.setHeader("Set-Cookie", accounts.buildExpiredSessionCookie({ secure: isSecureRequest(request) }));
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed." });
+}
+
+async function handleAccountPassword(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const { account, session } = await resolveSession(request);
+  if (!account) {
+    sendJson(response, 401, { error: "Sign in first." });
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch (error) {
+    sendJson(response, 400, { error: "Invalid password payload.", details: error.message });
+    return;
+  }
+
+  const currentMatches = await accounts.verifyPassword(String(body.currentPassword || ""), account.passwordHash);
+  if (!currentMatches) {
+    sendJson(response, 403, { error: "Your current password is not correct." });
+    return;
+  }
+
+  const check = accounts.validatePassword(String(body.newPassword || ""), account.email);
+  if (!check.ok) {
+    sendJson(response, 400, { error: check.error });
+    return;
+  }
+
+  const passwordHash = await accounts.hashPassword(String(body.newPassword));
+  await updateAccount(account.id, (existing) => ({ ...existing, passwordHash }));
+
+  // Changing a password is how someone reacts to thinking it was stolen, so every other session has
+  // to go. The one making this request survives, or the user is signed out of the page they are on.
+  const sessions = accounts.pruneExpiredSessions(await readSessions());
+  await writeSessions(sessions.filter((item) => item.accountId !== account.id || item.id === session.id));
+
+  sendJson(response, 200, { ok: true });
+}
+
+// The upgrade path off device-local storage. Saved curb sets live in localStorage for anonymous
+// users and always will; this is where they go once there is an account to hang them on, so a new
+// phone or a cleared browser does not lose them.
+async function handleAccountLibrary(request, response) {
+  const { account } = await resolveSession(request);
+
+  if (!account) {
+    sendJson(response, 401, { error: "Sign in first." });
+    return;
+  }
+
+  if (request.method === "GET") {
+    sendJson(response, 200, { library: account.library || { savedSets: [], updatedAt: null } });
+    return;
+  }
+
+  if (request.method === "POST") {
+    let body;
+    try {
+      body = JSON.parse(await readRequestBody(request));
+    } catch (error) {
+      sendJson(response, 400, { error: "Invalid library payload.", details: error.message });
+      return;
+    }
+
+    const savedSets = Array.isArray(body.savedSets)
+      ? body.savedSets.slice(0, 200).map((set) => ({
+          id: String(set.id || ""),
+          name: cleanText(set.name, 120),
+          sourceLabel: cleanText(set.sourceLabel, 200),
+          lookupAddress: cleanText(set.lookupAddress, 200),
+          segmentIds: Array.isArray(set.segmentIds)
+            ? set.segmentIds.slice(0, 200).map((segmentId) => String(segmentId))
+            : [],
+          createdAt: String(set.createdAt || "")
+        }))
+      : [];
+
+    const library = { savedSets, updatedAt: new Date().toISOString() };
+    await updateAccount(account.id, (existing) => ({ ...existing, library }));
+
+    sendJson(response, 200, { ok: true, library });
     return;
   }
 
@@ -1140,7 +1655,7 @@ const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname.startsWith("/api/")) {
-    setApiCorsHeaders(response);
+    setApiCorsHeaders(request, response);
     if (request.method === "OPTIONS") {
       response.writeHead(204);
       response.end();
@@ -1164,6 +1679,31 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/subscriptions" || url.pathname.startsWith("/api/subscriptions/")) {
     await handleSubscriptions(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/accounts") {
+    await handleAccounts(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/accounts/me") {
+    await handleCurrentAccount(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/accounts/me/password") {
+    await handleAccountPassword(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/accounts/me/library") {
+    await handleAccountLibrary(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/sessions") {
+    await handleSessions(request, response);
     return;
   }
 

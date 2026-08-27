@@ -4,6 +4,8 @@ node_modules/
 data/push-subscriptions.json
 data/reminder-plans.json
 data/vapid-keys.txt
+data/accounts.json
+data/sessions.json
 Parking app 1.2/
 
 # Regenerable pipeline artifacts. Nothing reads these at runtime; they are lookup
