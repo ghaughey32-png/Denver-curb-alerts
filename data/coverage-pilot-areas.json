@@ -677,6 +677,20 @@
         "expectedPublicBlocks": 114,
         "minimumScheduled": 99
       }
+    },
+    {
+      "id": "e37-e38-gilpin-colorado",
+      "label": "East 37th Avenue–East 38th Avenue, N Gilpin Street–N Colorado Boulevard",
+      "north": 39.7692,
+      "south": 39.7685,
+      "west": -104.9674,
+      "east": -104.9404,
+      "published": true,
+      "coverage": {
+        "testName": "East 37th–East 38th from Gilpin–Colorado",
+        "expectedPublicBlocks": 32,
+        "minimumScheduled": 29
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -712,7 +726,8 @@
       "East 25th–East 37th from Broadway–Ogden",
       "East 37th–East 45th from Broadway–Blake",
       "East 26th–East 38th from Ogden–Gilpin",
-      "East 17th–East 26th from York–Colorado"
+      "East 17th–East 26th from York–Colorado",
+      "East 37th–East 38th from Gilpin–Colorado"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
