@@ -691,6 +691,20 @@
         "expectedPublicBlocks": 32,
         "minimumScheduled": 29
       }
+    },
+    {
+      "id": "colfax-smith-quebec-boston",
+      "label": "East Colfax Avenue–East Smith Road, North Quebec Street–North Boston Street",
+      "north": 39.7722,
+      "south": 39.7407,
+      "west": -104.9027,
+      "east": -104.8774,
+      "published": true,
+      "coverage": {
+        "testName": "East Colfax–East Smith Road from Quebec–Boston",
+        "expectedPublicBlocks": 946,
+        "minimumScheduled": 895
+      }
     }
   ],
   "payloadAreaLabel": {
@@ -727,7 +741,8 @@
       "East 37th–East 45th from Broadway–Blake",
       "East 26th–East 38th from Ogden–Gilpin",
       "East 17th–East 26th from York–Colorado",
-      "East 37th–East 38th from Gilpin–Colorado"
+      "East 37th–East 38th from Gilpin–Colorado",
+      "East Colfax–East Smith Road from Quebec–Boston"
     ],
     "suffix": "plus the West Denver and RiNo inventories"
   }
