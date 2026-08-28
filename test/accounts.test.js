@@ -1,11 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
 
 const accounts = require("../lib/accounts.js");
+const { withServer } = require("./lib/with-server.js");
 
 test("email normalization trims and lowercases", () => {
   assert.equal(accounts.normalizeEmail("  Driver@Example.COM "), "driver@example.com");
@@ -119,71 +118,16 @@ test("the public account view never carries the password hash", () => {
   const view = accounts.toPublicAccount(record);
 
   assert.equal(view.email, "driver@example.com");
-  assert.equal(view.entitlement.plan, "free");
+  // A new account opens on a trial, not the free plan: the account itself is the paid product,
+  // so there has to be something between signing up and entering a card.
+  assert.equal(view.entitlement.plan, "trial");
+  assert.ok(view.entitlement.active);
   assert.ok(!JSON.stringify(view).includes("scrypt$secret"));
   assert.equal(accounts.toPublicAccount(null), null);
 });
 
-// The rest of this file stands a real server up. scrypt is intentionally slow, so these are the
-// seconds in `npm test`; they are worth it, because password handling is exactly the code where a
-// unit test of the pieces can pass while the wiring leaks.
-async function withServer(run) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "curb-accounts-"));
-  const port = 39000 + Math.floor(Math.random() * 900);
-  const child = spawn(process.execPath, [path.join(__dirname, "..", "server.js")], {
-    env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", DATA_DIR: dataDir, DATABASE_URL: "" },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  try {
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Server did not start in time.")), 15000);
-      child.stdout.on("data", (chunk) => {
-        if (String(chunk).includes("running at")) {
-          clearTimeout(timer);
-          resolve();
-        }
-      });
-      child.on("error", reject);
-      child.on("exit", (code) => reject(new Error(`Server exited early with code ${code}.`)));
-    });
-
-    const origin = `http://127.0.0.1:${port}`;
-    await run({
-      origin,
-      call: async (pathname, options = {}) => {
-        const response = await fetch(`${origin}${pathname}`, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            ...(options.cookie ? { Cookie: options.cookie } : {}),
-            ...(options.headers || {})
-          },
-          body: options.json ? JSON.stringify(options.json) : options.body
-        });
-
-        const text = await response.text();
-        let payload = null;
-        try {
-          payload = text ? JSON.parse(text) : null;
-        } catch {
-          payload = text;
-        }
-
-        const setCookie = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
-        const sessionCookie = setCookie
-          .map((value) => value.split(";")[0])
-          .find((value) => value.startsWith("curb_session="));
-
-        return { status: response.status, payload, sessionCookie, raw: text };
-      }
-    });
-  } finally {
-    child.kill("SIGKILL");
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
-}
-
+// The rest of this file stands a real server up; the harness lives in test/lib/with-server.js
+// because the billing tests need the same one.
 test("sign up, sign in, and sign out carry a session end to end", async () => {
   await withServer(async ({ call }) => {
     const created = await call("/api/accounts", {
@@ -200,8 +144,12 @@ test("sign up, sign in, and sign out carry a session end to end", async () => {
     const me = await call("/api/accounts/me", { cookie: created.sessionCookie });
     assert.equal(me.status, 200);
     assert.equal(me.payload.account.email, "driver@example.com");
-    assert.equal(me.payload.account.entitlement.active, false);
-    assert.equal(me.payload.account.entitlement.plan, "free");
+    // Signing up opens the trial, so a brand new account is entitled and has no Stripe
+    // subscription behind it yet. That pair is what the client reads to offer checkout.
+    assert.equal(me.payload.account.entitlement.active, true);
+    assert.equal(me.payload.account.entitlement.plan, "trial");
+    assert.equal(me.payload.account.entitlement.trialing, true);
+    assert.equal(me.payload.account.entitlement.manageable, false);
 
     // A signed-out visitor is a normal answer, not an error: the map works without an account.
     const anonymous = await call("/api/accounts/me");

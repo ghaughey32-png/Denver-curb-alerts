@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260827-accounts-privacy" />
+    <link rel="stylesheet" href="./styles.css?v=20260827-billing-stripe" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
@@ -373,6 +373,21 @@
                 Signed in as <strong id="account-email-label">your account</strong>
               </p>
               <p class="account-plan" id="account-plan-label">Free plan</p>
+
+              <!-- Hidden unless the server has Stripe keys, so a deployment with no payments
+                   configured shows the account card exactly as it looked before billing existed. -->
+              <div id="account-billing" class="account-billing" hidden>
+                <p class="account-billing-summary" id="account-billing-summary"></p>
+                <div class="account-action-row" id="account-billing-actions">
+                  <button id="account-upgrade-annual" class="primary-button" type="button" hidden>Subscribe</button>
+                  <button id="account-upgrade-monthly" class="ghost-button" type="button" hidden>Subscribe monthly</button>
+                  <button id="account-billing-portal" class="ghost-button" type="button" hidden>Manage billing</button>
+                </div>
+                <p class="account-hint">
+                  Payments are handled by Stripe. Cancel any time — the map, curb colors, and the reminders already
+                  running on this device stay free either way.
+                </p>
+              </div>
 
               <div class="account-action-row">
                 <button id="account-sign-out-button" class="ghost-button" type="button">Sign out</button>
@@ -880,6 +895,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260827-accounts-privacy"></script>
+    <script src="./app.js?v=20260827-billing-stripe"></script>
   </body>
 </html>

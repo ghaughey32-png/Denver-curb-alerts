@@ -6,6 +6,7 @@ const { URL } = require("node:url");
 const zlib = require("node:zlib");
 
 const accounts = require("./lib/accounts.js");
+const billing = require("./lib/billing.js");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -232,10 +233,36 @@ async function maybeMigrateFileCollectionToDatabase(name, filePath) {
   await writeCollectionToDatabase(name, fileItems);
 }
 
+// Accounts created before payments existed carry the unentitled default billing shape, which the
+// library gate would read as a lapsed customer and lock out of their own sync on the next deploy.
+// They never had a trial to use, so they get one now. Idempotent, and keyed on the absence of both
+// a trial and a Stripe customer so it can never top up someone who has already been through it.
+async function backfillAccountTrials() {
+  const records = await readAccounts();
+  const now = new Date();
+  let changed = false;
+
+  const next = records.map((account) => {
+    const existing = account.billing || {};
+    if (existing.trialStartedAt || existing.stripeCustomerId || existing.status !== "none") {
+      return account;
+    }
+
+    changed = true;
+    return { ...account, billing: accounts.buildTrialBilling(now, billing.TRIAL_DAYS) };
+  });
+
+  if (changed) {
+    await writeAccounts(next);
+    console.log(`Opened a ${billing.TRIAL_DAYS}-day trial for accounts created before billing existed.`);
+  }
+}
+
 async function initStorage() {
   if (!isDatabaseConfigured()) {
     await ensureDataFiles();
     storageBackend = "file";
+    await backfillAccountTrials();
     return;
   }
 
@@ -250,12 +277,14 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE)
     ]);
     storageBackend = "database";
+    await backfillAccountTrials();
   } catch (error) {
     databaseEnabled = false;
     databasePool = null;
     databaseSchemaReady = false;
     storageBackend = "file";
     await ensureDataFiles();
+    await backfillAccountTrials();
     console.error(`Database unavailable at startup, falling back to file storage: ${error.message}`);
   }
 }
@@ -1107,6 +1136,9 @@ async function handleAccounts(request, response) {
 
   const passwordHash = await accounts.hashPassword(password);
   const record = accounts.buildAccountRecord({ email, passwordHash });
+  // buildAccountRecord opens a trial of its own length; the authoritative one lives beside the
+  // prices in lib/billing.js, so the account module never has to know what the plan costs.
+  record.billing = accounts.buildTrialBilling(new Date(record.createdAt), billing.TRIAL_DAYS);
   record.library = { savedSets: [], updatedAt: record.createdAt };
 
   await writeAccounts([record, ...existingAccounts]);
@@ -1307,6 +1339,23 @@ async function handleAccountLibrary(request, response) {
     return;
   }
 
+  // The only gated endpoint in the app, and deliberately the only one. Signing in, changing a
+  // password and deleting an account all stay open to a lapsed customer: you have to be able to
+  // reach the card form to pay, and you have to be able to leave. Reminders are not gated either,
+  // because they key on the push endpoint rather than the account and fire for signed-out users —
+  // which is the point. Withholding a sweeping alert to collect $15 is how someone gets a ticket.
+  const entitlement = accounts.getEntitlement(account);
+  if (!entitlement.active) {
+    sendJson(response, 402, {
+      error: "Your trial has ended. Subscribe to keep your saved curb sets synced.",
+      entitlement,
+      // The library is still here, untouched. A lapsed account is dormant, not deleted, and the
+      // client says so rather than implying the sets are gone.
+      retained: (account.library?.savedSets || []).length
+    });
+    return;
+  }
+
   if (request.method === "GET") {
     sendJson(response, 200, { library: account.library || { savedSets: [], updatedAt: null } });
     return;
@@ -1342,6 +1391,267 @@ async function handleAccountLibrary(request, response) {
   }
 
   sendJson(response, 405, { error: "Method not allowed." });
+}
+
+// Where Stripe sends the customer back to. An explicit STRIPE_RETURN_ORIGIN wins; otherwise the
+// request's own origin is used, but only if it is one we already trust with a session cookie. Host
+// is a client-supplied header, and while the worst an attacker could do with it here is redirect
+// their own checkout somewhere else, reusing the CORS allowlist costs nothing and keeps the set of
+// origins this app admits to being served from in one place.
+function resolveReturnOrigin(request) {
+  const configured = String(process.env.STRIPE_RETURN_ORIGIN || process.env.APP_ORIGIN || "").replace(/\/+$/, "");
+  if (configured) {
+    return configured;
+  }
+
+  const host = String(request.headers.host || "");
+  const candidate = `${isSecureRequest(request) ? "https" : "http"}://${host}`;
+
+  return CREDENTIALED_ORIGINS.has(candidate) ? candidate : [...CREDENTIALED_ORIGINS][0];
+}
+
+async function handleBillingConfig(request, response) {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  sendJson(response, 200, billing.getPublicBillingConfig());
+}
+
+// Reuses the Stripe customer if the account already has one. Creating a second customer for the
+// same person is how a subscription ends up invisible in the portal: the portal session is opened
+// against a customer id, and the one holding the subscription would not be the one we stored.
+async function ensureStripeCustomer(account, config) {
+  if (account.billing?.stripeCustomerId) {
+    return account.billing.stripeCustomerId;
+  }
+
+  const customer = await billing.stripeRequest(
+    "POST",
+    "customers",
+    {
+      email: account.email,
+      // The webhook resolves an account from this when Stripe hands back an event that carries a
+      // customer but no client_reference_id, which is most of the subscription lifecycle events.
+      metadata: { accountId: account.id }
+    },
+    config
+  );
+
+  await updateAccount(account.id, (existing) => ({
+    ...existing,
+    billing: { ...accounts.buildDefaultBilling(), ...existing.billing, stripeCustomerId: customer.id }
+  }));
+
+  return customer.id;
+}
+
+async function handleBillingCheckout(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const config = billing.getBillingConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, {
+      error: "Payments are not configured on this server yet.",
+      details: "Set STRIPE_SECRET_KEY and at least one of STRIPE_PRICE_MONTHLY or STRIPE_PRICE_ANNUAL."
+    });
+    return;
+  }
+
+  const { account } = await resolveSession(request);
+  if (!account) {
+    sendJson(response, 401, { error: "Sign in first." });
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch {
+    body = {};
+  }
+
+  const interval = String(body.interval || "year");
+  const priceId = billing.resolvePriceId(interval, config);
+  if (!priceId) {
+    sendJson(response, 400, { error: "Pick the monthly or the annual plan." });
+    return;
+  }
+
+  try {
+    const customerId = await ensureStripeCustomer(account, config);
+    const origin = resolveReturnOrigin(request);
+    const session = await billing.stripeRequest(
+      "POST",
+      "checkout/sessions",
+      {
+        mode: "subscription",
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        // Stripe substitutes the session id into this placeholder itself, so it must survive the
+        // form encoding intact rather than being interpolated here.
+        success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?checkout=cancelled`,
+        client_reference_id: account.id,
+        subscription_data: { metadata: { accountId: account.id } },
+        allow_promotion_codes: true
+      },
+      config
+    );
+
+    sendJson(response, 200, { url: session.url });
+  } catch (error) {
+    sendJson(response, 502, { error: "Unable to start checkout right now.", details: error.message });
+  }
+}
+
+// Cancelling, swapping monthly for annual, and updating a card all live in Stripe's hosted portal.
+// Building those flows here would mean handling proration and dunning in an app with no dependencies
+// and no email provider, and getting any of it subtly wrong bills someone incorrectly.
+async function handleBillingPortal(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const config = billing.getBillingConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, { error: "Payments are not configured on this server yet." });
+    return;
+  }
+
+  const { account } = await resolveSession(request);
+  if (!account) {
+    sendJson(response, 401, { error: "Sign in first." });
+    return;
+  }
+
+  const customerId = account.billing?.stripeCustomerId;
+  if (!customerId) {
+    sendJson(response, 409, { error: "There is no subscription to manage on this account yet." });
+    return;
+  }
+
+  try {
+    const session = await billing.stripeRequest(
+      "POST",
+      "billing_portal/sessions",
+      { customer: customerId, return_url: `${resolveReturnOrigin(request)}/?billing=updated` },
+      config
+    );
+
+    sendJson(response, 200, { url: session.url });
+  } catch (error) {
+    sendJson(response, 502, { error: "Unable to open the billing portal right now.", details: error.message });
+  }
+}
+
+// Resolves the account an event belongs to. Stripe gives us three ways in depending on the event,
+// and all three are tried because relying on one means a whole class of event silently updates
+// nobody: client_reference_id only exists on a checkout session, metadata only survives if it was
+// set at creation, and the customer id is the only thing every subscription event carries.
+async function findAccountForStripeEvent({ accountId, customerId }) {
+  const records = await readAccounts();
+
+  if (accountId) {
+    const byId = records.find((item) => item.id === accountId);
+    if (byId) {
+      return byId;
+    }
+  }
+
+  if (customerId) {
+    return records.find((item) => item.billing?.stripeCustomerId === customerId) || null;
+  }
+
+  return null;
+}
+
+async function applyStripeSubscription(subscription, accountId) {
+  const account = await findAccountForStripeEvent({
+    accountId: accountId || subscription?.metadata?.accountId || "",
+    customerId: typeof subscription?.customer === "string" ? subscription.customer : subscription?.customer?.id || ""
+  });
+
+  if (!account) {
+    // Not an error worth a 500. Stripe retries failures, and an event for a customer we have never
+    // heard of — a test-mode leftover, or an account deleted between the payment and the webhook —
+    // would retry forever.
+    console.warn(`Stripe subscription ${subscription?.id} matched no account; ignoring.`);
+    return false;
+  }
+
+  await updateAccount(account.id, (existing) => ({
+    ...existing,
+    billing: billing.billingFromSubscription(subscription, existing.billing || {})
+  }));
+
+  return true;
+}
+
+async function handleBillingWebhook(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const config = billing.getBillingConfig();
+  if (!config.webhookReady) {
+    sendJson(response, 503, { error: "Stripe webhooks are not configured on this server yet." });
+    return;
+  }
+
+  // The signature covers these exact bytes, so the body is read as text and parsed only after it
+  // has been verified. Re-serializing the parsed object would not reproduce them.
+  const rawBody = await readRequestBody(request);
+  const verification = billing.verifyWebhookSignature(rawBody, request.headers["stripe-signature"], config.webhookSecret);
+
+  if (!verification.ok) {
+    sendJson(response, 400, { error: verification.error });
+    return;
+  }
+
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch (error) {
+    sendJson(response, 400, { error: "Webhook body is not JSON.", details: error.message });
+    return;
+  }
+
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data?.object || {};
+      const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+
+      if (subscriptionId) {
+        // The session itself carries no status or period end, so the subscription is fetched
+        // rather than guessed. This is what makes the account entitled the moment the customer
+        // lands back on the page, instead of whenever customer.subscription.created arrives.
+        const subscription = await billing.stripeRequest("GET", `subscriptions/${subscriptionId}`, null, config);
+        await applyStripeSubscription(subscription, session.client_reference_id || "");
+      }
+    } else if (
+      event.type === "customer.subscription.created" ||
+      event.type === "customer.subscription.updated" ||
+      event.type === "customer.subscription.deleted"
+    ) {
+      await applyStripeSubscription(event.data?.object || {}, "");
+    }
+
+    // Everything else is acknowledged rather than rejected. A 4xx tells Stripe to retry, and
+    // retrying an event we have no handler for accomplishes nothing but filling the dashboard.
+    sendJson(response, 200, { received: true });
+  } catch (error) {
+    // A 500 is right here: Stripe will retry, and a failed Stripe fetch or a failed account write
+    // means the customer paid and is not yet entitled.
+    console.error(`Stripe webhook ${event.type} failed: ${error.message}`);
+    sendJson(response, 500, { error: "Unable to process that event.", details: error.message });
+  }
 }
 
 async function handleScheduledPushTest(request, response) {
@@ -1704,6 +2014,26 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/sessions") {
     await handleSessions(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/billing/config") {
+    await handleBillingConfig(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/billing/checkout") {
+    await handleBillingCheckout(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/billing/portal") {
+    await handleBillingPortal(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/billing/webhook") {
+    await handleBillingWebhook(request, response);
     return;
   }
 

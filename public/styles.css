@@ -2854,6 +2854,16 @@ a.ghost-button {
 /* Account panel. Deliberately built from the shapes already on this page — .panel-step-section for
    the frame, .text-input for the fields, .primary-button and .ghost-button for the actions — so an
    optional sign-in reads as one more step in the reminder flow rather than a bolted-on auth screen. */
+/* The hidden attribute loses to any class that sets display, and all three of these set grid. That
+   left the signed-out sign-in form rendering underneath a signed-in account, and both subforms —
+   including "Delete my account" — permanently on screen with their toggle buttons doing nothing.
+   .app-view[hidden] above is the same fix for the same reason; the account card never got it. */
+.account-card[hidden],
+.account-form[hidden],
+.account-billing[hidden] {
+  display: none;
+}
+
 .account-card {
   display: grid;
   gap: 14px;
@@ -2939,6 +2949,30 @@ a.ghost-button {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.account-billing {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(31, 47, 55, 0.04);
+  border: 1px solid rgba(31, 47, 55, 0.09);
+}
+
+.account-billing-summary {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.account-billing .account-hint {
+  font-size: 0.78rem;
+}
+
+.account-billing button[disabled] {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 .account-subform {

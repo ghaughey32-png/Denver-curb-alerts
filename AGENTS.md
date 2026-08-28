@@ -12,12 +12,16 @@ sweeping rules, and schedules web-push reminders.
 Deliberately minimal stack:
 
 - `server.js` — a zero-framework `node:http` server. Static files + `/api/*`. No Express.
-- `lib/accounts.js` — the only thing outside `server.js` that is server runtime rather than
-  pipeline tooling, which is why it is not under `scripts/lib/`. Pure functions, no I/O.
+- `lib/accounts.js` and `lib/billing.js` — the only things outside `server.js` that are server
+  runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
+  `accounts.js` is pure, no I/O. `billing.js` is pure apart from `stripeRequest`, which is
+  deliberately the one function in it that touches the network.
 - `public/app.js` — the entire client, ~6000 lines of vanilla JS loaded by a plain `<script>` tag.
 - **No bundler, no transpiler, no build step for client code.** What is in `public/` is what ships.
 - Two dependencies (`pg`, `web-push`), both lazily `require`d so the app boots without `npm install`.
   Accounts added none: `node:crypto` has scrypt, and there is no bcrypt or session framework here.
+  Payments added none either — Stripe is form-encoded HTTPS and an HMAC, so it is `node:https` and
+  `node:crypto`. There is no `stripe` package.
 - CommonJS everywhere, including tests and scripts. There is no `"type": "module"`.
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
@@ -439,6 +443,16 @@ nothing new about a block, and several uncovered blocks are unpublished by delib
 decision), and it does not replay the coverage patches — those are written against a fresh crawl and
 replaying them mixes in unrelated accumulated drift. Change a patch, run the full crawl.
 
+**The `hidden` attribute loses to any class that sets `display`.** The UA stylesheet's
+`[hidden] { display: none }` is the weakest rule in the cascade, so a `.account-card { display:
+grid }` beats it and the element renders while `element.hidden` reads `true`. This was live on
+2026-08-27: the signed-out sign-in form rendered underneath a signed-in account, and both account
+subforms — including **Delete my account** — sat permanently on screen with their toggle buttons
+appearing to do nothing. `.app-view[hidden]` had the fix from the start; the account card never got
+it. If you add a class that sets `display` to an element the JS toggles with `hidden`, add the
+matching `[hidden]` rule beside it, and verify with `getComputedStyle`, not with `element.hidden` —
+the property is true either way, which is exactly why this went unnoticed.
+
 **Some tests assert on source text, by design.** `test/not-maintained-ui.test.js` matches
 `/notMaintained: "#7b8790"/`; `test/curb-geometry.test.js` reads `public/app.js` as a string. Renaming
 a variable or rewording UI copy will break them even when behavior is unchanged. That is expected —
@@ -556,7 +570,66 @@ actually uses — `/api/reminder-plans?endpoint=` — is unchanged.
 **Still missing before this is a finished product**, in the order it will be wanted: email
 verification, password reset (both need an email provider, which the app has never had), and rate
 limiting that survives a deploy — the current counters are in-process, so a restart hands out a
-fresh budget of guesses.
+fresh budget of guesses. Payments landed on 2026-08-27; see the Payments section below.
+
+## Payments
+
+Added 2026-08-27, on top of the account fields that were already there for it. Stripe is the
+processor, reached over `https.request` from [lib/billing.js](lib/billing.js) — no `stripe` package,
+for the same reason there is no bcrypt: it is a form-encoded API and an HMAC signature check, and
+adding the SDK would be the first dependency this project cannot lazily require.
+
+**The free tier is the app signed out, and the paid tier is the account.** That is the whole line,
+and it was chosen deliberately over the alternatives. The map, address search, curb colours, saved
+sets in `localStorage`, and reminders all work with no account and always will — the promise at the
+top of the Accounts section is unchanged. What money buys is the account: a saved curb set that
+survives a new phone or a cleared browser.
+
+**Exactly one endpoint is gated: `/api/accounts/me/library`.** Not sign-in, not password changes,
+not account deletion — you have to be able to reach the card form to pay, and you have to be able to
+leave. And emphatically not reminders. Reminder plans and push subscriptions key on the push
+endpoint rather than the account and fire for signed-out users, so a lapsed customer's alerts keep
+running. **Do not gate them.** This app exists to stop people getting $50 sweeping tickets;
+withholding the alert that prevents one in order to collect $15 would be indefensible, and it is
+also why the free/paid line is drawn on *scope* (how many devices your library reaches) rather than
+on *reliability* (whether you get warned). `test/billing.test.js` asserts both halves.
+
+**Every account opens on a 14-day trial, and it is a real Stripe status rather than a flag.** The
+account is the paid product, which leaves nothing to attach a card to before the account exists — a
+card wall on the sign-up form is where a $15/year utility loses everyone. `trialing` was already in
+`ENTITLED_BILLING_STATUSES`, so expressing it Stripe's way means the webhook takes the record over
+with no translation. `TRIAL_DAYS` lives in `lib/billing.js` beside the prices, not in
+`lib/accounts.js`: that module decides whether someone is entitled and should not also own what the
+plan costs. Fourteen days outlasts two sweeping cycles on any Denver block, which is the point — a
+trial shorter than one full sweep-and-reminder loop never shows the customer what they would pay for.
+
+**`buildDefaultBilling()` is the floor, not the starting point, and must stay unentitled.**
+`getEntitlement` falls back to it for an account whose billing is missing or corrupt, so a default
+that granted anything would make a damaged record the most valuable one in the collection. New
+accounts get `buildTrialBilling()` instead.
+
+**Accounts created before payments existed are backfilled at boot** by `backfillAccountTrials()` in
+`server.js`. They carry the unentitled default and never had a trial to use, so the library gate
+would have locked them out of their own sync on the deploy. It is keyed on the absence of both a
+trial and a Stripe customer, so a redeploy can never top someone up.
+
+**The webhook verifies before it parses.** Stripe signs `${timestamp}.${rawBody}`, so the route
+reads the body as text and only `JSON.parse`s it after the HMAC matches — a re-serialized object is
+not the same bytes and would never verify. Unknown event types are acknowledged with 200 rather than
+rejected, because a 4xx tells Stripe to retry forever; a genuine failure to write the account
+returns 500 on purpose, because the customer has paid and is not yet entitled.
+
+**Prices are display-only in the code.** `$1.99/month` and `$15/year` are strings for the button
+label; the authoritative amounts live in the Stripe dashboard and the price ids come from
+`STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL`. Nothing in the app charges from a number it holds.
+
+**Cancelling and card updates go to Stripe's hosted billing portal.** Building those here would mean
+handling proration and dunning in an app with no dependencies and no email provider, and getting any
+of it subtly wrong bills someone incorrectly.
+
+Billing degrades to invisible: with no `STRIPE_SECRET_KEY` the endpoints answer 503, the client
+hides the upgrade controls, and the trial still runs — so an unconfigured deployment is a working
+free app rather than one where nobody can sync. That is the normal state of a local checkout.
 
 ## Domain vocabulary
 

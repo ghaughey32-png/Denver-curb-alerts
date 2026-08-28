@@ -1,0 +1,81 @@
+// Stands a real server.js up against a throwaway DATA_DIR.
+//
+// Extracted from test/accounts.test.js when the billing tests needed the same thing. It is the
+// harness for exactly the code where unit tests of the pieces pass while the wiring leaks: password
+// handling, session cookies, and now the entitlement gate, none of which can be exercised without
+// the routes, the storage and the cookie jar all present at once.
+//
+// scrypt is intentionally slow, so these are the seconds in `npm test`. They are worth it.
+
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { spawn } = require("node:child_process");
+
+const SERVER_PATH = path.join(__dirname, "..", "..", "server.js");
+
+async function withServer(run, extraEnv = {}) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "curb-accounts-"));
+  const port = 39000 + Math.floor(Math.random() * 900);
+  const child = spawn(process.execPath, [SERVER_PATH], {
+    env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", DATA_DIR: dataDir, DATABASE_URL: "", ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Server did not start in time.")), 15000);
+      child.stdout.on("data", (chunk) => {
+        if (String(chunk).includes("running at")) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+      child.on("error", reject);
+      child.on("exit", (code) => reject(new Error(`Server exited early with code ${code}.`)));
+    });
+
+    const origin = `http://127.0.0.1:${port}`;
+    await run({
+      origin,
+      dataDir,
+      // Reaching into the collection files is how a test reaches a state the API cannot produce —
+      // an expired trial, a subscription Stripe would have written. The server re-reads them on
+      // every request, so an edit here takes effect on the next call with no restart.
+      readCollection: (name) => JSON.parse(fs.readFileSync(path.join(dataDir, `${name}.json`), "utf8")),
+      writeCollection: (name, items) =>
+        fs.writeFileSync(path.join(dataDir, `${name}.json`), `${JSON.stringify(items, null, 2)}\n`, "utf8"),
+      call: async (pathname, options = {}) => {
+        const response = await fetch(`${origin}${pathname}`, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.cookie ? { Cookie: options.cookie } : {}),
+            ...(options.headers || {})
+          },
+          body: options.json ? JSON.stringify(options.json) : options.body
+        });
+
+        const text = await response.text();
+        let payload = null;
+        try {
+          payload = text ? JSON.parse(text) : null;
+        } catch {
+          payload = text;
+        }
+
+        const setCookie = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
+        const sessionCookie = setCookie
+          .map((value) => value.split(";")[0])
+          .find((value) => value.startsWith("curb_session="));
+
+        return { status: response.status, payload, sessionCookie, raw: text };
+      }
+    });
+  } finally {
+    child.kill("SIGKILL");
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+}
+
+module.exports = { withServer };
