@@ -455,6 +455,12 @@ it. If you add a class that sets `display` to an element the JS toggles with `hi
 matching `[hidden]` rule beside it, and verify with `getComputedStyle`, not with `element.hidden` —
 the property is true either way, which is exactly why this went unnoticed.
 
+**It bit a fifth element, and the pattern is that the guard list is easy to leave incomplete.**
+`.account-action-row` sets `flex` and was not on the list, so `#account-forgot-row` — the one action
+row the JS toggles — rendered on the **Create account** form, offering a password reset for an
+address that does not have an account yet. Fixed 2026-08-29. When you write a new `[hidden]` guard,
+grep the stylesheet for every class the toggled element carries rather than only the obvious one.
+
 **Some tests assert on source text, by design.** `test/not-maintained-ui.test.js` matches
 `/notMaintained: "#7b8790"/`; `test/curb-geometry.test.js` reads `public/app.js` as a string. Renaming
 a variable or rewording UI copy will break them even when behavior is unchanged. That is expected —
@@ -504,6 +510,33 @@ the **push subscription endpoint** — per-install, regenerated when the user re
 the key that `data/push-subscriptions.json` and `data/reminder-plans.json` are still stored under.
 You cannot bill an endpoint. Both records now carry an `accountId` as well, set when a signed-in
 browser registers its device, which is the join the payment work will need.
+
+**The account is its own view, reached from a header chip, not a fourth tab.** Moved out of the
+alerts page on 2026-08-29. The three tabs are tasks — do it (Map), manage it (My alerts), learn it
+(How it works) — and the account is settings for a feature the app deliberately works without; a
+fourth tab beside Map advertises a sign-up wall on every visit, to people the free app is complete
+for. `#account-chip` sits at the far end of the nav row, quiet, and reads `Sign in` until there is a
+name to show. If you add another destination, ask first whether it is a task or a setting; only
+tasks belong in `.app-tabs-scroll`.
+
+**Moving it fixed a bug that had been live since the email work landed.** The emailed links are
+built as `/?verify=` and `/?reset=` with no hash, and Stripe returns to `/?checkout=`, so boot
+resolved the view to the map every time while `handleEmailLinks` and `handleCheckoutReturn` wrote
+into a section inside the **hidden** alerts view. A password reset link was unreachable — the form
+rendered at `display: none`, and `accountResetPasswordInput?.focus()` was a no-op on it. Both
+handlers now call `setActiveView("account")` before they render anything. **Any new flow that
+returns from an outside origin has to do the same**; the query string alone does not move the view.
+
+**The chip carries the confirm-your-email dot, and that is not decoration.** The verify prompt used
+to sit on the alerts page where someone on the way to their saved curbs could not miss it. Behind a
+chip they can, so `renderAccount` toggles `.has-notice` for an unverified address. It is also why
+`.app-tabs-scroll` exists as a separate element: on a phone the tab row scrolls sideways, and a
+notice that scrolls off the end of a row is not a notice, so the chip is pinned outside the scroll.
+
+**The alerts page keeps a one-line pointer at it** (`.saved-sets-account-note`, above the saved curb
+sets), because that is the one place where what an account buys is concrete — those sets live in
+this browser's `localStorage` until there is an account to hang them on. Its text and its link label
+both flip when signed in; without that it keeps telling a synced user they are stranded.
 
 **No new dependencies, and don't add one here.** `node:crypto` covers all of it: scrypt for password
 hashing (16384/8/1, self-describing hash strings so the cost can be raised without invalidating old

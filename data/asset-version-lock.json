@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v159",
+    "cacheName": "curb-alerts-shell-v160",
     "files": {
-      "index.html": "7d271a14739cad3114762e9c4982cc57e3d469b988b29d03b1191fb1c65c12dd",
-      "sw.js": "a5ecad21bee17e64791325501d73b394cac42739386856e3e0965e409cf387e9"
+      "index.html": "c0deb36a637755caad780405d175b5a46f05374fdb98a97e35b87d20e86093bc",
+      "sw.js": "67d1abb508ab9f28ef6b83f454608faa17d4e267e9a5e9e3423222e0a20e68b2"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260829-email-verification",
-      "sha256": "b9db43c254b4f2a0097a326c5c05bb464b94a75af221129ba6b977bd4bcbc317"
+      "version": "20260829-account-view",
+      "sha256": "beb55c39e0696fcf248d7e78d598ea779da35bdbf06babc0618381a75015c214"
     },
     "curb-geometry.js": {
       "version": "20260813b",
@@ -33,8 +33,8 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260829-email-verification",
-      "sha256": "a2f35de78218ec386aa0ec081cf661230a95b89ed943f469dc965e0d34e0dd41"
+      "version": "20260829-account-view",
+      "sha256": "267467fc755771c7106ee1f54654fdca181603e7a9ac646d1b28e086c02f5d8b"
     }
   }
 }

@@ -18,15 +18,24 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260829-email-verification" />
+    <link rel="stylesheet" href="./styles.css?v=20260829-account-view" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
     <div class="app-shell">
       <nav class="app-tabs" aria-label="App sections">
-        <button class="app-tab is-active" type="button" data-view-target="setup" aria-current="page">Map</button>
-        <button class="app-tab" type="button" data-view-target="alerts">My alerts</button>
-        <button class="app-tab" type="button" data-view-target="landing">How it works</button>
+        <!-- The tabs scroll sideways on a phone; the chip must not go with them. It carries the
+             confirm-your-email dot, and a notice that scrolls off the end of a row is not a notice. -->
+        <div class="app-tabs-scroll">
+          <button class="app-tab is-active" type="button" data-view-target="setup" aria-current="page">Map</button>
+          <button class="app-tab" type="button" data-view-target="alerts">My alerts</button>
+          <button class="app-tab" type="button" data-view-target="landing">How it works</button>
+        </div>
+        <!-- Not an .app-tab. The three tabs above are tasks - do it, manage it, learn it - and the
+             account is settings for a feature the app deliberately works without. A fourth tab
+             beside Map would advertise a sign-up wall on every visit; a chip in the corner is where
+             people look for an account anyway, and it says "Sign in" until there is a name to show. -->
+        <button id="account-chip" class="account-chip" type="button" data-view-target="account">Sign in</button>
       </nav>
       <section class="app-view landing-view is-active" data-view="landing">
         <header class="hero">
@@ -309,11 +318,72 @@
             </div>
           </section>
 
-          <!-- The account is optional and sits after the device section on purpose. Everything above
-               works signed out and always will; what an account buys is that a saved curb set is no
-               longer stranded in one browser's localStorage, and it is the identity a paid plan will
-               attach to. Signed-out and signed-in are two cards in one section rather than two pages,
-               because this is a single-panel app. -->
+          <section class="panel-section panel-step-section">
+            <div class="mini-head">
+              <h3>Saved curb sets</h3>
+              <span class="mini-count" id="saved-set-count">0 saved</span>
+            </div>
+
+            <!-- The account moved to its own view, and this is the one place on this page where what
+                 it buys is concrete: these sets live in this browser's localStorage until there is
+                 an account to hang them on. Without a pointer here, signing in becomes something
+                 only people who already know about it ever find. -->
+            <p class="saved-sets-account-note">
+              <span id="saved-sets-account-text">These are saved in this browser only.</span>
+              <button id="saved-sets-account-link" class="inline-link" type="button" data-view-target="account">
+                Sign in to sync
+              </button>
+            </p>
+
+            <div id="empty-sets" class="empty-state compact-empty">
+              <p>No saved curbs yet.</p>
+              <p class="empty-subtext">Tap the curb where you park, then save it to start getting reminders.</p>
+              <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
+            </div>
+
+            <div id="saved-sets-list" class="saved-sets-list"></div>
+          </section>
+
+          <section class="panel-section panel-step-section">
+            <div class="mini-head">
+              <h3>Upcoming reminders</h3>
+              <span class="mini-count" id="job-count">0 queued</span>
+            </div>
+
+            <div class="queue-note">
+              These are the reminders currently scheduled for saved curb sets on this device.
+            </div>
+
+            <div id="empty-jobs" class="empty-state compact-empty">
+              <p>Nothing queued yet.</p>
+              <p class="empty-subtext">Once you save a curb, its reminders show up here so you can see exactly what will send.</p>
+              <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
+            </div>
+
+            <div id="job-list" class="job-list"></div>
+          </section>
+
+          </aside>
+        </main>
+      </section>
+
+      <!-- The account has its own view rather than a card on the alerts page. It is settings, not
+           a step in the reminder flow, and the eight forms below (sign in, create, forgot, reset,
+           verify, billing, change password, delete) buried the page that is supposed to say what
+           is still missing before a reminder can fire. It is reached from the header chip rather
+           than the tab row, because the account is optional and a fourth tab beside Map would
+           advertise a sign-up wall to people the app works fine for signed out. It needs a view of
+           its own regardless: the emailed verify and reset links land on / with no hash, and while
+           this lived inside the hidden alerts view the reset form was unreachable. -->
+      <section class="app-view account-view" data-view="account" hidden>
+        <main class="single-panel-view">
+          <aside class="panel-card">
+
+          <!-- The account is optional and always will be. Every screen works signed out; what an
+               account buys is that a saved curb set is no longer stranded in one browser's
+               localStorage, and it is the identity a paid plan attaches to. Signed-out, signed-in
+               and reset are three cards in one section rather than three pages, because this is a
+               single-panel app and only one of them is ever on screen. -->
           <section class="panel-section panel-step-section account-section">
             <div class="mini-head">
               <h3>Your account</h3>
@@ -500,40 +570,6 @@
             </div>
 
             <div id="account-status" class="account-status" role="status" aria-live="polite" hidden></div>
-          </section>
-
-          <section class="panel-section panel-step-section">
-            <div class="mini-head">
-              <h3>Saved curb sets</h3>
-              <span class="mini-count" id="saved-set-count">0 saved</span>
-            </div>
-
-            <div id="empty-sets" class="empty-state compact-empty">
-              <p>No saved curbs yet.</p>
-              <p class="empty-subtext">Tap the curb where you park, then save it to start getting reminders.</p>
-              <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
-            </div>
-
-            <div id="saved-sets-list" class="saved-sets-list"></div>
-          </section>
-
-          <section class="panel-section panel-step-section">
-            <div class="mini-head">
-              <h3>Upcoming reminders</h3>
-              <span class="mini-count" id="job-count">0 queued</span>
-            </div>
-
-            <div class="queue-note">
-              These are the reminders currently scheduled for saved curb sets on this device.
-            </div>
-
-            <div id="empty-jobs" class="empty-state compact-empty">
-              <p>Nothing queued yet.</p>
-              <p class="empty-subtext">Once you save a curb, its reminders show up here so you can see exactly what will send.</p>
-              <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
-            </div>
-
-            <div id="job-list" class="job-list"></div>
           </section>
 
           </aside>
@@ -955,6 +991,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260829-email-verification"></script>
+    <script src="./app.js?v=20260829-account-view"></script>
   </body>
 </html>

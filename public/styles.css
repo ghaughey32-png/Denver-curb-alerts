@@ -64,7 +64,7 @@ button {
   top: 10px;
   z-index: 1400;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   padding: 10px;
   background: rgba(251, 248, 242, 0.86);
@@ -72,6 +72,13 @@ button {
   border-radius: 24px;
   box-shadow: 0 14px 34px rgba(31, 47, 55, 0.1);
   backdrop-filter: blur(12px);
+}
+
+.app-tabs-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
 }
 
 .app-tab {
@@ -89,6 +96,50 @@ button {
   color: #fff;
   border-color: var(--ink);
   box-shadow: 0 10px 22px rgba(31, 47, 55, 0.16);
+}
+
+/* Deliberately not styled as a fourth tab. It is pushed to the far end and drawn lighter than the
+   three task tabs so it reads as a corner control rather than another destination - the account is
+   optional, and the nav should not suggest the app wants you to sign in before using it. The auto
+   margin collapses on its own once the row overflows on a phone, which is the behaviour we want
+   there: the chip simply joins the end of the scroll instead of being pinned over a tab. */
+.account-chip {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(31, 47, 55, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  max-width: 190px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.account-chip:hover {
+  color: var(--ink);
+  border-color: rgba(31, 47, 55, 0.32);
+}
+
+.account-chip.is-active {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* The confirm-your-email prompt used to be unavoidable on the alerts page. Behind a chip it is not,
+   so the chip has to carry the fact that something in there wants attention. */
+.account-chip.has-notice::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: var(--orange);
 }
 
 .landing-next-card {
@@ -214,6 +265,29 @@ button {
   background: rgba(180, 93, 42, 0.13);
   border-color: rgba(180, 93, 42, 0.38);
   color: var(--accent);
+}
+
+.saved-sets-account-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* A text link rather than a button, because this is a sentence with an offer at the end of it and a
+   pill here would compete with the primary action in the empty state directly below. */
+.inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inline-link:hover {
+  color: var(--ink);
 }
 
 .legal-page {
@@ -2091,17 +2165,34 @@ a.ghost-button {
   .app-tabs {
     position: sticky;
     top: 6px;
-    overflow-x: auto;
-    flex-wrap: nowrap;
     padding: 8px;
     border-radius: 22px;
+  }
+
+  /* Only the tabs scroll. The chip stays pinned at the right edge, so the account - and the dot on
+     it - is reachable without discovering that this row scrolls at all. */
+  .app-tabs-scroll {
+    flex: 1 1 auto;
+    overflow-x: auto;
+    flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
+    /* Fade the last few pixels so a tab passing behind the chip reads as "this row scrolls" rather
+       than as a word that has been chopped in half. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
   }
 
   .app-tab {
     flex: 0 0 auto;
     min-height: 46px;
     padding: 10px 14px;
+  }
+
+  .account-chip {
+    flex: 0 0 auto;
+    min-height: 46px;
+    padding: 10px 12px;
+    max-width: 116px;
   }
 
   .landing-next-card {
@@ -2857,11 +2948,15 @@ a.ghost-button {
 /* The hidden attribute loses to any class that sets display, and all three of these set grid. That
    left the signed-out sign-in form rendering underneath a signed-in account, and both subforms —
    including "Delete my account" — permanently on screen with their toggle buttons doing nothing.
-   .app-view[hidden] above is the same fix for the same reason; the account card never got it. */
+   .app-view[hidden] above is the same fix for the same reason; the account card never got it.
+   .account-action-row joined the list on 2026-08-29: it sets flex, and #account-forgot-row is the
+   one action row the JS toggles, so "Forgot password?" sat on the Create-account form - offering a
+   reset for an address that does not have an account yet. */
 .account-card[hidden],
 .account-form[hidden],
 .account-billing[hidden],
-.account-verify-notice[hidden] {
+.account-verify-notice[hidden],
+.account-action-row[hidden] {
   display: none;
 }
 

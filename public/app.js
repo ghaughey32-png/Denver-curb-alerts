@@ -1701,6 +1701,9 @@ const curbSheetRule = document.querySelector("#curb-sheet-rule");
 const curbSheetNotice = document.querySelector("#curb-sheet-notice");
 const curbSheetAction = document.querySelector("#curb-sheet-action");
 const curbSheetClose = document.querySelector("#curb-sheet-close");
+const accountChip = document.querySelector("#account-chip");
+const savedSetsAccountText = document.querySelector("#saved-sets-account-text");
+const savedSetsAccountLink = document.querySelector("#saved-sets-account-link");
 const accountStatusChip = document.querySelector("#account-status-chip");
 const accountSignedOutCard = document.querySelector("#account-signed-out");
 const accountSignedInCard = document.querySelector("#account-signed-in");
@@ -1775,7 +1778,7 @@ const lookupStatus = document.querySelector("#lookup-status");
 const neighborhoodPresetButtons = Array.from(document.querySelectorAll(".neighborhood-preset"));
 const appViews = Array.from(document.querySelectorAll(".app-view"));
 const appViewButtons = Array.from(document.querySelectorAll("[data-view-target]"));
-const APP_VIEW_NAMES = new Set(["landing", "setup", "alerts", "schedule", "terms", "privacy", "disclaimer"]);
+const APP_VIEW_NAMES = new Set(["landing", "setup", "alerts", "account", "schedule", "terms", "privacy", "disclaimer"]);
 const HOSTED_APP_ORIGIN = "https://denver-curb-alerts-2.onrender.com";
 const DENVER_MAP_BOUNDS = {
   north: 39.8275,
@@ -6977,6 +6980,19 @@ function buildBillingSummary(entitlement) {
   return "Thanks for subscribing. Your saved curb sets sync to every device you sign in on.";
 }
 
+// The chip lives in a nav row that already scrolls sideways on a phone, so a full address cannot
+// go in it. The local part is what people recognise their own account by; the whole address stays
+// on the title and the aria-label for anyone who needs to be sure which account they are in.
+function formatAccountChipName(email) {
+  const localPart = String(email || "").split("@")[0];
+
+  if (!localPart) {
+    return "Account";
+  }
+
+  return localPart.length > 14 ? `${localPart.slice(0, 13)}\u2026` : localPart;
+}
+
 function renderAccount() {
   if (!accountSignedOutCard || !accountSignedInCard) {
     return;
@@ -6998,8 +7014,40 @@ function renderAccount() {
     accountStatusChip.textContent = resetting ? "Reset password" : account ? "Signed in" : "Not signed in";
   }
 
+  if (accountChip) {
+    accountChip.textContent = resetting ? "Reset password" : account ? formatAccountChipName(account.email) : "Sign in";
+    accountChip.setAttribute("aria-label", account ? `Account: ${account.email}` : "Sign in or create an account");
+
+    if (account) {
+      accountChip.title = account.email;
+    } else {
+      accountChip.removeAttribute("title");
+    }
+
+    // The verify prompt used to sit on the alerts page, where a user on their way to their saved
+    // curbs could not miss it. Behind a chip they can, so the chip carries the dot - otherwise
+    // moving the account off that page quietly buries the one thing that makes a later password
+    // reset deliverable at all.
+    accountChip.classList.toggle(
+      "has-notice",
+      !resetting && Boolean(account) && !account.emailVerified && Boolean(state.emailConfig?.enabled)
+    );
+  }
+
   if (accountVerifyNotice) {
     accountVerifyNotice.hidden = !account || account.emailVerified || !state.emailConfig?.enabled;
+  }
+
+  // The saved-sets pointer on the alerts page. It has to change when signed in, or it keeps telling
+  // someone whose sets are already syncing that they are stranded in this browser.
+  if (savedSetsAccountText) {
+    savedSetsAccountText.textContent = account
+      ? "These are synced to your account, so they follow you to a new phone."
+      : "These are saved in this browser only.";
+  }
+
+  if (savedSetsAccountLink) {
+    savedSetsAccountLink.textContent = account ? "Manage account" : "Sign in to sync";
   }
 
   if (account) {
@@ -7092,6 +7140,11 @@ async function handleCheckoutReturn() {
   // Clean the query string first, so a reload does not replay this and so the session id Stripe
   // appends does not sit in the address bar.
   clearBillingQueryParams(params);
+
+  // Stripe returns to `/?checkout=` with no hash, so boot lands on the map. Every message below
+  // goes to the account view's status line, and the customer has just paid - being dropped on the
+  // map with no acknowledgement is the worst moment in the product to be silent.
+  setActiveView("account", { instant: true });
 
   if (checkout === "cancelled") {
     setAccountStatus("Checkout cancelled. Nothing was charged.", "");
@@ -7397,6 +7450,12 @@ async function handleEmailLinks() {
   // Out of the address bar immediately. A reset token sitting in a URL survives in history, in a
   // shared screenshot, and in the referrer of anything the page loads next.
   clearQueryParams(params, ["verify", "reset"]);
+
+  // The links are built as `/?reset=` and `/?verify=` with no hash, so boot resolves the view to
+  // the map. Everything below writes into the account view, and until that view existed the reset
+  // form and the confirming/failed status both rendered inside a hidden section - a reset link was
+  // unreachable unless the user happened to go looking for it. Switch first, then render.
+  setActiveView("account", { instant: true });
 
   if (resetToken) {
     state.resetToken = resetToken;
