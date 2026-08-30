@@ -9,6 +9,8 @@ data/sessions.json
 # Live reset tokens, and the local outbox holds the links themselves in plain text.
 data/email-tokens.json
 data/outbox.json
+# Throttle counters, keyed by email address and by client IP.
+data/sign-in-attempts.json
 Parking app 1.2/
 
 # Regenerable pipeline artifacts. Nothing reads these at runtime; they are lookup

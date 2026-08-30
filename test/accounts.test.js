@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 
 const accounts = require("../lib/accounts.js");
@@ -383,4 +384,104 @@ test("a restored session merges the account library before anything is uploaded"
   // A session cookie outlives the localStorage beside it. Without this merge, a returning user on a
   // cleared browser uploads an empty library over their real one the moment they save a curb.
   assert.match(loader, /await mergeAccountLibrary\(\)/);
+});
+
+
+// The throttle counters used to live only in a Map, so every deploy handed an attacker a fresh
+// budget of guesses — and this app redeploys far more often than the fifteen-minute window. These
+// three cover the write, the read back, and the two ways a bad record could lock a real user out.
+//
+// The reset endpoint is the cheap way in: it records on every request rather than on failures, and
+// unlike sign-in it does no scrypt work, so eight of them cost milliseconds instead of a second.
+const OUTBOX_EMAIL_ENV = {
+  EMAIL_TRANSPORT: "outbox",
+  EMAIL_FROM: "Denver Curb Alerts <alerts@example.com>",
+  RESEND_API_KEY: ""
+};
+
+test("throttle counters survive a restart", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "curb-throttle-"));
+  const env = { ...OUTBOX_EMAIL_ENV, DATA_DIR: dataDir };
+  const address = "throttled@example.com";
+
+  try {
+    await withServer(async ({ call }) => {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const response = await call("/api/password-resets", { method: "POST", json: { email: address } });
+        assert.equal(response.status, 200, `attempt ${attempt + 1} should still be allowed`);
+      }
+
+      const blocked = await call("/api/password-resets", { method: "POST", json: { email: address } });
+      assert.equal(blocked.status, 429, "the ninth request in the window must be throttled");
+    }, env);
+
+    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, "sign-in-attempts.json"), "utf8"));
+    const emailCounter = persisted.find((item) => item.key === `reset:${address}`);
+    assert.ok(emailCounter, "the counter must reach the collection, not just the Map");
+    assert.equal(emailCounter.count, 8);
+    assert.match(emailCounter.firstAttemptAt, /^\d{4}-\d{2}-\d{2}T/, "timestamps store as ISO strings");
+
+    // A second server over the same collections. Before this change it started with an empty Map
+    // and answered 200 here, which is the whole bug.
+    await withServer(async ({ call }) => {
+      const stillBlocked = await call("/api/password-resets", { method: "POST", json: { email: address } });
+      assert.equal(stillBlocked.status, 429, "a restart must not hand out a fresh budget of guesses");
+    }, env);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("counters older than the window are dropped rather than restored", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "curb-throttle-stale-"));
+  const address = "stale@example.com";
+  const anHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  fs.writeFileSync(
+    path.join(dataDir, "sign-in-attempts.json"),
+    `${JSON.stringify([{ key: `reset:${address}`, count: 99, firstAttemptAt: anHourAgo }], null, 2)}\n`,
+    "utf8"
+  );
+
+  try {
+    await withServer(async ({ call }) => {
+      const response = await call("/api/password-resets", { method: "POST", json: { email: address } });
+      assert.equal(response.status, 200, "an expired counter must not outlive its window");
+    }, { ...OUTBOX_EMAIL_ENV, DATA_DIR: dataDir });
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("a corrupt or future-dated counter cannot lock a real user out", async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "curb-throttle-corrupt-"));
+  const address = "corrupt@example.com";
+
+  // A timestamp in the future would otherwise sit in the window forever, and a record with no
+  // usable timestamp would be counted as if it had just happened. Both must be ignored.
+  fs.writeFileSync(
+    path.join(dataDir, "sign-in-attempts.json"),
+    `${JSON.stringify(
+      [
+        { key: `reset:${address}`, count: 99, firstAttemptAt: new Date(Date.now() + 86400000).toISOString() },
+        { key: "reset:nonsense@example.com", count: 99, firstAttemptAt: "not-a-date" },
+        { key: "", count: 99, firstAttemptAt: new Date().toISOString() }
+      ],
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+
+  try {
+    await withServer(async ({ call }) => {
+      const response = await call("/api/password-resets", { method: "POST", json: { email: address } });
+      assert.equal(response.status, 200, "a future-dated counter must not throttle a real request");
+
+      const other = await call("/api/password-resets", { method: "POST", json: { email: "nonsense@example.com" } });
+      assert.equal(other.status, 200, "an unparseable timestamp must not throttle a real request");
+    }, { ...OUTBOX_EMAIL_ENV, DATA_DIR: dataDir });
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });

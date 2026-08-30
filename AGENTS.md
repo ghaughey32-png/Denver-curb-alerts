@@ -604,9 +604,29 @@ records to any caller. The push listing included each device's `p256dh` and `aut
 working ability to send notifications to every user of the app. The per-device lookup the client
 actually uses — `/api/reminder-plans?endpoint=` — is unchanged.
 
-**Still missing before this is a finished product**: rate limiting that survives a deploy — the
-current counters are in-process, so a restart hands out a fresh budget of guesses. Payments landed
-on 2026-08-27; email verification and password reset on 2026-08-29. See those sections below.
+**The throttle counters are read from memory and written through to storage.** Deciding whether an
+attempt is allowed costs nothing and never touches the database; only a recorded failure or a clear
+writes, and a clean sign-in with nothing to clear does no I/O at all. The write-through half landed
+2026-08-29 and is not optional: with the counters in memory alone, every deploy handed an attacker a
+fresh budget of guesses, and this app redeploys far more often than the fifteen-minute window.
+Failures are batched so a failure counted against both the address and the email is one write, and
+the map is mutated before it is serialized, so two concurrent failures converge rather than losing
+an update.
+
+Records that come back expired, future-dated, or with an unparseable timestamp are dropped at boot
+rather than trusted — a future-dated counter would otherwise sit inside the window forever and lock
+a real user out of their own account. `data/sign-in-attempts.json` is gitignored for the same reason
+the other collections are: it is keyed by email address and by client IP.
+
+**What this does not do is span processes.** The in-memory read is what makes it single-instance —
+a second Node process keeps its own view and the two overwrite each other's counters rather than
+summing them. That is the right trade at one instance on Render, and it is the thing to revisit
+before scaling out; a genuinely shared counter means a round trip per attempt, which this
+deliberately avoids. `test/accounts.test.js` covers the restart, the expiry and the corrupt record,
+and the restart case fails if the boot-time load is removed.
+
+Payments landed on 2026-08-27; email verification and password reset on 2026-08-29. See those
+sections below.
 
 ## Payments
 

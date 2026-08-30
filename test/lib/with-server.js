@@ -14,8 +14,12 @@ const { spawn } = require("node:child_process");
 
 const SERVER_PATH = path.join(__dirname, "..", "..", "server.js");
 
+// Passing DATA_DIR in extraEnv points the server at a directory the caller owns, and leaves it
+// on disk afterwards. That is what lets a test stop one server and start another over the same
+// collections, which is the only way to prove something survives a restart.
 async function withServer(run, extraEnv = {}) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "curb-accounts-"));
+  const borrowedDataDir = Boolean(extraEnv.DATA_DIR);
+  const dataDir = borrowedDataDir ? extraEnv.DATA_DIR : fs.mkdtempSync(path.join(os.tmpdir(), "curb-accounts-"));
   const port = 39000 + Math.floor(Math.random() * 900);
   const child = spawn(process.execPath, [SERVER_PATH], {
     env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", DATA_DIR: dataDir, DATABASE_URL: "", ...extraEnv },
@@ -74,7 +78,10 @@ async function withServer(run, extraEnv = {}) {
     });
   } finally {
     child.kill("SIGKILL");
-    fs.rmSync(dataDir, { recursive: true, force: true });
+
+    if (!borrowedDataDir) {
+      fs.rmSync(dataDir, { recursive: true, force: true });
+    }
   }
 }
 

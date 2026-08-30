@@ -27,6 +27,7 @@ const ISSUE_REPORTS_FILE = path.join(DATA_DIR, "issue-reports.json");
 const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const EMAIL_TOKENS_FILE = path.join(DATA_DIR, "email-tokens.json");
+const SIGN_IN_ATTEMPTS_FILE = path.join(DATA_DIR, "sign-in-attempts.json");
 // Where a message goes when no provider is configured. Not a test fixture: it is how the whole
 // verification and reset flow is exercised locally, by opening the link out of the file.
 const EMAIL_OUTBOX_FILE = path.join(DATA_DIR, "outbox.json");
@@ -39,7 +40,8 @@ const COLLECTION_KEYS = {
   issueReports: "issue-reports",
   accounts: "accounts",
   sessions: "sessions",
-  emailTokens: "email-tokens"
+  emailTokens: "email-tokens",
+  signInAttempts: "sign-in-attempts"
 };
 
 const MIME_TYPES = {
@@ -125,7 +127,8 @@ async function ensureDataFiles() {
     ensureJsonFile(ISSUE_REPORTS_FILE),
     ensureJsonFile(ACCOUNTS_FILE),
     ensureJsonFile(SESSIONS_FILE),
-    ensureJsonFile(EMAIL_TOKENS_FILE)
+    ensureJsonFile(EMAIL_TOKENS_FILE),
+    ensureJsonFile(SIGN_IN_ATTEMPTS_FILE)
   ]);
 }
 
@@ -284,7 +287,8 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.issueReports, ISSUE_REPORTS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.accounts, ACCOUNTS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.emailTokens, EMAIL_TOKENS_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.emailTokens, EMAIL_TOKENS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.signInAttempts, SIGN_IN_ATTEMPTS_FILE)
     ]);
     storageBackend = "database";
     await backfillAccountTrials();
@@ -461,6 +465,23 @@ async function writeEmailTokens(records) {
   await writeCollectionToFile(EMAIL_TOKENS_FILE, records);
 }
 
+async function readSignInAttempts() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.signInAttempts);
+  }
+
+  return readCollectionFromFile(SIGN_IN_ATTEMPTS_FILE);
+}
+
+async function writeSignInAttempts(records) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.signInAttempts, records);
+    return;
+  }
+
+  await writeCollectionToFile(SIGN_IN_ATTEMPTS_FILE, records);
+}
+
 // Issuing a new link retires the account's outstanding ones for the same purpose. Someone who
 // clicks "resend" twice should not be left with two live reset links, and pruning here is what
 // keeps the collection from growing without bound in the absence of a cleanup job.
@@ -583,15 +604,92 @@ async function startSession(request, response, account) {
   return record;
 }
 
-// Sign-in throttling. In memory on purpose: this is one small Node process, a shared counter would
-// mean a round trip to Postgres on every attempt, and the failure mode of losing the counters on
-// deploy is that an attacker gets a fresh budget once a week. Both the email and the address are
-// keyed so that neither guessing one account's password from many addresses nor spraying many
-// accounts from one address gets an unlimited number of tries.
+// Sign-in throttling. The counters are held in memory and read from there, so the common case —
+// deciding whether this attempt is allowed — costs nothing and never touches the database. They
+// are also written through to a collection on every change, because the in-memory-only version
+// handed an attacker a fresh budget of guesses on every deploy, and this app redeploys far more
+// often than fifteen minutes. Only failures and clears write; a successful sign-in that was not
+// preceded by a failure does no I/O at all.
+//
+// Both the email and the address are keyed so that neither guessing one account's password from
+// many addresses nor spraying many accounts from one address gets an unlimited number of tries.
+//
+// The in-memory read is what makes this single-instance: a second Node process would keep its own
+// view and the two would overwrite each other's counters rather than summing them. That is the
+// right trade at one instance on Render, and it is the thing to revisit before scaling out — a
+// shared counter means a round trip per attempt, which is what this deliberately avoids.
 const SIGN_IN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const SIGN_IN_MAX_ATTEMPTS_PER_EMAIL = 8;
 const SIGN_IN_MAX_ATTEMPTS_PER_ADDRESS = 30;
 const signInAttempts = new Map();
+
+// Timestamps go to the collection as ISO strings, the way every other record in this app stores
+// one, and come back as epoch milliseconds because that is what the window arithmetic below wants.
+function serializeSignInAttempts(now) {
+  const records = [];
+
+  signInAttempts.forEach((entry, key) => {
+    if (now - entry.firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
+      return;
+    }
+
+    records.push({
+      key,
+      count: entry.count,
+      firstAttemptAt: new Date(entry.firstAttemptAt).toISOString()
+    });
+  });
+
+  return records;
+}
+
+// Read back at boot. Anything expired or unparseable is dropped rather than trusted: a corrupt
+// timestamp that lands in the future would throttle a real user out of their own account.
+async function loadSignInAttempts(now = Date.now()) {
+  let records;
+  try {
+    records = await readSignInAttempts();
+  } catch (error) {
+    console.error(`Could not read the sign-in attempt counters: ${error.message}`);
+    return;
+  }
+
+  if (!Array.isArray(records)) {
+    return;
+  }
+
+  records.forEach((record) => {
+    const key = String(record?.key || "");
+    const count = Number(record?.count);
+    const firstAttemptAt = new Date(record?.firstAttemptAt || "").getTime();
+
+    if (!key || !Number.isFinite(count) || count <= 0) {
+      return;
+    }
+
+    if (!Number.isFinite(firstAttemptAt) || firstAttemptAt > now) {
+      return;
+    }
+
+    if (now - firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
+      return;
+    }
+
+    signInAttempts.set(key, { count, firstAttemptAt });
+  });
+}
+
+// The map is the source of truth and is mutated before this runs, so two concurrent failures both
+// serialize the same latest state and converge — there is no lost update to guard against.
+async function persistSignInAttempts(now) {
+  try {
+    await writeSignInAttempts(serializeSignInAttempts(now));
+  } catch (error) {
+    // A throttle that cannot write is still a throttle for the life of this process. Failing the
+    // request instead would turn a full disk into an outage on the sign-in path.
+    console.error(`Could not persist the sign-in attempt counters: ${error.message}`);
+  }
+}
 
 function pruneSignInAttempts(now) {
   signInAttempts.forEach((entry, key) => {
@@ -611,19 +709,32 @@ function countSignInAttempts(key, now) {
   return entry.count;
 }
 
-function recordSignInFailure(key, now) {
-  const entry = signInAttempts.get(key);
+// Takes every key at once so that a failure counted against both the address and the email costs
+// one write rather than two.
+async function recordSignInFailures(keys, now) {
+  keys.forEach((key) => {
+    const entry = signInAttempts.get(key);
 
-  if (!entry || now - entry.firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
-    signInAttempts.set(key, { count: 1, firstAttemptAt: now });
+    if (!entry || now - entry.firstAttemptAt > SIGN_IN_ATTEMPT_WINDOW_MS) {
+      signInAttempts.set(key, { count: 1, firstAttemptAt: now });
+      return;
+    }
+
+    entry.count += 1;
+  });
+
+  await persistSignInAttempts(now);
+}
+
+async function clearSignInFailures(keys, now = Date.now()) {
+  const cleared = keys.filter((key) => signInAttempts.delete(key));
+
+  // A sign-in that follows no failure has nothing to clear, and must not pay for a write.
+  if (cleared.length === 0) {
     return;
   }
 
-  entry.count += 1;
-}
-
-function clearSignInFailures(keys) {
-  keys.forEach((key) => signInAttempts.delete(key));
+  await persistSignInAttempts(now);
 }
 
 function isSignInThrottled(emailKey, addressKey, now) {
@@ -1223,7 +1334,7 @@ async function handleAccounts(request, response) {
     // This does confirm the address is registered, which sign-in deliberately refuses to do. There
     // is no way around it on a sign-up form without email verification gating account creation, and
     // that trade is worth revisiting when verification lands.
-    recordSignInFailure(addressKey, now);
+    await recordSignInFailures([addressKey], now);
     sendJson(response, 409, { error: "An account with that email already exists. Try signing in." });
     return;
   }
@@ -1276,15 +1387,14 @@ async function handleSessions(request, response) {
       : await accounts.verifyPassword(password, await getTimingDecoyHash());
 
     if (!account || !passwordMatches) {
-      recordSignInFailure(emailKey, now);
-      recordSignInFailure(addressKey, now);
+      await recordSignInFailures([emailKey, addressKey], now);
       // One message for both failures. Telling the user which half was wrong tells an attacker
       // which addresses have accounts.
       sendJson(response, 401, { error: "That email and password don't match an account." });
       return;
     }
 
-    clearSignInFailures([emailKey, addressKey]);
+    await clearSignInFailures([emailKey, addressKey], now);
     await startSession(request, response, account);
     await attachSessionToDevices(account.id, body.pushEndpoint);
 
@@ -1481,8 +1591,7 @@ async function handleAccountVerification(request, response) {
     sendJson(response, 429, { error: "Too many requests. Try again in a few minutes." });
     return;
   }
-  recordSignInFailure(`verify:${account.email}`, now);
-  recordSignInFailure(addressKey, now);
+  await recordSignInFailures([`verify:${account.email}`, addressKey], now);
 
   try {
     await sendVerificationEmail(request, account);
@@ -1571,8 +1680,7 @@ async function handlePasswordResets(request, response) {
 
   // Recorded on every request rather than on failures, because from here there is no such thing as
   // a failed one — the answer is the same either way, so the counter is all that bounds it.
-  recordSignInFailure(emailKey, now);
-  recordSignInFailure(addressKey, now);
+  await recordSignInFailures([emailKey, addressKey], now);
 
   const sent = "If that address has an account, a reset link is on its way.";
   sendJson(response, 200, { ok: true, message: sent });
@@ -2432,6 +2540,9 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, HOST, async () => {
   await initStorage();
+  // After storage is up, so the counters come back from whichever backend initStorage settled on.
+  // This is what stops a redeploy handing an attacker a fresh budget of guesses.
+  await loadSignInAttempts();
   console.log(`Denver Curb Alerts running at http://${HOST}:${PORT} using ${storageBackend} storage`);
   dispatchDueReminderPlans().catch((error) => {
     console.error(`Reminder dispatch failed during startup: ${error.message}`);
