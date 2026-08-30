@@ -9,6 +9,16 @@
       ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "denver-curb-alerts-email",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "EMAIL_TRANSPORT=outbox DATA_DIR=./data-local /Users/ghaughey/.nvm/versions/node/v24.19.0/bin/node server.js"
+      ],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

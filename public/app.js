@@ -1632,6 +1632,10 @@ const state = {
   accountLibrarySyncQueued: false,
   billingConfig: { enabled: false, trialDays: 0, prices: {} },
   billingPending: false,
+  emailConfig: { enabled: false },
+  // Set only while the page is showing the form a reset link led to. It is deliberately not
+  // persisted: the token belongs to the link that was clicked, not to this browser.
+  resetToken: "",
   // Set when the server answers 402. Sync then stops trying until the page reloads, because every
   // save would otherwise fire another doomed request at a customer who already knows.
   librarySyncLocked: false,
@@ -1723,6 +1727,16 @@ const accountBillingActions = document.querySelector("#account-billing-actions")
 const accountUpgradeAnnualButton = document.querySelector("#account-upgrade-annual");
 const accountUpgradeMonthlyButton = document.querySelector("#account-upgrade-monthly");
 const accountBillingPortalButton = document.querySelector("#account-billing-portal");
+const accountForgotRow = document.querySelector("#account-forgot-row");
+const accountForgotToggle = document.querySelector("#account-forgot-toggle");
+const accountForgotForm = document.querySelector("#account-forgot-form");
+const accountForgotEmailInput = document.querySelector("#account-forgot-email-input");
+const accountResetCard = document.querySelector("#account-reset");
+const accountResetForm = document.querySelector("#account-reset-form");
+const accountResetPasswordInput = document.querySelector("#account-reset-password-input");
+const accountResetCancel = document.querySelector("#account-reset-cancel");
+const accountVerifyNotice = document.querySelector("#account-verify-notice");
+const accountVerifyResend = document.querySelector("#account-verify-resend");
 const pushPrimer = document.querySelector("#push-primer");
 const pushPrimerTitle = document.querySelector("#push-primer-title");
 const pushPrimerBody = document.querySelector("#push-primer-body");
@@ -6829,6 +6843,19 @@ async function loadBillingConfig() {
   renderAccount();
 }
 
+// Email degrades the same way. With no provider the server says so, and the client stops offering
+// a reset link it knows cannot be delivered.
+async function loadEmailConfig() {
+  try {
+    const payload = await accountRequest("/api/email/config");
+    state.emailConfig = payload || { enabled: false };
+  } catch {
+    state.emailConfig = { enabled: false };
+  }
+
+  renderAccount();
+}
+
 async function startCheckout(interval) {
   if (state.billingPending) {
     return;
@@ -6956,12 +6983,23 @@ function renderAccount() {
   }
 
   const account = state.account;
+  // A reset link takes over the whole card. Showing the sign-in form beside it would invite
+  // someone to sign in with the password they are standing there because they have forgotten.
+  const resetting = Boolean(state.resetToken);
 
-  accountSignedOutCard.hidden = Boolean(account);
-  accountSignedInCard.hidden = !account;
+  accountSignedOutCard.hidden = resetting || Boolean(account);
+  accountSignedInCard.hidden = resetting || !account;
+
+  if (accountResetCard) {
+    accountResetCard.hidden = !resetting;
+  }
 
   if (accountStatusChip) {
-    accountStatusChip.textContent = account ? "Signed in" : "Not signed in";
+    accountStatusChip.textContent = resetting ? "Reset password" : account ? "Signed in" : "Not signed in";
+  }
+
+  if (accountVerifyNotice) {
+    accountVerifyNotice.hidden = !account || account.emailVerified || !state.emailConfig?.enabled;
   }
 
   if (account) {
@@ -6992,6 +7030,14 @@ function renderAccount() {
 
   if (accountPasswordHint) {
     accountPasswordHint.hidden = !signingUp;
+  }
+
+  if (accountForgotRow) {
+    accountForgotRow.hidden = signingUp || !state.emailConfig?.enabled;
+  }
+
+  if (accountForgotForm && (signingUp || !state.emailConfig?.enabled)) {
+    accountForgotForm.hidden = true;
   }
 
   renderAccountBilling();
@@ -7090,7 +7136,11 @@ async function handleCheckoutReturn() {
 }
 
 function clearBillingQueryParams(params) {
-  ["checkout", "session_id", "billing"].forEach((key) => params.delete(key));
+  clearQueryParams(params, ["checkout", "session_id", "billing"]);
+}
+
+function clearQueryParams(params, keys) {
+  keys.forEach((key) => params.delete(key));
 
   const query = params.toString();
   window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
@@ -7274,6 +7324,11 @@ function hideAccountSubforms() {
     accountDeleteForm.hidden = true;
     accountDeleteForm.reset();
   }
+
+  if (accountForgotForm) {
+    accountForgotForm.hidden = true;
+    accountForgotForm.reset();
+  }
 }
 
 function toggleAccountSubform(form) {
@@ -7326,6 +7381,166 @@ async function submitAccountDeletion(event) {
   }
 }
 
+// The emailed links land back on this page as ?verify= and ?reset=, rather than on routes of their
+// own. The app is one HTML file behind a service worker, so a second page would mean a second entry
+// in APP_SHELL, a second cache key, and a second thing to keep versioned — for two links that are
+// each read once and then thrown away.
+async function handleEmailLinks() {
+  const params = new URLSearchParams(window.location.search);
+  const verifyToken = params.get("verify");
+  const resetToken = params.get("reset");
+
+  if (!verifyToken && !resetToken) {
+    return;
+  }
+
+  // Out of the address bar immediately. A reset token sitting in a URL survives in history, in a
+  // shared screenshot, and in the referrer of anything the page loads next.
+  clearQueryParams(params, ["verify", "reset"]);
+
+  if (resetToken) {
+    state.resetToken = resetToken;
+    setAccountStatus("Choose a new password to finish resetting.", "");
+    renderAccount();
+    accountResetPasswordInput?.focus();
+    return;
+  }
+
+  setAccountStatus("Confirming your email…", "working");
+  renderAccount();
+
+  try {
+    await accountRequest("/api/accounts/verify", { method: "POST", body: { token: verifyToken } });
+  } catch (error) {
+    setAccountStatus(error.message, "error");
+    renderAccount();
+    return;
+  }
+
+  // The confirmation may well have been opened on a different device than the one holding the
+  // session, so re-reading the account is what makes the notice disappear where it is signed in.
+  try {
+    const payload = await accountRequest("/api/accounts/me");
+    state.account = payload.account || null;
+  } catch {
+    // The address is confirmed either way; the banner just outlives this page load.
+  }
+
+  setAccountStatus("Email confirmed. Thanks.", "");
+  renderAccount();
+}
+
+async function submitForgotPassword(event) {
+  event.preventDefault();
+
+  if (state.accountPending) {
+    return;
+  }
+
+  const address = accountForgotEmailInput?.value.trim() || "";
+  if (!address) {
+    setAccountStatus("Enter the email address on your account.", "error");
+    return;
+  }
+
+  state.accountPending = true;
+  setAccountStatus("Sending a reset link…", "working");
+  renderAccount();
+
+  try {
+    const payload = await accountRequest("/api/password-resets", { method: "POST", body: { email: address } });
+    // Echoing the server's wording rather than composing our own. It answers identically for an
+    // address with an account and one without, and a client that said "check your inbox" would
+    // undo that by confirming the address exists.
+    setAccountStatus(payload?.message || "If that address has an account, a reset link is on its way.", "");
+    hideAccountSubforms();
+  } catch (error) {
+    setAccountStatus(error.message, "error");
+  } finally {
+    state.accountPending = false;
+    renderAccount();
+  }
+}
+
+async function submitPasswordReset(event) {
+  event.preventDefault();
+
+  if (state.accountPending || !state.resetToken) {
+    return;
+  }
+
+  const password = accountResetPasswordInput?.value || "";
+
+  // Checked here as well as on the server, because the token is spent on the attempt either way.
+  // Letting an obviously-too-short password burn the link would send the user back to their inbox
+  // for a second one over something the page could see for itself.
+  if (password.length < 10) {
+    setAccountStatus("Use at least 10 characters.", "error");
+    return;
+  }
+
+  state.accountPending = true;
+  setAccountStatus("Setting your new password…", "working");
+  renderAccount();
+
+  try {
+    await accountRequest("/api/password-resets/confirm", {
+      method: "POST",
+      body: { token: state.resetToken, password }
+    });
+
+    state.resetToken = "";
+    // The reset revoked every session, this browser's included, so whatever the page thought it
+    // knew about being signed in is now wrong.
+    state.account = null;
+    if (accountResetPasswordInput) {
+      accountResetPasswordInput.value = "";
+    }
+
+    setAccountMode("signin");
+    setAccountStatus("Password updated. Sign in with your new password.", "");
+  } catch (error) {
+    // The card stays open with Cancel available. If the link was already spent the server says so
+    // plainly, which is more use than silently dropping the user back on the sign-in form.
+    setAccountStatus(error.message, "error");
+  } finally {
+    state.accountPending = false;
+    renderAccount();
+  }
+}
+
+function cancelPasswordReset() {
+  state.resetToken = "";
+  if (accountResetPasswordInput) {
+    accountResetPasswordInput.value = "";
+  }
+  setAccountStatus("", "");
+  renderAccount();
+}
+
+async function resendVerificationEmail() {
+  if (state.accountPending) {
+    return;
+  }
+
+  state.accountPending = true;
+  setAccountStatus("Sending a confirmation link…", "working");
+  renderAccount();
+
+  try {
+    const payload = await accountRequest("/api/accounts/me/verification", { method: "POST" });
+    setAccountStatus(
+      payload?.alreadyVerified ? "That address is already confirmed." : "Confirmation link sent. Check your inbox.",
+      ""
+    );
+  } catch (error) {
+    setAccountStatus(error.message, "error");
+  } finally {
+    state.accountPending = false;
+    renderAccount();
+  }
+}
+
 function registerAccountEvents() {
   accountForm?.addEventListener("submit", submitAccountForm);
   accountModeButtons.forEach((button) => {
@@ -7339,6 +7554,11 @@ function registerAccountEvents() {
   accountUpgradeAnnualButton?.addEventListener("click", () => startCheckout("year"));
   accountUpgradeMonthlyButton?.addEventListener("click", () => startCheckout("month"));
   accountBillingPortalButton?.addEventListener("click", openBillingPortal);
+  accountForgotToggle?.addEventListener("click", () => toggleAccountSubform(accountForgotForm));
+  accountForgotForm?.addEventListener("submit", submitForgotPassword);
+  accountResetForm?.addEventListener("submit", submitPasswordReset);
+  accountResetCancel?.addEventListener("click", cancelPasswordReset);
+  accountVerifyResend?.addEventListener("click", resendVerificationEmail);
 }
 
 function renderAll() {
@@ -7569,9 +7789,12 @@ try {
 renderAll();
 initializePushFeatures();
 loadBillingConfig();
+loadEmailConfig();
 // The checkout return has to run after the account is loaded, or it polls an entitlement on a
-// state.account that is still null and reports failure on a payment that went through.
-loadCurrentAccount().then(handleCheckoutReturn);
+// state.account that is still null and reports failure on a payment that went through. The email
+// links come last for the same reason: confirming an address re-reads the account, and doing that
+// before the first load would race it.
+loadCurrentAccount().then(handleCheckoutReturn).then(handleEmailLinks);
 loadStaticRouteInventory();
 
 function capitalize(value) {

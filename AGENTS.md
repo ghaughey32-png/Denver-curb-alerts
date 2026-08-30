@@ -12,16 +12,18 @@ sweeping rules, and schedules web-push reminders.
 Deliberately minimal stack:
 
 - `server.js` — a zero-framework `node:http` server. Static files + `/api/*`. No Express.
-- `lib/accounts.js` and `lib/billing.js` — the only things outside `server.js` that are server
-  runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
-  `accounts.js` is pure, no I/O. `billing.js` is pure apart from `stripeRequest`, which is
-  deliberately the one function in it that touches the network.
+- `lib/accounts.js`, `lib/billing.js` and `lib/email.js` — the only things outside `server.js` that
+  are server runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
+  `accounts.js` is pure, no I/O. `billing.js` is pure apart from `stripeRequest`, and `email.js`
+  apart from `sendEmail`; in both, that is deliberately the one function touching the outside world,
+  and everything above it in the file can be tested without a key or a network.
 - `public/app.js` — the entire client, ~6000 lines of vanilla JS loaded by a plain `<script>` tag.
 - **No bundler, no transpiler, no build step for client code.** What is in `public/` is what ships.
 - Two dependencies (`pg`, `web-push`), both lazily `require`d so the app boots without `npm install`.
   Accounts added none: `node:crypto` has scrypt, and there is no bcrypt or session framework here.
   Payments added none either — Stripe is form-encoded HTTPS and an HMAC, so it is `node:https` and
-  `node:crypto`. There is no `stripe` package.
+  `node:crypto`. There is no `stripe` package. Email added none: Resend is one JSON POST, so there
+  is no `resend` package and no nodemailer.
 - CommonJS everywhere, including tests and scripts. There is no `"type": "module"`.
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
@@ -539,7 +541,9 @@ there. If the Render URL changes, this list is the thing that breaks sign-in.
 returns one message for a wrong password and for no such account, and spends a full scrypt
 verification against a decoy hash when the account is missing so the timing does not leak either.
 Sign-up cannot hide it — a duplicate-email error is the only honest answer to a taken address — and
-that trade is worth revisiting if email verification ever gates account creation.
+that trade is worth revisiting if email verification ever gates account creation. **Verification
+landed on 2026-08-29 and deliberately gates nothing**, so the trade stands as described; revisit it
+only if that decision changes.
 
 **The client uploads from `localStorage`, never from `state.savedSets`, and merges before it
 uploads.** `hydrateSavedSet` prunes any set whose curb segments are not in the currently loaded
@@ -567,10 +571,9 @@ records to any caller. The push listing included each device's `p256dh` and `aut
 working ability to send notifications to every user of the app. The per-device lookup the client
 actually uses — `/api/reminder-plans?endpoint=` — is unchanged.
 
-**Still missing before this is a finished product**, in the order it will be wanted: email
-verification, password reset (both need an email provider, which the app has never had), and rate
-limiting that survives a deploy — the current counters are in-process, so a restart hands out a
-fresh budget of guesses. Payments landed on 2026-08-27; see the Payments section below.
+**Still missing before this is a finished product**: rate limiting that survives a deploy — the
+current counters are in-process, so a restart hands out a fresh budget of guesses. Payments landed
+on 2026-08-27; email verification and password reset on 2026-08-29. See those sections below.
 
 ## Payments
 
@@ -630,6 +633,76 @@ of it subtly wrong bills someone incorrectly.
 Billing degrades to invisible: with no `STRIPE_SECRET_KEY` the endpoints answer 503, the client
 hides the upgrade controls, and the trial still runs — so an unconfigured deployment is a working
 free app rather than one where nobody can sync. That is the normal state of a local checkout.
+
+## Email
+
+Added 2026-08-29. Address confirmation and password reset, which are the two things the account
+system had been missing since it landed, and both are a link in an inbox and nothing else.
+
+**No new dependency, and Resend is the assumed provider.** [lib/email.js](lib/email.js) is
+`node:https` and one JSON POST, the same call the Stripe work makes to a different host. Swapping
+providers is `deliverViaResend` and nothing else; it is deliberately not an adapter layer, because
+the real cost of switching is the DNS records, not those thirty lines. SMTP is the option to avoid —
+it would mean nodemailer, the first dependency this project cannot lazily require.
+
+**There is still no sending domain, and that is what stands between this and shipping.** The live
+origin is a Render subdomain, so SPF and DKIM cannot be published for it, and every provider
+requires a verified domain before it will send to arbitrary addresses. The feature is therefore
+built and off: with no `RESEND_API_KEY` the routes answer 503 and the client hides the controls, the
+same way billing degrades. Do not treat a green test run as evidence that mail is deliverable.
+
+**`EMAIL_TRANSPORT=outbox` is what makes the flow reachable without a provider, and the naive
+version of this does not work.** Falling back to the outbox only when email is *disabled* is
+useless, because the routes answer 503 in exactly that state and nothing ever reaches the file. The
+transport switch says "email works, deliver it to disk" instead — messages land in `data/outbox.json`
+and you click the link out of the file. It is how the whole flow is exercised locally and it is what
+`test/email.test.js` runs under.
+
+**Verification gates nothing, on purpose.** An unconfirmed address gets a banner and a resend
+button; sign-in, reminders, the trial and the library all work exactly as before. This is the same
+rule as the reminders in the Payments section — this app exists to stop people getting sweeping
+tickets, and an unclicked link in an inbox is not a reason to withhold anything. The banner exists
+so that a reset can reach the person later, which is the only thing confirmation actually buys.
+
+**The reset route answers before it sends, and that is a security property rather than a
+performance one.** An identical 200 body for a known and an unknown address is only half of not
+being a membership oracle; a found account does hundreds of milliseconds of provider work that a
+missing one does not, and that gap is as readable as a different status code. So the response goes
+first and the send happens after it, unawaited. **Do not "fix" this by awaiting the send** — and
+note that it is why `test/email.test.js` polls the outbox instead of assuming it.
+
+**A reset token is spent on the attempt, not on success.** A link sitting in a mailbox someone else
+can read must not survive a failed validation, so `handlePasswordResetConfirm` consumes it before
+it looks at the new password. The client checks the ten-character minimum itself for exactly this
+reason: without that, an obviously-too-short password would burn the link and send the user back to
+their inbox for another one. The server still enforces every rule — the client check is a courtesy,
+never the gate.
+
+**A reset revokes every session with no survivor**, unlike a password change, which spares the one
+making the request. A reset is what someone does when they believe the account is compromised, and
+there is no session on that request we have any reason to trust. Completing one also **confirms the
+address as a side effect** — reaching the link proves control of the mailbox, which is precisely
+what the confirmation link asks for, so making the user click a second one would be theatre.
+
+**Tokens are stored the way sessions are: the collection holds the sha256, never the token.** A
+leaked dump must not be a bag of working reset links. Single use is enforced by deleting the record,
+not by a flag on it — a spent token that is merely flagged sits in the collection looking almost
+exactly like a live one, and telling them apart is the whole property. Issuing a new link retires
+the account's outstanding ones for the same purpose, and deleting an account takes its tokens with
+it, or a live link would outlive the account and be a way back in if the address is reused.
+
+**The links land on `?verify=` and `?reset=` on the existing page, not on routes of their own.** A
+second HTML file would mean a second entry in `APP_SHELL`, a second cache key, and a second thing to
+keep versioned, for two tokens that are each read once and thrown away. `handleEmailLinks` in
+`public/app.js` reads them at boot and **strips them from the address bar immediately** — a reset
+token in a URL survives in history, in a screenshot, and in the referrer of whatever loads next.
+
+**The link origin comes from `resolveReturnOrigin`, which is now load bearing in a way it was not
+for Stripe.** It prefers the configured origin and falls back to the request's own only if that
+origin is in `CREDENTIALED_ORIGINS`. `Host` is client-supplied, and where a poisoned one previously
+meant an attacker redirecting their own checkout, it now means a reset link arriving in someone
+else's inbox pointing at the attacker's server. Locally this means links on an autoPort dev server
+point at production — swap the origin by hand, or run on port 3000.
 
 ## Domain vocabulary
 
@@ -765,6 +838,8 @@ The user alternates between tools on this repo. These rules keep that from corru
   which points it at a temp directory so a test run cannot write accounts into the working copy.
 - `APP_ORIGIN` — which server the pipeline scripts query. Defaults to localhost for
   `build-static-inventory.js`, **production** for `map-area-approach-3.js`.
+- `RESEND_API_KEY`, `EMAIL_FROM` — transactional email. Both must be set or email is off.
+- `EMAIL_TRANSPORT` — set to `outbox` to run the email flow with no provider. See the Email section.
 
 Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 

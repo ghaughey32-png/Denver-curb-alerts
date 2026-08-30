@@ -2860,8 +2860,24 @@ a.ghost-button {
    .app-view[hidden] above is the same fix for the same reason; the account card never got it. */
 .account-card[hidden],
 .account-form[hidden],
-.account-billing[hidden] {
+.account-billing[hidden],
+.account-verify-notice[hidden] {
   display: none;
+}
+
+/* Amber rather than red: an unconfirmed address is a loose end, not a fault, and nothing about the
+   app is broken while it sits there. */
+.account-verify-notice {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(214, 158, 46, 0.1);
+  border: 1px solid rgba(214, 158, 46, 0.32);
+}
+
+.account-verify-notice .account-hint {
+  color: #6f4c14;
 }
 
 .account-card {

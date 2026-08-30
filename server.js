@@ -7,6 +7,9 @@ const zlib = require("node:zlib");
 
 const accounts = require("./lib/accounts.js");
 const billing = require("./lib/billing.js");
+// Named `mailer`, not `email`: handleAccounts and handleSessions both bind `email` to an address,
+// which shadowed the module and made every call on it a TypeError inside those handlers.
+const mailer = require("./lib/email.js");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -23,6 +26,10 @@ const REMINDER_PLANS_FILE = path.join(DATA_DIR, "reminder-plans.json");
 const ISSUE_REPORTS_FILE = path.join(DATA_DIR, "issue-reports.json");
 const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
+const EMAIL_TOKENS_FILE = path.join(DATA_DIR, "email-tokens.json");
+// Where a message goes when no provider is configured. Not a test fixture: it is how the whole
+// verification and reset flow is exercised locally, by opening the link out of the file.
+const EMAIL_OUTBOX_FILE = path.join(DATA_DIR, "outbox.json");
 const DENVER_API_BASE = "https://www.denvergov.org/api/";
 const REMINDER_DISPATCH_INTERVAL_MS = 60 * 1000;
 const COLLECTION_KEYS = {
@@ -31,7 +38,8 @@ const COLLECTION_KEYS = {
   reminderPlans: "reminder-plans",
   issueReports: "issue-reports",
   accounts: "accounts",
-  sessions: "sessions"
+  sessions: "sessions",
+  emailTokens: "email-tokens"
 };
 
 const MIME_TYPES = {
@@ -116,7 +124,8 @@ async function ensureDataFiles() {
     ensureJsonFile(REMINDER_PLANS_FILE),
     ensureJsonFile(ISSUE_REPORTS_FILE),
     ensureJsonFile(ACCOUNTS_FILE),
-    ensureJsonFile(SESSIONS_FILE)
+    ensureJsonFile(SESSIONS_FILE),
+    ensureJsonFile(EMAIL_TOKENS_FILE)
   ]);
 }
 
@@ -274,7 +283,8 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.reminderPlans, REMINDER_PLANS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.issueReports, ISSUE_REPORTS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.accounts, ACCOUNTS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.emailTokens, EMAIL_TOKENS_FILE)
     ]);
     storageBackend = "database";
     await backfillAccountTrials();
@@ -432,6 +442,90 @@ async function writeSessions(records) {
   }
 
   await writeCollectionToFile(SESSIONS_FILE, records);
+}
+
+async function readEmailTokens() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.emailTokens);
+  }
+
+  return readCollectionFromFile(EMAIL_TOKENS_FILE);
+}
+
+async function writeEmailTokens(records) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.emailTokens, records);
+    return;
+  }
+
+  await writeCollectionToFile(EMAIL_TOKENS_FILE, records);
+}
+
+// Issuing a new link retires the account's outstanding ones for the same purpose. Someone who
+// clicks "resend" twice should not be left with two live reset links, and pruning here is what
+// keeps the collection from growing without bound in the absence of a cleanup job.
+async function issueEmailToken(accountId, purpose, ttlMs) {
+  const { token, tokenHash } = accounts.createEmailToken();
+  const existing = accounts.pruneExpiredEmailTokens(await readEmailTokens());
+  const record = accounts.buildEmailTokenRecord({ accountId, purpose, tokenHash, ttlMs });
+
+  await writeEmailTokens([
+    record,
+    ...existing.filter((item) => !(item.accountId === accountId && item.purpose === purpose))
+  ]);
+
+  return token;
+}
+
+// Consuming deletes. A spent token that is merely flagged still sits in the collection looking
+// almost exactly like a live one, and telling them apart is the entire security property here.
+async function consumeEmailToken(token, purpose) {
+  const value = String(token || "");
+  if (!value) {
+    return null;
+  }
+
+  const tokenHash = accounts.hashEmailToken(value);
+  const records = await readEmailTokens();
+  const match = records.find((item) => item.tokenHash === tokenHash && item.purpose === purpose);
+
+  if (!match) {
+    return null;
+  }
+
+  await writeEmailTokens(records.filter((item) => item.id !== match.id));
+
+  return accounts.isEmailTokenExpired(match) ? null : match;
+}
+
+async function revokeEmailTokens(accountId, purpose = "") {
+  const records = await readEmailTokens();
+  await writeEmailTokens(
+    records.filter((item) => item.accountId !== accountId || (purpose && item.purpose !== purpose))
+  );
+}
+
+// One place that knows where an unconfigured message goes, so no route has to.
+function sendAccountEmail(message) {
+  return mailer.sendEmail(message, { outboxPath: EMAIL_OUTBOX_FILE });
+}
+
+async function sendVerificationEmail(request, account) {
+  const config = mailer.getEmailConfig();
+
+  // Nothing to mint a token for when there is no way to deliver it.
+  if (!config.enabled) {
+    return { delivered: false, id: "", via: "disabled" };
+  }
+
+  const token = await issueEmailToken(account.id, "verify", config.verificationTokenTtlMs);
+
+  return sendAccountEmail(
+    mailer.buildVerificationEmail({
+      to: account.email,
+      link: mailer.buildActionLink(resolveReturnOrigin(request), "verify", token)
+    })
+  );
 }
 
 // Render terminates TLS in front of us, so the socket here is plain http even in production and
@@ -1146,6 +1240,12 @@ async function handleAccounts(request, response) {
   await attachSessionToDevices(record.id, body.pushEndpoint);
 
   sendJson(response, 201, { account: accounts.toPublicAccount(record) });
+
+  // After the response, and deliberately not awaited. Verification gates nothing in this app, so
+  // an email provider having a bad minute must not be the reason someone cannot create an account.
+  sendVerificationEmail(request, record).catch((error) => {
+    console.error(`Could not send a verification email at sign-up: ${error.message}`);
+  });
 }
 
 async function handleSessions(request, response) {
@@ -1263,18 +1363,22 @@ async function handleCurrentAccount(request, response) {
 
     // Deleting the account takes the reminders with it. Leaving orphaned push subscriptions behind
     // would keep sending notifications to a phone whose owner just asked to be forgotten.
-    const [accountList, sessions, plans, pushSubscriptions] = await Promise.all([
+    const [accountList, sessions, plans, pushSubscriptions, emailTokens] = await Promise.all([
       readAccounts(),
       readSessions(),
       readReminderPlans(),
-      readPushSubscriptions()
+      readPushSubscriptions(),
+      readEmailTokens()
     ]);
 
     await Promise.all([
       writeAccounts(accountList.filter((item) => item.id !== account.id)),
       writeSessions(sessions.filter((item) => item.accountId !== account.id)),
       writeReminderPlans(plans.filter((item) => item.accountId !== account.id)),
-      writePushSubscriptions(pushSubscriptions.filter((item) => item.accountId !== account.id))
+      writePushSubscriptions(pushSubscriptions.filter((item) => item.accountId !== account.id)),
+      // A live reset link outliving the account it belongs to would be a way to resurrect it if the
+      // address is ever reused.
+      writeEmailTokens(emailTokens.filter((item) => item.accountId !== account.id))
     ]);
 
     response.setHeader("Set-Cookie", accounts.buildExpiredSessionCookie({ secure: isSecureRequest(request) }));
@@ -1324,6 +1428,233 @@ async function handleAccountPassword(request, response) {
   // to go. The one making this request survives, or the user is signed out of the page they are on.
   const sessions = accounts.pruneExpiredSessions(await readSessions());
   await writeSessions(sessions.filter((item) => item.accountId !== account.id || item.id === session.id));
+
+  // Any reset link already sitting in the mailbox is now a way back in to an account whose owner
+  // has just deliberately changed the password. Retire them for the same reason the sessions go.
+  await revokeEmailTokens(account.id, "reset");
+
+  sendJson(response, 200, { ok: true });
+}
+
+// Whether the app can send mail at all. The client asks so it can hide "Forgot password?" rather
+// than offer a link the server has no provider to deliver — a reset that silently goes nowhere is
+// worse than an honest absence, because the user waits for it instead of asking for help.
+async function handleEmailConfig(request, response) {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  sendJson(response, 200, mailer.getPublicEmailConfig());
+}
+
+// Sending, or re-sending, the confirmation link for the signed-in account. This one is awaited
+// rather than fired off, because the user is looking at a button and deserves to be told whether
+// it worked; the enumeration argument that makes the reset route fire-and-forget does not apply
+// when the caller already holds a session for the address in question.
+async function handleAccountVerification(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const { account } = await resolveSession(request);
+  if (!account) {
+    sendJson(response, 401, { error: "Sign in first." });
+    return;
+  }
+
+  if (account.emailVerifiedAt) {
+    sendJson(response, 200, { ok: true, alreadyVerified: true });
+    return;
+  }
+
+  const config = mailer.getEmailConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, { error: "Email isn't configured on this server yet." });
+    return;
+  }
+
+  const addressKey = `verify:${getRequestIp(request)}`;
+  const now = Date.now();
+  if (isSignInThrottled(`verify:${account.email}`, addressKey, now)) {
+    sendJson(response, 429, { error: "Too many requests. Try again in a few minutes." });
+    return;
+  }
+  recordSignInFailure(`verify:${account.email}`, now);
+  recordSignInFailure(addressKey, now);
+
+  try {
+    await sendVerificationEmail(request, account);
+  } catch (error) {
+    console.error(`Could not send a verification email: ${error.message}`);
+    sendJson(response, 502, { error: "We couldn't send that email. Try again in a moment." });
+    return;
+  }
+
+  sendJson(response, 200, { ok: true });
+}
+
+// Consuming a confirmation link. No session required: the link is very often opened on a phone
+// while the account was created on a laptop, and refusing it there would make the mail useless on
+// the device most likely to receive it.
+async function handleEmailVerify(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch (error) {
+    sendJson(response, 400, { error: "Invalid verification payload.", details: error.message });
+    return;
+  }
+
+  const record = await consumeEmailToken(body.token, "verify");
+  if (!record) {
+    sendJson(response, 400, { error: "That confirmation link has expired or already been used." });
+    return;
+  }
+
+  const updated = await updateAccount(record.accountId, (existing) => ({
+    ...existing,
+    emailVerifiedAt: existing.emailVerifiedAt || new Date().toISOString()
+  }));
+
+  if (!updated) {
+    sendJson(response, 400, { error: "That account no longer exists." });
+    return;
+  }
+
+  sendJson(response, 200, { ok: true, email: updated.email });
+}
+
+// Requesting a reset link.
+//
+// This answers 200 whether or not the address has an account, and it answers before the mail is
+// sent. Both halves matter: the identical body is what stops the endpoint being a membership
+// oracle for any address someone cares to try, and replying first is what stops the *timing* being
+// one — a found account does hundreds of milliseconds of provider work that a missing one does
+// not, and that gap is as readable as a different status code would be.
+async function handlePasswordResets(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch (error) {
+    sendJson(response, 400, { error: "Invalid reset payload.", details: error.message });
+    return;
+  }
+
+  const address = accounts.normalizeEmail(body.email);
+  const config = mailer.getEmailConfig();
+
+  if (!config.enabled) {
+    sendJson(response, 503, { error: "Email isn't configured on this server yet." });
+    return;
+  }
+
+  const now = Date.now();
+  const emailKey = `reset:${address}`;
+  const addressKey = `reset:${getRequestIp(request)}`;
+
+  if (isSignInThrottled(emailKey, addressKey, now)) {
+    sendJson(response, 429, { error: "Too many reset requests. Try again in a few minutes." });
+    return;
+  }
+
+  // Recorded on every request rather than on failures, because from here there is no such thing as
+  // a failed one — the answer is the same either way, so the counter is all that bounds it.
+  recordSignInFailure(emailKey, now);
+  recordSignInFailure(addressKey, now);
+
+  const sent = "If that address has an account, a reset link is on its way.";
+  sendJson(response, 200, { ok: true, message: sent });
+
+  if (!accounts.isValidEmail(address)) {
+    return;
+  }
+
+  const accountList = await readAccounts();
+  const account = accountList.find((item) => item.email === address);
+  if (!account) {
+    return;
+  }
+
+  try {
+    const token = await issueEmailToken(account.id, "reset", config.resetTokenTtlMs);
+    await sendAccountEmail(
+      mailer.buildPasswordResetEmail({
+        to: account.email,
+        link: mailer.buildActionLink(resolveReturnOrigin(request), "reset", token)
+      })
+    );
+  } catch (error) {
+    // The response has already gone. Logging is all that is left, and it is the only place an
+    // operator will see that a provider is refusing mail.
+    console.error(`Could not send a password reset email: ${error.message}`);
+  }
+}
+
+// Completing a reset. The token is the credential here, so it is spent on the first attempt
+// whether or not the new password passes validation — otherwise a link in a mailbox someone else
+// can read stays live through any number of tries.
+async function handlePasswordResetConfirm(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  let body;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch (error) {
+    sendJson(response, 400, { error: "Invalid reset payload.", details: error.message });
+    return;
+  }
+
+  const record = await consumeEmailToken(body.token, "reset");
+  if (!record) {
+    sendJson(response, 400, { error: "That reset link has expired or already been used." });
+    return;
+  }
+
+  const accountList = await readAccounts();
+  const account = accountList.find((item) => item.id === record.accountId);
+  if (!account) {
+    sendJson(response, 400, { error: "That account no longer exists." });
+    return;
+  }
+
+  const check = accounts.validatePassword(String(body.password || ""), account.email);
+  if (!check.ok) {
+    sendJson(response, 400, { error: check.error });
+    return;
+  }
+
+  const passwordHash = await accounts.hashPassword(String(body.password));
+
+  // Reaching a reset link proves control of the mailbox, which is the same evidence the
+  // confirmation link asks for — so completing one verifies the address as a side effect rather
+  // than leaving the user a second link to click for something they have just demonstrated.
+  await updateAccount(account.id, (existing) => ({
+    ...existing,
+    passwordHash,
+    emailVerifiedAt: existing.emailVerifiedAt || new Date().toISOString()
+  }));
+
+  // Every session goes, with no survivor. A reset is what someone does when they believe the
+  // account is compromised, and unlike a password change there is no session on this request that
+  // we have any reason to trust.
+  const sessions = accounts.pruneExpiredSessions(await readSessions());
+  await writeSessions(sessions.filter((item) => item.accountId !== account.id));
+  await revokeEmailTokens(account.id, "reset");
 
   sendJson(response, 200, { ok: true });
 }
@@ -1393,11 +1724,12 @@ async function handleAccountLibrary(request, response) {
   sendJson(response, 405, { error: "Method not allowed." });
 }
 
-// Where Stripe sends the customer back to. An explicit STRIPE_RETURN_ORIGIN wins; otherwise the
-// request's own origin is used, but only if it is one we already trust with a session cookie. Host
-// is a client-supplied header, and while the worst an attacker could do with it here is redirect
-// their own checkout somewhere else, reusing the CORS allowlist costs nothing and keeps the set of
-// origins this app admits to being served from in one place.
+// Where Stripe sends the customer back to, and where a verification or reset link points. An
+// explicit STRIPE_RETURN_ORIGIN wins; otherwise the request's own origin is used, but only if it is
+// one we already trust with a session cookie. Host is a client-supplied header, and the allowlist
+// is what stops it choosing the origin — which matters far more for an emailed reset link than it
+// did for a checkout redirect, since a link built from an attacker-supplied Host would arrive in
+// the victim's inbox pointing at the attacker's server.
 function resolveReturnOrigin(request) {
   const configured = String(process.env.STRIPE_RETURN_ORIGIN || process.env.APP_ORIGIN || "").replace(/\/+$/, "");
   if (configured) {
@@ -1999,6 +2331,31 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/accounts/me") {
     await handleCurrentAccount(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/accounts/me/verification") {
+    await handleAccountVerification(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/accounts/verify") {
+    await handleEmailVerify(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/password-resets") {
+    await handlePasswordResets(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/password-resets/confirm") {
+    await handlePasswordResetConfirm(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/email/config") {
+    await handleEmailConfig(request, response);
     return;
   }
 

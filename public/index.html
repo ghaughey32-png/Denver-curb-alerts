@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260827-billing-stripe" />
+    <link rel="stylesheet" href="./styles.css?v=20260829-email-verification" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
@@ -366,6 +366,53 @@
 
                 <button id="account-submit-button" class="primary-button" type="submit">Sign in</button>
               </form>
+
+              <!-- Hidden unless the server has an email provider. Offering a reset link that cannot
+                   be sent is worse than offering none: the user waits for mail instead of asking. -->
+              <div class="account-action-row" id="account-forgot-row" hidden>
+                <button id="account-forgot-toggle" class="ghost-button" type="button">Forgot password?</button>
+              </div>
+
+              <form id="account-forgot-form" class="account-form account-subform" hidden>
+                <div class="account-field">
+                  <label class="input-label" for="account-forgot-email-input">Email</label>
+                  <input
+                    id="account-forgot-email-input"
+                    class="text-input"
+                    type="email"
+                    autocomplete="email"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    placeholder="you@example.com"
+                    required
+                  />
+                  <p class="account-hint">We'll send a link that works for one hour.</p>
+                </div>
+                <button class="primary-button" type="submit">Send reset link</button>
+              </form>
+            </div>
+
+            <!-- Shown only when the page was opened from a reset link, in place of both cards
+                 above. The token lives in the query string; the password never does. -->
+            <div id="account-reset" class="account-card" hidden>
+              <p class="account-identity">Choose a new password</p>
+              <form id="account-reset-form" class="account-form">
+                <div class="account-field">
+                  <label class="input-label" for="account-reset-password-input">New password</label>
+                  <input
+                    id="account-reset-password-input"
+                    class="text-input"
+                    type="password"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <p class="account-hint">At least 10 characters. This signs you out on every device.</p>
+                </div>
+                <div class="account-action-row">
+                  <button class="primary-button" type="submit">Set new password</button>
+                  <button id="account-reset-cancel" class="ghost-button" type="button">Cancel</button>
+                </div>
+              </form>
             </div>
 
             <div id="account-signed-in" class="account-card" hidden>
@@ -373,6 +420,19 @@
                 Signed in as <strong id="account-email-label">your account</strong>
               </p>
               <p class="account-plan" id="account-plan-label">Free plan</p>
+
+              <!-- Verification gates nothing on purpose. This app exists to stop people getting
+                   sweeping tickets, and an unclicked link is not a reason to withhold anything. It
+                   is a prompt, so a password reset can reach them later. -->
+              <div id="account-verify-notice" class="account-verify-notice" hidden>
+                <p class="account-hint">
+                  Confirm your email so we can send you a password reset if you ever need one. Everything works
+                  either way.
+                </p>
+                <div class="account-action-row">
+                  <button id="account-verify-resend" class="ghost-button" type="button">Send confirmation link</button>
+                </div>
+              </div>
 
               <!-- Hidden unless the server has Stripe keys, so a deployment with no payments
                    configured shows the account card exactly as it looked before billing existed. -->
@@ -895,6 +955,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260827-billing-stripe"></script>
+    <script src="./app.js?v=20260829-email-verification"></script>
   </body>
 </html>
