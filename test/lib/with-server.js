@@ -17,28 +17,72 @@ const SERVER_PATH = path.join(__dirname, "..", "..", "server.js");
 // Passing DATA_DIR in extraEnv points the server at a directory the caller owns, and leaves it
 // on disk afterwards. That is what lets a test stop one server and start another over the same
 // collections, which is the only way to prove something survives a restart.
-async function withServer(run, extraEnv = {}) {
-  const borrowedDataDir = Boolean(extraEnv.DATA_DIR);
-  const dataDir = borrowedDataDir ? extraEnv.DATA_DIR : fs.mkdtempSync(path.join(os.tmpdir(), "curb-accounts-"));
+// `node --test` runs the test files concurrently and several of them stand a server up, so a random
+// port in a 900-wide range collides often enough to redden a clean suite roughly one run in ten.
+// Retrying on EADDRINUSE — and only on that, so a genuinely broken boot still fails immediately and
+// says why — is cheaper than coordinating port assignment across processes.
+const PORT_ATTEMPTS = 8;
+
+function startServer(dataDir, extraEnv) {
   const port = 39000 + Math.floor(Math.random() * 900);
   const child = spawn(process.execPath, [SERVER_PATH], {
     env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", DATA_DIR: dataDir, DATABASE_URL: "", ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"]
   });
 
-  try {
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Server did not start in time.")), 15000);
-      child.stdout.on("data", (chunk) => {
-        if (String(chunk).includes("running at")) {
-          clearTimeout(timer);
-          resolve();
-        }
-      });
-      child.on("error", reject);
-      child.on("exit", (code) => reject(new Error(`Server exited early with code ${code}.`)));
-    });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
 
+  const ready = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Server did not start in time.")), 15000);
+    child.stdout.on("data", (chunk) => {
+      if (String(chunk).includes("running at")) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      const error = new Error(`Server exited early with code ${code}.${stderr ? `\n${stderr}` : ""}`);
+      error.portTaken = stderr.includes("EADDRINUSE");
+      reject(error);
+    });
+  });
+
+  return { child, port, ready };
+}
+
+async function withServer(run, extraEnv = {}) {
+  const borrowedDataDir = Boolean(extraEnv.DATA_DIR);
+  const dataDir = borrowedDataDir ? extraEnv.DATA_DIR : fs.mkdtempSync(path.join(os.tmpdir(), "curb-accounts-"));
+
+  let child = null;
+  let port = 0;
+
+  for (let attempt = 1; ; attempt += 1) {
+    const started = startServer(dataDir, extraEnv);
+
+    try {
+      await started.ready;
+      child = started.child;
+      port = started.port;
+      break;
+    } catch (error) {
+      started.child.kill("SIGKILL");
+
+      if (!error.portTaken || attempt >= PORT_ATTEMPTS) {
+        if (!borrowedDataDir) {
+          fs.rmSync(dataDir, { recursive: true, force: true });
+        }
+        throw error;
+      }
+    }
+  }
+
+  try {
     const origin = `http://127.0.0.1:${port}`;
     await run({
       origin,

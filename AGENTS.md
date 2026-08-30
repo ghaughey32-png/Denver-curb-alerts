@@ -564,11 +564,25 @@ table by another name.
 top-level redirect back from a third-party origin, which is exactly the return trip from Stripe's
 hosted checkout — the customer would land on a signed-out page immediately after paying.
 
-**Adding an origin to `CREDENTIALED_ORIGINS` in `server.js` grants it the ability to act as a
-signed-in user.** The API answers `Access-Control-Allow-Origin: *` to everyone, which is right for
-the map data and incompatible with cookies by design; a request from a listed origin gets that
-origin echoed with `Allow-Credentials` instead. Only origins this app is actually served from belong
-there. If the Render URL changes, this list is the thing that breaks sign-in.
+**Trusting an origin with credentials grants it the ability to act as a signed-in user.** The API
+answers `Access-Control-Allow-Origin: *` to everyone, which is right for the map data and
+incompatible with cookies by design; a request from a trusted origin gets that origin echoed with
+`Allow-Credentials` instead. Only origins this app is actually served from belong there.
+
+The list is built at boot by `buildCredentialedOrigins` in `server.js` (2026-08-29), not typed into
+the source. `BUILT_IN_CREDENTIALED_ORIGINS` holds the Render subdomain and the two localhost forms;
+`APP_ORIGIN`, `STRIPE_RETURN_ORIGIN` and a comma-separated `CREDENTIALED_ORIGINS` add to them. It
+reads all three because an origin trusted to receive a Stripe return or an emailed reset link is by
+definition one the app is served from, and making someone set the same hostname three times is how
+one of the three goes stale. Configured origins come first so `resolveReturnOrigin`'s last-resort
+fallback lands on the real domain rather than the Render subdomain.
+
+**This is the thing that breaks sign-in on a new hostname, and it breaks silently** — no endpoint
+errors, nothing logs, the API keeps answering every request with a wildcard the browser refuses to
+send the cookie on. That is why `normalizeOrigin` rejects anything carrying a path, a query, credentials
+or a non-HTTP scheme *at boot*, with a warning, rather than letting a pasted URL sit in the set
+looking like coverage while never matching an `Origin` header. Two cases in `test/accounts.test.js`
+assert both halves against a real server; keep them if you touch this.
 
 **Sign-in and sign-up say different things about whether an address exists, on purpose.** Sign-in
 returns one message for a wrong password and for no such account, and spends a full scrypt
@@ -649,6 +663,22 @@ running. **Do not gate them.** This app exists to stop people getting $50 sweepi
 withholding the alert that prevents one in order to collect $15 would be indefensible, and it is
 also why the free/paid line is drawn on *scope* (how many devices your library reaches) rather than
 on *reliability* (whether you get warned). `test/billing.test.js` asserts both halves.
+
+**That line is now a written promise, not only a code decision.** The Terms page in
+`public/index.html` says in so many words that the map, search, colours, saved sets and reminders
+are free and are not going behind a paywall, and that reminders are never withheld for a billing
+reason. Rewritten 2026-08-29, when the legal copy still predated payments entirely — it described a
+free beta, mentioned neither subscriptions nor refunds, and listed neither Stripe nor Resend as a
+processor on the Privacy page. If the gating in `server.js` ever changes, that copy changes with it;
+tightening the gate quietly would make the Terms false rather than merely out of date.
+
+Two things there are placeholders and are marked with `TODO before launch` comments in the HTML: the
+support address (`support@denvercurbalerts.com`) appears in both the Terms and the Privacy contact
+sections and must become a real mailbox on the purchased domain before anyone is charged, since
+Stripe expects a working customer service contact and the 30-day refund promise is only as good as
+that address. Prices appear in the copy as prose (`$1.99 per month`, `$15 per year`) alongside the
+display-only strings in `lib/billing.js`; the Stripe dashboard is still authoritative, so changing a
+price means changing three places.
 
 **Every account opens on a 14-day trial, and it is a real Stripe status rather than a flag.** The
 account is the paid product, which leaves nothing to attach a card to before the account exists — a
@@ -882,19 +912,36 @@ The user alternates between tools on this repo. These rules keep that from corru
 
 ## Environment variables
 
-`HOST`, `PORT`, `DATABASE_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — see
-[.env.example](.env.example). Two more are undocumented there:
+Every variable the server reads is listed in [.env.example](.env.example) and declared in
+[render.yaml](render.yaml) as `sync: false`, both brought complete on 2026-08-29. Keep them that
+way: an unset variable here is never an error, it is a feature that silently answers 503 (billing,
+email) or does nothing at all (push), which is much harder to notice than a crash. Worth knowing
+beyond the file:
 
 - `ISSUE_REPORT_ADMIN_TOKEN` — gates every bulk read that returns other people's data, not just
   issue reports, via `Authorization: Bearer <token>`. Unset by default, which closes them.
 - `DATA_DIR` — where the JSON collections live. Unset everywhere except `test/accounts.test.js`,
   which points it at a temp directory so a test run cannot write accounts into the working copy.
-- `APP_ORIGIN` — which server the pipeline scripts query. Defaults to localhost for
-  `build-static-inventory.js`, **production** for `map-area-approach-3.js`.
+- `APP_ORIGIN` — **overloaded, deliberately.** It is which server the pipeline scripts query
+  (defaulting to localhost for `build-static-inventory.js` and **production** for
+  `map-area-approach-3.js`), *and* the server's own canonical origin: `getBillingConfig` reads it,
+  `resolveReturnOrigin` prefers it, and `buildCredentialedOrigins` trusts it with a session cookie.
+  In production those are the same string. Setting it locally to something that is not this app is
+  how a reset link ends up pointing somewhere strange.
+- `CREDENTIALED_ORIGINS` — comma-separated extra origins to trust with a session cookie, for a
+  staging deploy or for holding both hostnames during a domain cutover. See the accounts section.
 - `RESEND_API_KEY`, `EMAIL_FROM` — transactional email. Both must be set or email is off.
 - `EMAIL_TRANSPORT` — set to `outbox` to run the email flow with no provider. See the Email section.
 
 Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
+
+**Two properties of Render's free plan are launch blockers rather than preferences**, and neither is
+visible in the code. A free instance sleeps after inactivity, and reminder dispatch is a
+`setInterval` inside this process — a sleeping instance sends no reminders, which is the entire
+product. A free instance also has an ephemeral filesystem, wiped on every deploy, so with no
+`DATABASE_URL` the JSON collections under `data/` take accounts, sessions, push subscriptions,
+reminder plans and Stripe customer ids with them. Both are called out at the top of `render.yaml`.
+Do not take a payment before a paid instance and a provisioned Postgres are both in place.
 
 ## Known issues and historical quirks
 

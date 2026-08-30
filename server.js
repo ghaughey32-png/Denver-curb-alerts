@@ -62,16 +62,83 @@ let storageBackend = databaseEnabled ? "database" : "file";
 // Access-Control-Allow-Origin: * and Allow-Credentials mutually exclusive precisely so that a
 // public API cannot be talked into acting as a logged-in user. The map's read-only endpoints stay
 // open to anyone, and a request from an origin we actually run on gets that origin echoed with
-// credentials allowed instead. Adding an origin here grants it the ability to act as a signed-in
-// user from the browser, so add only origins this app is served from.
-const CREDENTIALED_ORIGINS = new Set([
+// credentials allowed instead. An origin on this list can act as a signed-in user from the
+// browser, so only origins this app is actually served from belong on it.
+//
+// These three are the ones that ship with the source. Anything else — a real domain, a staging
+// deploy — is added through the environment rather than by editing this file, because the failure
+// mode of forgetting is silent: sign-in simply stops working on the new host, with the API happily
+// answering `*` to every request and the cookie never travelling. Once the Render subdomain is
+// retired for good, drop it from here.
+const BUILT_IN_CREDENTIALED_ORIGINS = [
   "https://denver-curb-alerts-2.onrender.com",
   "http://localhost:3000",
   "http://127.0.0.1:3000"
-]);
+];
+
+// An origin is a scheme, a host and a port and nothing else. Anything carrying a path, a query or
+// a fragment is a URL somebody pasted, and it would never match the Origin header a browser sends,
+// so it is rejected loudly at boot rather than quietly never matching at request time.
+function normalizeOrigin(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "");
+
+  if (!raw) {
+    return "";
+  }
+
+  let parsed = null;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return "";
+  }
+
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return "";
+  }
+
+  if (parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
+    return "";
+  }
+
+  return parsed.origin.toLowerCase();
+}
+
+// CREDENTIALED_ORIGINS takes a comma-separated list; APP_ORIGIN and STRIPE_RETURN_ORIGIN are read
+// as well, since an origin trusted to receive a Stripe return or an emailed reset link is by
+// definition one the app is served from, and making someone set the same hostname three times is
+// how one of the three ends up stale. Configured origins come first so that resolveReturnOrigin's
+// last-resort fallback lands on the real domain rather than the Render subdomain.
+function buildCredentialedOrigins(env = process.env) {
+  const candidates = [
+    ...String(env.CREDENTIALED_ORIGINS || "").split(","),
+    env.APP_ORIGIN,
+    env.STRIPE_RETURN_ORIGIN
+  ];
+
+  const origins = new Set();
+
+  for (const candidate of candidates) {
+    const normalized = normalizeOrigin(candidate);
+
+    if (normalized) {
+      origins.add(normalized);
+    } else if (String(candidate || "").trim()) {
+      console.warn(`Ignoring unusable credentialed origin: ${String(candidate).trim()}`);
+    }
+  }
+
+  for (const builtIn of BUILT_IN_CREDENTIALED_ORIGINS) {
+    origins.add(builtIn);
+  }
+
+  return origins;
+}
+
+const CREDENTIALED_ORIGINS = buildCredentialedOrigins();
 
 function setApiCorsHeaders(request, response) {
-  const origin = String(request.headers.origin || "");
+  const origin = String(request.headers.origin || "").toLowerCase();
 
   if (origin && CREDENTIALED_ORIGINS.has(origin)) {
     response.setHeader("Access-Control-Allow-Origin", origin);
@@ -1845,9 +1912,9 @@ function resolveReturnOrigin(request) {
   }
 
   const host = String(request.headers.host || "");
-  const candidate = `${isSecureRequest(request) ? "https" : "http"}://${host}`;
+  const candidate = normalizeOrigin(`${isSecureRequest(request) ? "https" : "http"}://${host}`);
 
-  return CREDENTIALED_ORIGINS.has(candidate) ? candidate : [...CREDENTIALED_ORIGINS][0];
+  return candidate && CREDENTIALED_ORIGINS.has(candidate) ? candidate : [...CREDENTIALED_ORIGINS][0];
 }
 
 async function handleBillingConfig(request, response) {

@@ -580,11 +580,11 @@
           <article class="legal-card">
             <p class="section-kicker">Terms of use</p>
             <h1>Terms for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated August 4, 2026</p>
+            <p class="legal-updated">Last updated August 29, 2026</p>
 
             <div class="legal-copy">
               <p>
-                Denver Curb Alerts is a beta reminder tool built to help drivers remember posted Denver street sweeping
+                Denver Curb Alerts is a reminder tool built to help drivers remember posted Denver street sweeping
                 restrictions. By using the app, you agree to use it as an extra reminder and not as a replacement for
                 checking posted signs, city rules, or your own parking situation.
               </p>
@@ -595,10 +595,62 @@
                 construction, weather, and official Denver rules always control over anything shown in this app.
               </p>
 
-              <h2>Beta service</h2>
+              <!-- The free/paid line is drawn on scope, never on reliability. Reminders and push
+                   subscriptions key on the push endpoint rather than the account and fire for
+                   signed-out and lapsed users alike, and this paragraph is the promise that says so
+                   out loud. If the gating in server.js ever changes, this changes with it. -->
+              <h2>What is free and what costs money</h2>
               <p>
-                The app may be incomplete, delayed, unavailable, or wrong while we test it. We may change, pause, or stop
-                features at any time as we improve the product.
+                The map, address search, curb colors, saved curb sets, and street sweeping reminders are free, work without
+                an account, and are not going behind a paywall. A paid subscription buys one thing: an account, so that your
+                saved curb sets follow you to a new phone or a cleared browser instead of living only in the browser that
+                created them.
+              </p>
+              <p>
+                Your reminders are never withheld for a billing reason. If a subscription lapses, expires, or is cancelled,
+                any reminders you have already set up keep running.
+              </p>
+
+              <h2>Free trial, billing, and automatic renewal</h2>
+              <p>
+                New accounts include a 14-day free trial. No payment method is required to start it, and if you do nothing
+                when it ends, the account simply stops syncing — you are not charged.
+              </p>
+              <p>
+                If you subscribe, the plan you pick renews automatically at the price shown at checkout — currently
+                $1.99 per month for the monthly plan, or $15 per year for the annual plan — charged to your payment method at
+                the start of each billing period, and continuing until you cancel. We will tell you by email before any price
+                change takes effect on your renewal.
+              </p>
+
+              <h2>Cancelling</h2>
+              <p>
+                You can cancel at any time from the Account page, which opens Stripe's billing portal. Cancelling stops the
+                next charge; your subscription stays active through the end of the period you have already paid for, and
+                your account sync continues until then. You can also delete your account outright from the Account page.
+              </p>
+
+              <h2>Refunds</h2>
+              <p>
+                If you are unhappy with a charge, email us within 30 days of that charge and we will refund it in full. After
+                30 days, we do not refund the current period, but you can cancel at any time to avoid the next one.
+              </p>
+
+              <h2>Payments</h2>
+              <p>
+                Payments are processed by Stripe. Your card details go to Stripe directly and are never sent to or stored on
+                our servers.
+              </p>
+
+              <h2>Changes to the app</h2>
+              <p>
+                We may change, add, pause, or stop features as the app improves. If we discontinue a paid feature you are
+                currently paying for, we will refund the unused part of your current billing period.
+              </p>
+              <p>
+                Curb coverage is best effort and always will be. Denver's published sweeping data is incomplete in places,
+                the city changes schedules, and a paid subscription does not buy a guarantee that a given block is correct
+                or that a reminder will arrive. See the Disclaimer for what that means in practice.
               </p>
 
               <h2>Acceptable use</h2>
@@ -607,9 +659,14 @@
                 use it in a way that could harm other users or the city data services it relies on.
               </p>
 
+              <!-- TODO before launch: replace with the real support address on the purchased domain.
+                   Stripe expects a working customer service contact, and the refund promise above is
+                   only as good as this line. -->
               <h2>Contact</h2>
               <p>
-                For now, use the in-app Report an issue form to share problems, correction requests, or questions.
+                For billing questions, refunds, and cancellations, email
+                <a href="mailto:support@denvercurbalerts.com">support@denvercurbalerts.com</a>. For map corrections and bug
+                reports, the in-app Report an issue form reaches us fastest.
               </p>
             </div>
 
@@ -626,11 +683,11 @@
           <article class="legal-card">
             <p class="section-kicker">Privacy</p>
             <h1>Privacy for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated August 4, 2026</p>
+            <p class="legal-updated">Last updated August 29, 2026</p>
 
             <div class="legal-copy">
               <p>
-                We collect only what this beta needs to help you create and receive curb reminders. Your location is only
+                We collect only what the app needs to help you create and receive curb reminders. Your location is only
                 used to center the map. We do not sell your data.
               </p>
 
@@ -642,6 +699,10 @@
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
                   account, so your saved curb sets can follow you to another device. We never store your actual password.
                 </li>
+                <li>
+                  If you subscribe, your Stripe customer and subscription identifiers, your plan, and whether it is
+                  currently active. We never receive or store your card number.
+                </li>
                 <li>Your approximate or precise location only when you tap Use my location, so the map can move to you.</li>
                 <li>Issue reports you choose to send, including your note and helpful app context.</li>
               </ul>
@@ -649,20 +710,46 @@
               <h2>How information is used</h2>
               <p>
                 We use this information to show the map, save your alert setup, send test notifications, schedule reminders,
-                troubleshoot bugs, and improve curb coverage.
+                confirm your email address, let you reset a forgotten password, manage a subscription if you have one,
+                troubleshoot bugs, and improve curb coverage. We do not use it for advertising.
               </p>
 
               <h2>Services involved</h2>
               <p>
-                The app is hosted on Render and uses browser push services, map tiles, and Denver street sweeping data. Those
-                services may process basic technical information needed to load maps, routes, and notifications.
+                The app is hosted on Render, which also hosts the database holding accounts and reminder schedules. It uses
+                browser push services operated by your browser vendor, map tiles and street data from OpenStreetMap, and
+                street sweeping data published by the City and County of Denver. Those services may process basic technical
+                information needed to load maps, routes, and notifications.
+              </p>
+              <p>
+                Two more are involved only if you create an account. Stripe processes payments and holds your billing
+                details and card information under its own privacy policy; we hold only the identifiers listed above. Resend
+                delivers the confirmation and password reset emails, which means your email address passes through it.
+              </p>
+
+              <h2>Keeping and deleting your data</h2>
+              <p>
+                Deleting your account from the Account page removes the account, its saved curb sets, every signed-in
+                session, and any outstanding email links, immediately and for good. Reminders you set up on a device keep
+                running unless you turn them off, because they belong to the device rather than to the account.
+              </p>
+              <p>
+                Stripe keeps its own record of past payments after that, which we cannot delete — payment processors are
+                required to retain transaction records. If you want a copy of what we hold, or want it removed without using
+                the in-app delete, email us at the address below.
               </p>
 
               <h2>Your choices</h2>
               <p>
-                You can decline location access, decline notifications, clear selections, delete saved sets, or remove the app
-                from your device. For now, use Report an issue if you want us to review or remove stored beta data tied to your
-                device.
+                You can decline location access, decline notifications, clear selections, delete saved sets, delete your
+                account, or remove the app from your device.
+              </p>
+
+              <!-- TODO before launch: same address as the Terms contact section. -->
+              <h2>Contact</h2>
+              <p>
+                For privacy questions or a data request, email
+                <a href="mailto:support@denvercurbalerts.com">support@denvercurbalerts.com</a>, or use Report an issue.
               </p>
             </div>
 

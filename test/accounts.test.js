@@ -485,3 +485,61 @@ test("a corrupt or future-dated counter cannot lock a real user out", async () =
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+// The CORS allowlist is the quietest thing in the app: get it wrong and the API keeps answering
+// every request, just with a wildcard the browser refuses to send a cookie on. Nothing logs, no
+// endpoint 500s, and sign-in simply stops working on the new hostname. So it is tested through a
+// real server, with the header a browser would actually send.
+test("a configured origin is trusted with credentials, and an unconfigured one is not", async () => {
+  await withServer(
+    async ({ origin }) => {
+      const configured = await fetch(`${origin}/api/billing/config`, {
+        headers: { Origin: "https://denvercurbalerts.example" }
+      });
+
+      assert.equal(
+        configured.headers.get("access-control-allow-origin"),
+        "https://denvercurbalerts.example",
+        "APP_ORIGIN must be trusted with a session cookie without also being listed by hand"
+      );
+      assert.equal(configured.headers.get("access-control-allow-credentials"), "true");
+      assert.equal(configured.headers.get("vary"), "Origin", "a per-origin answer must not be cached across origins");
+
+      // Everything else still gets the wildcard, which is right for the map data and is exactly
+      // what makes it useless for acting as a signed-in user.
+      const stranger = await fetch(`${origin}/api/billing/config`, {
+        headers: { Origin: "https://not-ours.example" }
+      });
+
+      assert.equal(stranger.headers.get("access-control-allow-origin"), "*");
+      assert.equal(stranger.headers.get("access-control-allow-credentials"), null);
+    },
+    { APP_ORIGIN: "https://denvercurbalerts.example" }
+  );
+});
+
+test("localhost stays trusted alongside a configured origin, and junk in the list is discarded", async () => {
+  await withServer(
+    async ({ origin }) => {
+      // The built-in development origins survive whatever the environment adds, or every deploy
+      // with APP_ORIGIN set would break local sign-in.
+      const local = await fetch(`${origin}/api/billing/config`, {
+        headers: { Origin: "http://localhost:3000" }
+      });
+      assert.equal(local.headers.get("access-control-allow-origin"), "http://localhost:3000");
+
+      const extra = await fetch(`${origin}/api/billing/config`, {
+        headers: { Origin: "https://staging.example" }
+      });
+      assert.equal(extra.headers.get("access-control-allow-origin"), "https://staging.example");
+
+      // A pasted URL with a path is not an origin and could never match the Origin header, so it
+      // must be dropped at boot rather than sitting in the list looking like coverage.
+      const withPath = await fetch(`${origin}/api/billing/config`, {
+        headers: { Origin: "https://pasted.example" }
+      });
+      assert.equal(withPath.headers.get("access-control-allow-origin"), "*");
+    },
+    { CREDENTIALED_ORIGINS: "https://staging.example, https://pasted.example/account, not-a-url, " }
+  );
+});
