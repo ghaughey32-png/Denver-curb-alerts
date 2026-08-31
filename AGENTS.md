@@ -971,13 +971,23 @@ beyond the file:
 
 Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 
-**Two properties of Render's free plan are launch blockers rather than preferences**, and neither is
+**Two properties of Render's free plan were launch blockers rather than preferences**, and neither is
 visible in the code. A free instance sleeps after inactivity, and reminder dispatch is a
 `setInterval` inside this process — a sleeping instance sends no reminders, which is the entire
 product. A free instance also has an ephemeral filesystem, wiped on every deploy, so with no
 `DATABASE_URL` the JSON collections under `data/` take accounts, sessions, push subscriptions,
-reminder plans and Stripe customer ids with them. Both are called out at the top of `render.yaml`.
-Do not take a payment before a paid instance and a provisioned Postgres are both in place.
+reminder plans and Stripe customer ids with them.
+
+`render.yaml` now closes both: the web service is `starter` rather than `free`, and a `databases:`
+block provisions Postgres with `DATABASE_URL` wired to it through `fromDatabase`, so the connection
+string is injected rather than typed. **Declaring it is not the same as having it** — the blueprint
+has to be applied in the Render dashboard before either takes effect, and until it is, the app is
+still sleeping and still storing accounts on a disk that does not survive a deploy. Render's own
+free Postgres tier is deliberately not used: it is deleted after 30 days, and the server falls back
+to JSON files rather than refusing to start, so losing it would look like customers quietly signed
+out with their saved sets gone. No migration step is needed on a fresh database —
+`ensureDatabaseSchema` creates `app_collections` and seeds every collection on first connect.
+Do not take a payment before the blueprint is actually applied.
 
 ## Known issues and historical quirks
 
