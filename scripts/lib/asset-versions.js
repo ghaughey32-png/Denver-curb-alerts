@@ -23,7 +23,6 @@ function readCurrentVersions() {
   return {
     assetTag: index.match(/app\.js\?v=([^"']+)/)?.[1] || null,
     inventoryVersion: Number(app.match(/denver-west-routes\.json\?v=(\d+)/)?.[1]),
-    inventoryCacheVersion: Number(app.match(/sloans-lake-full-inventory-cache-v(\d+)/)?.[1]),
     shellVersion: Number(serviceWorker.match(/curb-alerts-shell-v(\d+)/)?.[1])
   };
 }
@@ -134,12 +133,13 @@ function bumpAssetVersions(assetTag) {
   const next = {
     assetTag,
     inventoryVersion: current.inventoryVersion + 1,
-    inventoryCacheVersion: current.inventoryCacheVersion + 1,
     shellVersion: current.shellVersion + 1
   };
 
+  // app.js used to carry a second versioned constant here, the localStorage key the inventory was
+  // mirrored under. That mirror is gone -- the service worker serves the payload from Cache
+  // Storage instead -- so there are three versioned constants to keep in step now, not four.
   const app = fs.readFileSync(APP_PATH, "utf8")
-    .replace(/sloans-lake-full-inventory-cache-v\d+/g, `sloans-lake-full-inventory-cache-v${next.inventoryCacheVersion}`)
     .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
   // The inventory payload carries its own numeric version rather than the app tag, so it is
   // retagged by name in both files below. public/denver-west-routes.js used to need the same

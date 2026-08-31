@@ -55,7 +55,7 @@ Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id
 
 `add:area` is the one command to reach for. It fetches the OpenStreetMap extract, imports the
 expected blocks, crawls Denver for that area, reconciles coverage, measures the result, records the
-coverage expectations, extends the payload and README labels, and bumps the four versioned asset
+coverage expectations, extends the payload and README labels, and bumps the three versioned asset
 constants — the whole sequence that used to be six hand-edits across as many files.
 
 ```
@@ -162,10 +162,11 @@ installed clients:
 - [public/index.html](public/index.html) — the `?v=` query on each `<link>` / `<script>`
 - [public/sw.js](public/sw.js) — the matching entry in `APP_SHELL`, plus `CACHE_NAME` on line 1
 
-Two more versioned constants live in [public/app.js](public/app.js):
-`STATIC_ROUTE_INVENTORY_URL` (line ~1549) and `SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY` (line ~1548).
-`test/static-cache-version.test.js` enforces all of this — if it fails, fix the versions, don't
-weaken the test.
+One more versioned constant lives in [public/app.js](public/app.js):
+`STATIC_ROUTE_INVENTORY_URL`. There used to be a second, `SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY`,
+versioning the localStorage key the inventory was mirrored under; that mirror is gone (see below) and
+so is the constant. `test/static-cache-version.test.js` enforces all of this — if it fails, fix the
+versions, don't weaken the test.
 
 **Agreement between those two files is not freshness, and the difference has bitten once.** They can
 agree perfectly on a version that is simply too old for the bytes now on disk, and then installed
@@ -266,14 +267,25 @@ misses the cache. Navigations and anything unversioned stay network-first, which
 versioned URL mutable, this strategy breaks silently and installed clients pin to the old bytes
 forever.
 
-**Never put the inventory cache write between the dataset and the render.** `loadStaticRouteInventory`
-now calls `setMapDataset`, `refreshMapViewport` and `renderAll` *before*
-`saveSloansLakeInventoryCache`, and `saveJson` swallows a failed `JSON.stringify` instead of throwing
-out of it. The cache blob is about 37 MB of string, which is exactly the allocation a phone under
-memory pressure refuses; serializing it used to throw past the render calls into the function's own
-`catch`, whose `if (!state.streetWays.length)` guard is already false by then because
-`setMapDataset` ran. The result was a fully loaded inventory sitting in state and never drawn. A
-best-effort cache write must never sit on the path to the first paint.
+**The inventory is not mirrored into `localStorage`, and must not be again.** It used to be, under a
+versioned key, to get a first paint before the fetch resolved. Removed 2026-08-30 for four reasons,
+none of which have expired: the service worker serves the payload from Cache Storage, which is
+durable where localStorage is capped; `loadStaticRouteInventory` runs unconditionally at boot
+regardless, so the mirror only bought a paint that the same data replaced moments later;
+the blob had reached **40 MB**, sharing an origin quota with the user's saved curb sets and reminder
+jobs, which are the data that actually matters and were being crowded out; and maintaining it cost a
+40 MB serialize-and-write on **every load** — 104 ms of blocked main thread on a desktop, several
+times that on a phone, and an outright rejection on iOS, where the write had in fact never once
+succeeded. `purgeLegacyInventoryCache` clears the blob from installs that still carry one, matching
+by key prefix because the version suffix moved over the years. Verified with the server stopped:
+the map still loads complete from Cache Storage.
+
+`saveJson` still swallows a failed `JSON.stringify` rather than throwing out of it. Keep that. Both
+cache writes used to sit *between* `setMapDataset` and the `refreshMapViewport`/`renderAll` that
+follow it, so a failed serialize threw past the render into the caller's own `catch`, whose
+`if (!state.streetWays.length)` guard is already false by then — a fully loaded inventory in state,
+never drawn. The writes are gone, but the shape of that bug is not specific to them: a best-effort
+persist must never sit on the path to the first paint.
 
 **The expected-block manifest is written minified, and that is deliberate.** GitHub warns above
 50 MB and rejects a push outright at 100 MB. `data/inventory-expected-blocks.json` had reached

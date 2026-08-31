@@ -253,7 +253,7 @@ async function addArea(options, areasDocument) {
     step("Bumping the versioned asset constants");
     const { previous, next } = bumpAssetVersions(options.tag);
     console.log(`  tag  ${previous.assetTag} → ${next.assetTag}`);
-    console.log(`  json v${previous.inventoryVersion} → v${next.inventoryVersion}, cache v${previous.inventoryCacheVersion} → v${next.inventoryCacheVersion}, shell v${previous.shellVersion} → v${next.shellVersion}`);
+    console.log(`  json v${previous.inventoryVersion} → v${next.inventoryVersion}, shell v${previous.shellVersion} → v${next.shellVersion}`);
   }
 
   console.log(`\n${options.areaId}: ${measured.counts.scheduled} scheduled, ${measured.counts.unavailable} unavailable, 0 unexplained gaps.`);

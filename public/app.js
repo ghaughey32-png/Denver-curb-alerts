@@ -1545,7 +1545,6 @@ const SAVED_SETS_KEY = "sloans-lake-notification-sets";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY = "sloans-lake-full-inventory-cache-v87";
 const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=96";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
@@ -2134,11 +2133,10 @@ function saveJson(key, value) {
   try {
     raw = JSON.stringify(value);
   } catch {
-    // Serializing can fail outright on a memory-constrained phone -- the inventory cache alone is
-    // about 37 MB of string. A cache write is best-effort, so this must not take the caller down
-    // with it: the throw used to escape saveSloansLakeInventoryCache and skip the
-    // refreshMapViewport/renderAll calls that follow it, which left a fully loaded inventory
-    // sitting in state and never drawn.
+    // Serializing can fail outright on a memory-constrained phone, and a throw here used to escape
+    // into callers that had rendering still to do -- a failed write would leave a loaded map
+    // undrawn. Persisting is best effort for every caller of this, so swallow it: losing a saved
+    // set is bad, but taking the page down with it is worse.
     return;
   }
 
@@ -2166,44 +2164,35 @@ function dismissOnboarding() {
   renderOnboarding();
 }
 
-function saveSloansLakeInventoryCache(payload) {
-  saveJson(SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY, {
-    savedAt: Date.now(),
-    ...payload
-  });
-}
+// The inventory used to be mirrored into localStorage for a faster first paint. That mirror is
+// gone. The service worker now serves the payload from Cache Storage, which is durable where
+// localStorage is capped, and loadStaticRouteInventory ran unconditionally regardless of the
+// mirror -- so it only ever bought a first paint that was replaced moments later by the same data.
+// What it cost was about 40 MB of the same origin quota that holds the user's saved curb sets and
+// reminder jobs, plus a 40 MB serialize-and-write on every single load that iOS rejected outright.
+//
+// This clears the blob from installs that still carry one, so they get that space back. The key is
+// matched by prefix because its version suffix moved several times over the life of the cache.
+const LEGACY_INVENTORY_CACHE_KEY_PREFIX = "sloans-lake-full-inventory-cache-";
 
-function loadSloansLakeInventoryCache() {
-  const cached = loadJson(SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY, null);
-  if (!cached || !Array.isArray(cached.streetWays) || !Array.isArray(cached.curbSegments)) {
-    return null;
+function purgeLegacyInventoryCache() {
+  if (!hasBrowserStorage) {
+    return;
   }
 
-  return cached;
-}
+  try {
+    const stale = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key && key.startsWith(LEGACY_INVENTORY_CACHE_KEY_PREFIX)) {
+        stale.push(key);
+      }
+    }
 
-function restoreCachedSloansLakeInventory() {
-  const cached = loadSloansLakeInventoryCache();
-  if (!cached) {
-    return false;
+    stale.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Reclaiming the space is best effort; a browser that refuses to enumerate storage still works.
   }
-
-  setMapDataset({
-    streetWays: cached.streetWays,
-    curbSegments: cached.curbSegments,
-    areaLabel: cached.areaLabel || "West Denver expanded: Sheridan–I-25 at 6th–12th; Sheridan–Julian at 13th–Colfax; Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
-    geometryLabel: cached.geometryLabel || "Full known sweeping inventory",
-    mapTitleText: cached.mapTitleText || "All mapped Denver curbs",
-    mapKickerText: cached.mapKickerText || "Interactive map",
-    sourceLabel: cached.sourceLabel || "Denver curb inventory",
-    lookupAddress: "",
-    context: Array.isArray(cached.context) ? cached.context : contextMarkers,
-    mapNoteText:
-      cached.mapNoteText ||
-      "Every curb we have mapped across Denver. Tap a colored line to see when it gets swept."
-  });
-
-  return true;
 }
 
 function showMapLoadingOverlay(title, message) {
@@ -3651,9 +3640,6 @@ async function loadStaticRouteInventory() {
     refreshMapViewport();
     renderAll();
     hideMapLoadingOverlay();
-    // Draw first, cache second. The cache write is the expensive, failure-prone step on a phone,
-    // and nothing on screen depends on it, so it must never sit between the dataset and the map.
-    saveSloansLakeInventoryCache(inventoryDataset);
     if (lookupStatus) {
       lookupStatus.innerHTML = "Tap the colored curb where you park to see when it gets swept.";
     }
@@ -3726,19 +3712,6 @@ async function loadSloansLakeFullInventory(options = {}) {
     }
 
     setMapDataset({
-      streetWays,
-      curbSegments,
-      areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
-      geometryLabel: `Official Denver routes plus pilot coverage (${summary.routeCount} official routes)`,
-      mapTitleText: "All mapped Denver curbs",
-      mapKickerText: "Live from Denver",
-      sourceLabel: "Denver curb inventory",
-      context,
-      mapNoteText:
-        "Sampled from Denver's official sweeping service, with any remaining gaps filled from our own curb inventory so the map stays complete."
-    });
-
-    saveSloansLakeInventoryCache({
       streetWays,
       curbSegments,
       areaLabel: "West Denver expanded: Federal–Bryant at 20th–26th; Sheridan–Federal at 23rd–46th; Federal–Pecos at 26th–46th; Osage–Inca at 33rd–46th; Sheridan–Quivas at 47th–48th South Dr",
@@ -7830,19 +7803,14 @@ function registerEvents() {
   }
 }
 
-let restoredCachedSloansLakeInventory = false;
+purgeLegacyInventoryCache();
 
 try {
-  restoredCachedSloansLakeInventory = restoreCachedSloansLakeInventory();
-  if (!restoredCachedSloansLakeInventory) {
-    buildStreetData();
-    showMapLoadingOverlay(
-      "Loading the saved map",
-      "Preparing the complete saved curb inventory. This does not run a live neighborhood scan."
-    );
-  } else {
-    hideMapLoadingOverlay();
-  }
+  buildStreetData();
+  showMapLoadingOverlay(
+    "Loading the saved map",
+    "Preparing the complete saved curb inventory. This does not run a live neighborhood scan."
+  );
 } catch (error) {
   renderMapFailure(error.message);
   hideMapLoadingOverlay();
