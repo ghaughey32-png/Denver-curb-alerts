@@ -2130,7 +2130,18 @@ function loadJson(key, fallback) {
 }
 
 function saveJson(key, value) {
-  const raw = JSON.stringify(value);
+  let raw;
+  try {
+    raw = JSON.stringify(value);
+  } catch {
+    // Serializing can fail outright on a memory-constrained phone -- the inventory cache alone is
+    // about 37 MB of string. A cache write is best-effort, so this must not take the caller down
+    // with it: the throw used to escape saveSloansLakeInventoryCache and skip the
+    // refreshMapViewport/renderAll calls that follow it, which left a fully loaded inventory
+    // sitting in state and never drawn.
+    return;
+  }
+
   try {
     if (hasBrowserStorage) {
       window.localStorage.setItem(key, raw);
@@ -3637,10 +3648,12 @@ async function loadStaticRouteInventory() {
     };
 
     setMapDataset(inventoryDataset);
-    saveSloansLakeInventoryCache(inventoryDataset);
     refreshMapViewport();
     renderAll();
     hideMapLoadingOverlay();
+    // Draw first, cache second. The cache write is the expensive, failure-prone step on a phone,
+    // and nothing on screen depends on it, so it must never sit between the dataset and the map.
+    saveSloansLakeInventoryCache(inventoryDataset);
     if (lookupStatus) {
       lookupStatus.innerHTML = "Tap the colored curb where you park to see when it gets swept.";
     }

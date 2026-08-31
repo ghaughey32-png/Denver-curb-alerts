@@ -1,11 +1,11 @@
-const CACHE_NAME = "curb-alerts-shell-v161";
+const CACHE_NAME = "curb-alerts-shell-v162";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/styles.css?v=20260829-account-view",
   "/curb-geometry.js?v=20260813b",
   "/denver-city-limits.js?v=20260825-enclave-pink-withdrawn",
-  "/app.js?v=20260829-account-view",
+  "/app.js?v=20260830-sw-cache-first",
   "/denver-west-routes.json?v=96",
   "/manifest.webmanifest?v=20260808d",
   "/icon.svg?v=20260808d"
@@ -57,6 +57,35 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // A versioned URL is immutable by contract: the build bumps its "?v=" whenever the bytes move,
+  // and data/asset-version-lock.json makes it a test failure for an asset to change without its
+  // version changing too. So a hit in Cache Storage here can never be stale, and answering from it
+  // without touching the network is what keeps the map usable on a phone.
+  //
+  // This used to be network-first for every asset, including the 12 MB inventory, with no timeout
+  // on the fetch -- the cached copy was only consulted if the request *rejected*. A slow or flaky
+  // mobile connection does not reject, it hangs, so the map sat empty for as long as the request
+  // took while a complete copy of the inventory was already on disk and untouched. Cache Storage
+  // is the durable half of that pair: Safari drops a resource this large from the HTTP cache long
+  // before it evicts a cache entry, which is why the HTTP cache alone is not enough.
+  if (url.searchParams.has("v")) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+
+        return fetch(event.request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything unversioned stays network-first, because nothing guarantees it has not changed.
   event.respondWith(
     fetch(event.request)
       .then((response) => {

@@ -251,6 +251,30 @@ A request carrying a `?v=` gets `max-age=31536000, immutable`, which is only saf
 lock above makes it a test failure for an asset's bytes to move without its version moving too;
 `index.html` and `sw.js` stay `no-store`. Do not add a bundler or a CDN layer to solve this again.
 
+**The service worker answers versioned assets from Cache Storage, not from the network.** It used to
+be network-first for every asset, with the cached copy consulted only if `fetch` *rejected*. That is
+the wrong shape for a 12 MB inventory on a phone: a weak mobile connection does not reject, it
+hangs, so the map sat empty for as long as the request took while a complete copy of the payload was
+already in Cache Storage and untouched. Reported from a phone on 2026-08-30 as most streets never
+filling in, and fixed the same day. The HTTP cache is not a substitute for this — Safari evicts a
+resource that large long before it evicts a cache entry, so the device that most needs the local
+copy is the one least likely to still have it, and a desktop with a warm disk cache will never
+reproduce the bug. Cache-first is safe here only because of the immutability rule above: a `?v=` URL
+never changes meaning, so a hit cannot be stale, and a changed asset always arrives under a URL that
+misses the cache. Navigations and anything unversioned stay network-first, which is what keeps
+`index.html` fresh and therefore what still delivers new versions at all. If you ever make a
+versioned URL mutable, this strategy breaks silently and installed clients pin to the old bytes
+forever.
+
+**Never put the inventory cache write between the dataset and the render.** `loadStaticRouteInventory`
+now calls `setMapDataset`, `refreshMapViewport` and `renderAll` *before*
+`saveSloansLakeInventoryCache`, and `saveJson` swallows a failed `JSON.stringify` instead of throwing
+out of it. The cache blob is about 37 MB of string, which is exactly the allocation a phone under
+memory pressure refuses; serializing it used to throw past the render calls into the function's own
+`catch`, whose `if (!state.streetWays.length)` guard is already false by then because
+`setMapDataset` ran. The result was a fully loaded inventory sitting in state and never drawn. A
+best-effort cache write must never sit on the path to the first paint.
+
 **The expected-block manifest is written minified, and that is deliberate.** GitHub warns above
 50 MB and rejects a push outright at 100 MB. `data/inventory-expected-blocks.json` had reached
 **61.87 MB** pretty-printed at two-space indent — 2.97 million lines, of which almost half the bytes
