@@ -68,7 +68,7 @@ test("session tokens are random and stored only as a hash", () => {
 test("session cookies are HttpOnly and Lax, and Secure only where TLS reaches", () => {
   const secure = accounts.buildSessionCookie("token-value", { secure: true });
   assert.ok(secure.includes("HttpOnly"));
-  assert.ok(secure.includes("SameSite=Lax"), "Strict drops the cookie on the return from Stripe");
+  assert.ok(secure.includes("SameSite=Lax"), "Strict drops the cookie on a top-level redirect back in");
   assert.ok(secure.includes("Secure"));
 
   const local = accounts.buildSessionCookie("token-value", { secure: false });
@@ -106,8 +106,8 @@ test("entitlement keeps a customer in dunning, and drops one whose period has en
   assert.ok(accounts.getEntitlement(withBilling({ status: "active", currentPeriodEnd: "2026-09-27T12:00:00.000Z" }), now).active);
   assert.ok(accounts.getEntitlement(withBilling({ status: "trialing" }), now).active);
 
-  // A failed card is not a reason to stop warning someone about a sweeping ticket while Stripe is
-  // still retrying the charge.
+  // A failed payment is not a reason to stop warning someone about a sweeping ticket while the
+  // processor is still retrying the charge.
   assert.ok(accounts.getEntitlement(withBilling({ status: "past_due" }), now).active);
 
   assert.ok(!accounts.getEntitlement(withBilling({ status: "canceled" }), now).active);
@@ -145,8 +145,9 @@ test("sign up, sign in, and sign out carry a session end to end", async () => {
     const me = await call("/api/accounts/me", { cookie: created.sessionCookie });
     assert.equal(me.status, 200);
     assert.equal(me.payload.account.email, "driver@example.com");
-    // Signing up opens the trial, so a brand new account is entitled and has no Stripe
-    // subscription behind it yet. That pair is what the client reads to offer checkout.
+    // Signing up opens the trial, so a brand new account is entitled and has no purchased
+    // subscription behind it yet. Nothing gates on that pair today; it is kept true so that a
+    // purchase path can read it later.
     assert.equal(me.payload.account.entitlement.active, true);
     assert.equal(me.payload.account.entitlement.plan, "trial");
     assert.equal(me.payload.account.entitlement.trialing, true);

@@ -10,7 +10,6 @@ This is a working Denver pilot for a parking-protection app that helps people av
 - Includes a web app manifest and service worker so the app can be installed like an app once it is hosted on `https://`
 - Includes device push subscription plumbing for a hosted web-push setup
 - Offers an optional account (email and password) so saved curb sets follow you to a new phone or a cleared browser
-- Takes payments through Stripe Checkout for that account, after a 14-day trial — see **What costs money** below
 - Supports scheduled-route reminder planning with a default cadence:
   - Day before at 6:00 PM
   - Day of at 7:00 AM
@@ -192,36 +191,36 @@ page scripts cannot read it. Sign-in attempts are throttled per address and per 
 
 ## What costs money
 
-Nothing you need in order to avoid a ticket.
+Nothing. There is no way to pay for this app.
 
-**Free, forever, with no account:** the whole Denver map and every curb colour, address and
-cross-street search, saving curb sets on the device you are using, and the reminders themselves —
-day-before and day-of, delivered by push. None of this asks who you are.
+The whole Denver map and every curb colour, address and cross-street search, saved curb sets,
+accounts, and the reminders themselves — day-before and day-of, delivered by push — are free and
+ungated. No card is asked for and none is stored.
 
-**$1.99 a month or $15 a year:** an account, so a saved curb set is no longer stranded in one
-browser. Sign in on a new phone or a cleared browser and your saved curbs are there. Every account
-starts with a 14-day trial and no card.
+Stripe Checkout used to sell an account subscription at $1.99 a month or $15 a year. It was removed
+on 2026-09-03: the app is heading for the App Store, where Apple requires in-app purchase for a
+digital subscription and prohibits a third-party processor, so the web checkout would have had to
+come out regardless. Selling on the web again would mean bringing it back — a browser cannot run
+StoreKit any more than an iOS app can run Stripe Checkout.
 
-**If you stop paying, nothing stops warning you.** Your saved curb sets stay on your device, the
-reminders already scheduled keep arriving, and the map keeps working. What pauses is the sync
-between devices; your library stays on the account, dormant, until you subscribe again. Reminders
-are deliberately never gated — this app exists to stop people getting sweeping tickets, and holding
-one back to collect a subscription would defeat the entire point.
+**The entitlement scaffolding stayed.** Every account still carries `plan`, `status`,
+`providerCustomerId`, `providerSubscriptionId`, `currentPeriodEnd` and `cancelAtPeriodEnd`; the
+14-day trial still opens on sign-up and still expires; and `getEntitlement()` in `lib/accounts.js`
+is still the one place that decides whether someone is paid up. What is gone is anything that reads
+that decision. When a purchase path arrives, the gate goes back in `handleAccountLibrary` in
+`server.js` and nowhere else.
 
-Payments are handled by Stripe Checkout, so no card details ever reach this app. Cancel any time
-through the billing portal from your account panel.
-
-To run payments yourself, set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and at least one of
-`STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL`, then point a Stripe webhook at
-`/api/billing/webhook` for `checkout.session.completed` and the `customer.subscription.*` events.
-With none of those set, billing is simply invisible and every account's trial runs indefinitely.
+**Whatever gets sold, reminders are not it.** They key on the push endpoint rather than the account
+and fire for signed-out users. This app exists to stop people getting sweeping tickets, and holding
+one back to collect a subscription would defeat the entire point. `test/entitlement.test.js` asserts
+it.
 
 ## Recommended next step for production
 
 If we keep pushing this toward a real consumer app, the best next architecture is:
 
 1. Keep the Denver lookup behind our own backend so we control caching, retries, and future city integrations.
-2. ~~Add user accounts so one person can manage multiple saved curb-side sets across devices.~~ Done — see **Accounts** above. ~~Payments~~ are done too; email verification and password reset are the remaining pieces, and both need an email provider.
+2. ~~Add user accounts so one person can manage multiple saved curb-side sets across devices.~~ Done — see **Accounts** above. Email verification and password reset are built but need a verified sending domain. Payments were built on Stripe and then removed; see **What costs money**.
 3. Add service-worker web push for the PWA or move to a mobile app shell for more reliable notifications.
 4. Add a background job that expands each saved schedule into concrete reminders and sends them through push, SMS, or email.
 5. Add a city data ingestion job so users can browse the map first instead of starting from address lookup.

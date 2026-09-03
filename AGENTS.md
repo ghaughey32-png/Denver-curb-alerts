@@ -12,18 +12,19 @@ sweeping rules, and schedules web-push reminders.
 Deliberately minimal stack:
 
 - `server.js` — a zero-framework `node:http` server. Static files + `/api/*`. No Express.
-- `lib/accounts.js`, `lib/billing.js` and `lib/email.js` — the only things outside `server.js` that
-  are server runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
-  `accounts.js` is pure, no I/O. `billing.js` is pure apart from `stripeRequest`, and `email.js`
-  apart from `sendEmail`; in both, that is deliberately the one function touching the outside world,
-  and everything above it in the file can be tested without a key or a network.
+- `lib/accounts.js` and `lib/email.js` — the only things outside `server.js` that are server
+  runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
+  `accounts.js` is pure, no I/O. `email.js` is pure apart from `sendEmail`, deliberately the one
+  function touching the outside world, so everything above it can be tested without a key or a
+  network. There was a `lib/billing.js` in the same shape until 2026-09-03; see **Payments —
+  removed**.
 - `public/app.js` — the entire client, ~6000 lines of vanilla JS loaded by a plain `<script>` tag.
 - **No bundler, no transpiler, no build step for client code.** What is in `public/` is what ships.
 - Two dependencies (`pg`, `web-push`), both lazily `require`d so the app boots without `npm install`.
   Accounts added none: `node:crypto` has scrypt, and there is no bcrypt or session framework here.
-  Payments added none either — Stripe is form-encoded HTTPS and an HMAC, so it is `node:https` and
-  `node:crypto`. There is no `stripe` package. Email added none: Resend is one JSON POST, so there
-  is no `resend` package and no nodemailer.
+  Payments added none either while they existed — Stripe was form-encoded HTTPS and an HMAC, so
+  `node:https` and `node:crypto` covered it, and there was never a `stripe` package. Email added
+  none: Resend is one JSON POST, so there is no `resend` package and no nodemailer.
 - CommonJS everywhere, including tests and scripts. There is no `"type": "module"`.
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
@@ -534,7 +535,7 @@ Hand-curated coverage patches live in [scripts/lib/](scripts/lib/) as `confirmed
 modules and as patch functions inside `build-static-inventory.js`. Each carries a comment explaining
 why a specific Denver route id is patched or suppressed. Preserve those comments.
 
-## Accounts and payments
+## Accounts
 
 Added 2026-08-27. Accounts are **optional and always will be**: every screen works signed out, saved
 curb sets stay in `localStorage`, and `state.account === null` makes every account function on the
@@ -556,12 +557,13 @@ name to show. If you add another destination, ask first whether it is a task or 
 tasks belong in `.app-tabs-scroll`.
 
 **Moving it fixed a bug that had been live since the email work landed.** The emailed links are
-built as `/?verify=` and `/?reset=` with no hash, and Stripe returns to `/?checkout=`, so boot
-resolved the view to the map every time while `handleEmailLinks` and `handleCheckoutReturn` wrote
-into a section inside the **hidden** alerts view. A password reset link was unreachable — the form
+built as `/?verify=` and `/?reset=` with no hash (the removed Stripe checkout returned to
+`/?checkout=` the same way), so boot resolved the view to the map every time while
+`handleEmailLinks` wrote into a section inside the **hidden** alerts view. A password reset link was unreachable — the form
 rendered at `display: none`, and `accountResetPasswordInput?.focus()` was a no-op on it. Both
-handlers now call `setActiveView("account")` before they render anything. **Any new flow that
-returns from an outside origin has to do the same**; the query string alone does not move the view.
+`handleEmailLinks` now calls `setActiveView("account")` before it renders anything. **Any new flow
+that returns from an outside origin has to do the same** — a store purchase callback included; the
+query string alone does not move the view.
 
 **The chip carries the confirm-your-email dot, and that is not decoration.** The verify prompt used
 to sit on the alerts page where someone on the way to their saved curbs could not miss it. Behind a
@@ -579,16 +581,14 @@ hashing (16384/8/1, self-describing hash strings so the cost can be raised witho
 ones), `randomBytes` for session tokens, `timingSafeEqual` for the comparison. bcrypt, jsonwebtoken
 and every session middleware would each be a dependency and a build step this project does not have.
 
-**The billing fields exist already, and Stripe is the assumed processor.** `buildDefaultBilling()`
-puts `plan`, `status`, `stripeCustomerId`, `stripeSubscriptionId`, `currentPeriodEnd` and
-`cancelAtPeriodEnd` on every account from the first one, so payments are a matter of filling them in
-rather than migrating every row. `status` deliberately uses Stripe's own vocabulary because a webhook
-is what will write it. `getEntitlement()` is the single place that decides whether someone is paid up,
-and it **counts `past_due` as entitled**: the card failed and Stripe is still retrying, and cutting a
-paying customer's sweeping reminders off mid-dunning turns a failed payment into a parking ticket.
-
-Stripe Checkout fits this stack without a dependency either — it is a hosted redirect and a webhook,
-both plain HTTPS. Reach for `https.request` before `npm install stripe`.
+**The billing fields exist already, and nothing reads them as a gate.** `buildDefaultBilling()`
+puts `plan`, `status`, `providerCustomerId`, `providerSubscriptionId`, `currentPeriodEnd` and
+`cancelAtPeriodEnd` on every account from the first one, so a purchase path is a matter of filling
+them in rather than migrating every row. `status` deliberately uses a processor's vocabulary because
+a processor is what will write it. `getEntitlement()` is the single place that decides whether
+someone is paid up, and it **counts `past_due` as entitled**: the payment failed and the processor
+is still retrying, and cutting a paying customer's sweeping reminders off mid-dunning turns a failed
+payment into a parking ticket. See **Payments — removed** for what happened to the rest.
 
 **Sessions are server-side records, not signed tokens.** `data/sessions.json` (or the `sessions`
 collection) stores the **sha256 of** each token, never the token, so a leaked dump does not hand the
@@ -596,9 +596,10 @@ reader a set of live logins. That is also what makes "changing your password sig
 devices" possible, which a stateless JWT could not do without a revocation list that is a session
 table by another name.
 
-**The session cookie is `SameSite=Lax`, and that is a payment decision.** Strict is dropped on a
-top-level redirect back from a third-party origin, which is exactly the return trip from Stripe's
-hosted checkout — the customer would land on a signed-out page immediately after paying.
+**The session cookie is `SameSite=Lax`, not Strict.** Strict is dropped on a top-level redirect
+back in from a third-party origin. That was chosen for the return trip from Stripe's hosted
+checkout, which is gone; it still holds for the emailed verify and reset links, and for any hosted
+flow that comes back by redirect. Do not tighten it to Strict.
 
 **Trusting an origin with credentials grants it the ability to act as a signed-in user.** The API
 answers `Access-Control-Allow-Origin: *` to everyone, which is right for the map data and
@@ -607,10 +608,10 @@ incompatible with cookies by design; a request from a trusted origin gets that o
 
 The list is built at boot by `buildCredentialedOrigins` in `server.js` (2026-08-29), not typed into
 the source. `BUILT_IN_CREDENTIALED_ORIGINS` holds the Render subdomain and the two localhost forms;
-`APP_ORIGIN`, `STRIPE_RETURN_ORIGIN` and a comma-separated `CREDENTIALED_ORIGINS` add to them. It
-reads all three because an origin trusted to receive a Stripe return or an emailed reset link is by
-definition one the app is served from, and making someone set the same hostname three times is how
-one of the three goes stale. Configured origins come first so `resolveReturnOrigin`'s last-resort
+`APP_ORIGIN` and a comma-separated `CREDENTIALED_ORIGINS` add to them. It reads both because an
+origin trusted to receive an emailed reset link is by definition one the app is served from, and
+making someone set the same hostname twice is how one of the two goes stale. `STRIPE_RETURN_ORIGIN`
+was a third source until 2026-09-03. Configured origins come first so `resolveReturnOrigin`'s last-resort
 fallback lands on the real domain rather than the Render subdomain.
 
 **This is the thing that breaks sign-in on a new hostname, and it breaks silently** — no endpoint
@@ -675,83 +676,80 @@ before scaling out; a genuinely shared counter means a round trip per attempt, w
 deliberately avoids. `test/accounts.test.js` covers the restart, the expiry and the corrupt record,
 and the restart case fails if the boot-time load is removed.
 
-Payments landed on 2026-08-27; email verification and password reset on 2026-08-29. See those
-sections below.
+Payments landed on 2026-08-27 and were removed on 2026-09-03; email verification and password reset
+landed on 2026-08-29. See those sections below.
 
-## Payments
+## Payments — removed
 
-Added 2026-08-27, on top of the account fields that were already there for it. Stripe is the
-processor, reached over `https.request` from [lib/billing.js](lib/billing.js) — no `stripe` package,
-for the same reason there is no bcrypt: it is a form-encoded API and an HMAC signature check, and
-adding the SDK would be the first dependency this project cannot lazily require.
+There are none. Stripe Checkout sold an account subscription from 2026-08-27 until **2026-09-03**,
+when it was removed along with `lib/billing.js`, the four `/api/billing/*` routes, the client's
+upgrade controls, and every Stripe variable in `.env.example` and `render.yaml`. Nothing in the app
+charges anyone, and `/api/billing/*` answers 404 rather than 503 — a 503 would read as "configured
+elsewhere" to anyone probing, and would keep a stale client rendering an upgrade button.
 
-**The free tier is the app signed out, and the paid tier is the account.** That is the whole line,
-and it was chosen deliberately over the alternatives. The map, address search, curb colours, saved
-sets in `localStorage`, and reminders all work with no account and always will — the promise at the
-top of the Accounts section is unchanged. What money buys is the account: a saved curb set that
-survives a new phone or a cleared browser.
+**The reason is the App Store, not a change of heart about charging.** Apple requires in-app
+purchase for a digital subscription sold inside an iOS app and prohibits a third-party processor for
+it, so a Stripe checkout inside the app was never going to be allowed. Stripe would still be the
+right answer for selling in a browser — a browser cannot run StoreKit any more than an iOS app can
+run Stripe Checkout — so if web sales ever come back, this comes back with them. Read `git show` on
+the removal commit rather than rewriting it from scratch.
 
-**Exactly one endpoint is gated: `/api/accounts/me/library`.** Not sign-in, not password changes,
-not account deletion — you have to be able to reach the card form to pay, and you have to be able to
-leave. And emphatically not reminders. Reminder plans and push subscriptions key on the push
-endpoint rather than the account and fire for signed-out users, so a lapsed customer's alerts keep
-running. **Do not gate them.** This app exists to stop people getting $50 sweeping tickets;
-withholding the alert that prevents one in order to collect $15 would be indefensible, and it is
-also why the free/paid line is drawn on *scope* (how many devices your library reaches) rather than
-on *reliability* (whether you get warned). `test/billing.test.js` asserts both halves.
+**What deliberately stayed is the entitlement scaffolding.** Every account still carries `plan`,
+`status`, `providerCustomerId`, `providerSubscriptionId`, `currentPeriodEnd`, `cancelAtPeriodEnd`
+and `trialStartedAt`; `buildTrialBilling()` still opens a 14-day trial at sign-up; the trial still
+expires; `backfillAccountTrials()` still runs at boot; and `getEntitlement()` in `lib/accounts.js`
+is still the single place that decides whether someone is paid up. All of it is computed and none
+of it is read as a gate. Keep it that way until there is something to buy — a live trial clock over
+a real population is what makes the next purchase path a matter of filling fields in rather than
+migrating every row.
 
-**That line is now a written promise, not only a code decision.** The Terms page in
-`public/index.html` says in so many words that the map, search, colours, saved sets and reminders
-are free and are not going behind a paywall, and that reminders are never withheld for a billing
-reason. Rewritten 2026-08-29, when the legal copy still predated payments entirely — it described a
-free beta, mentioned neither subscriptions nor refunds, and listed neither Stripe nor Resend as a
-processor on the Privacy page. If the gating in `server.js` ever changes, that copy changes with it;
-tightening the gate quietly would make the Terms false rather than merely out of date.
+**The field names are processor-neutral now, and that was the point of touching them.**
+`stripeCustomerId` and `stripeSubscriptionId` became `providerCustomerId` and
+`providerSubscriptionId` on removal, so StoreKit can fill the same record without a migration.
+`test/entitlement.test.js` asserts no key in `buildDefaultBilling()` names a processor. The status
+vocabulary is still a processor's — `active`, `trialing`, `past_due`, `canceled` — because that is
+the shape every processor hands back, and translating it into house terms on the way in only means
+translating it back later.
 
-Two things there are placeholders and are marked with `TODO before launch` comments in the HTML: the
-support address (`support@denvercurbalerts.com`) appears in both the Terms and the Privacy contact
-sections and must become a real mailbox on the purchased domain before anyone is charged, since
-Stripe expects a working customer service contact and the 30-day refund promise is only as good as
-that address. Prices appear in the copy as prose (`$1.99 per month`, `$15 per year`) alongside the
-display-only strings in `lib/billing.js`; the Stripe dashboard is still authoritative, so changing a
-price means changing three places.
+**The library gate is off, and this is the one line to change when a purchase path exists.**
+`handleAccountLibrary` in `server.js` used to answer 402 to a lapsed trial. With no checkout to send
+that customer to, the same 402 locked every account out of its own sync fourteen days after signing
+up with no way at all to unlock it. **An unsellable paywall is just a bug.** Put the 402 back there
+and nowhere else. `test/entitlement.test.js` asserts an expired entitlement changes nothing today,
+and that no endpoint an account can reach answers 402; that test is the one to flip back.
 
-**Every account opens on a 14-day trial, and it is a real Stripe status rather than a flag.** The
-account is the paid product, which leaves nothing to attach a card to before the account exists — a
-card wall on the sign-up form is where a $15/year utility loses everyone. `trialing` was already in
-`ENTITLED_BILLING_STATUSES`, so expressing it Stripe's way means the webhook takes the record over
-with no translation. `TRIAL_DAYS` lives in `lib/billing.js` beside the prices, not in
-`lib/accounts.js`: that module decides whether someone is entitled and should not also own what the
-plan costs. Fourteen days outlasts two sweeping cycles on any Denver block, which is the point — a
-trial shorter than one full sweep-and-reminder loop never shows the customer what they would pay for.
+**Whatever gets sold, it is never the reminders.** Reminder plans and push subscriptions key on the
+push endpoint rather than the account and fire for signed-out users. This app exists to stop people
+getting $50 sweeping tickets; withholding the alert that prevents one to collect a subscription
+would be indefensible. It is also why the free/paid line, when there was one, was drawn on *scope*
+(how many devices your library reaches) rather than on *reliability* (whether you get warned). Draw
+it the same way next time. `test/entitlement.test.js` asserts a cancelled account can still register
+a device and schedule a plan.
 
 **`buildDefaultBilling()` is the floor, not the starting point, and must stay unentitled.**
 `getEntitlement` falls back to it for an account whose billing is missing or corrupt, so a default
 that granted anything would make a damaged record the most valuable one in the collection. New
 accounts get `buildTrialBilling()` instead.
 
-**Accounts created before payments existed are backfilled at boot** by `backfillAccountTrials()` in
-`server.js`. They carry the unentitled default and never had a trial to use, so the library gate
-would have locked them out of their own sync on the deploy. It is keyed on the absence of both a
-trial and a Stripe customer, so a redeploy can never top someone up.
+**`TRIAL_DAYS` moved to `lib/accounts.js`.** It lived in `lib/billing.js` beside the prices, on the
+reasoning that the module deciding entitlement should not also own what a plan costs. With no prices
+anywhere that separation had nothing left to protect. Fourteen days outlasts two sweeping cycles on
+any Denver block, which is the point of the number — a trial shorter than one full sweep-and-reminder
+loop never shows someone what they would be paying for.
 
-**The webhook verifies before it parses.** Stripe signs `${timestamp}.${rawBody}`, so the route
-reads the body as text and only `JSON.parse`s it after the HMAC matches — a re-serialized object is
-not the same bytes and would never verify. Unknown event types are acknowledged with 200 rather than
-rejected, because a 4xx tells Stripe to retry forever; a genuine failure to write the account
-returns 500 on purpose, because the customer has paid and is not yet entitled.
+**The Terms and Privacy copy was rewritten to match, and must not drift back.** The Terms now say
+the app costs nothing and there is no way to pay; the Privacy page lists no payment processor and no
+card data, because there is none. If a purchase path ships, that copy changes in the same commit —
+selling something the Terms say is free is worse than either state on its own. The support address
+(`support@denvercurbalerts.com`) is still a `TODO before launch` placeholder in both pages, but it
+is no longer a launch blocker now that Stripe's customer-service requirement is gone; any app store
+listing will require a real mailbox again.
 
-**Prices are display-only in the code.** `$1.99/month` and `$15/year` are strings for the button
-label; the authoritative amounts live in the Stripe dashboard and the price ids come from
-`STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL`. Nothing in the app charges from a number it holds.
-
-**Cancelling and card updates go to Stripe's hosted billing portal.** Building those here would mean
-handling proration and dunning in an app with no dependencies and no email provider, and getting any
-of it subtly wrong bills someone incorrectly.
-
-Billing degrades to invisible: with no `STRIPE_SECRET_KEY` the endpoints answer 503, the client
-hides the upgrade controls, and the trial still runs — so an unconfigured deployment is a working
-free app rather than one where nobody can sync. That is the normal state of a local checkout.
+**Two things about selling on iOS that are not in the code yet.** Web Push does not work inside a
+`WKWebView`, so a Capacitor or Cordova shell around this PWA gets no reminders at all and the push
+dispatch loop has to be rebuilt on APNs — reminders are the entire product, so that is the real cost
+of the move, not the payment plumbing. And Apple's Guideline 4.2 rejects thin wrappers around a
+website, so the shell has to use native capability rather than proxy it. Neither is started.
 
 ## Email
 
@@ -759,7 +757,8 @@ Added 2026-08-29. Address confirmation and password reset, which are the two thi
 system had been missing since it landed, and both are a link in an inbox and nothing else.
 
 **No new dependency, and Resend is the assumed provider.** [lib/email.js](lib/email.js) is
-`node:https` and one JSON POST, the same call the Stripe work makes to a different host. Swapping
+`node:https` and one JSON POST, the shape the removed Stripe client used against a different host.
+Swapping
 providers is `deliverViaResend` and nothing else; it is deliberately not an adapter layer, because
 the real cost of switching is the DNS records, not those thirty lines. SMTP is the option to avoid —
 it would mean nodemailer, the first dependency this project cannot lazily require.
@@ -816,11 +815,11 @@ keep versioned, for two tokens that are each read once and thrown away. `handleE
 `public/app.js` reads them at boot and **strips them from the address bar immediately** — a reset
 token in a URL survives in history, in a screenshot, and in the referrer of whatever loads next.
 
-**The link origin comes from `resolveReturnOrigin`, which is now load bearing in a way it was not
-for Stripe.** It prefers the configured origin and falls back to the request's own only if that
-origin is in `CREDENTIALED_ORIGINS`. `Host` is client-supplied, and where a poisoned one previously
-meant an attacker redirecting their own checkout, it now means a reset link arriving in someone
-else's inbox pointing at the attacker's server. Locally this means links on an autoPort dev server
+**The link origin comes from `resolveReturnOrigin`, and it is load bearing.** It prefers
+`APP_ORIGIN` and falls back to the request's own only if that origin is in `CREDENTIALED_ORIGINS`.
+`Host` is client-supplied, and a poisoned one means a reset link arriving in someone else's inbox
+pointing at the attacker's server. It was shared with the Stripe checkout return until 2026-09-03,
+where the same weakness only let an attacker redirect their own checkout; email raised the stakes. Locally this means links on an autoPort dev server
 point at production — swap the origin by hand, or run on port 3000.
 
 ## Domain vocabulary
@@ -950,8 +949,8 @@ The user alternates between tools on this repo. These rules keep that from corru
 
 Every variable the server reads is listed in [.env.example](.env.example) and declared in
 [render.yaml](render.yaml) as `sync: false`, both brought complete on 2026-08-29. Keep them that
-way: an unset variable here is never an error, it is a feature that silently answers 503 (billing,
-email) or does nothing at all (push), which is much harder to notice than a crash. Worth knowing
+way: an unset variable here is never an error, it is a feature that silently answers 503 (email) or
+does nothing at all (push), which is much harder to notice than a crash. Worth knowing
 beyond the file:
 
 - `ISSUE_REPORT_ADMIN_TOKEN` — gates every bulk read that returns other people's data, not just
@@ -960,8 +959,8 @@ beyond the file:
   which points it at a temp directory so a test run cannot write accounts into the working copy.
 - `APP_ORIGIN` — **overloaded, deliberately.** It is which server the pipeline scripts query
   (defaulting to localhost for `build-static-inventory.js` and **production** for
-  `map-area-approach-3.js`), *and* the server's own canonical origin: `getBillingConfig` reads it,
-  `resolveReturnOrigin` prefers it, and `buildCredentialedOrigins` trusts it with a session cookie.
+  `map-area-approach-3.js`), *and* the server's own canonical origin: `resolveReturnOrigin` prefers
+  it, and `buildCredentialedOrigins` trusts it with a session cookie.
   In production those are the same string. Setting it locally to something that is not this app is
   how a reset link ends up pointing somewhere strange.
 - `CREDENTIALED_ORIGINS` — comma-separated extra origins to trust with a session cookie, for a
@@ -975,8 +974,8 @@ Push notifications do nothing without `https://`, VAPID keys, and `npm install`.
 visible in the code. A free instance sleeps after inactivity, and reminder dispatch is a
 `setInterval` inside this process — a sleeping instance sends no reminders, which is the entire
 product. A free instance also has an ephemeral filesystem, wiped on every deploy, so with no
-`DATABASE_URL` the JSON collections under `data/` take accounts, sessions, push subscriptions,
-reminder plans and Stripe customer ids with them.
+`DATABASE_URL` the JSON collections under `data/` take accounts, sessions, push subscriptions and
+reminder plans with them.
 
 `render.yaml` now closes both: the web service is `starter` rather than `free`, and a `databases:`
 block provisions Postgres with `DATABASE_URL` wired to it through `fromDatabase`, so the connection

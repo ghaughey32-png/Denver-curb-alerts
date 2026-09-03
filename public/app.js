@@ -1629,14 +1629,14 @@ const state = {
   accountStatus: { message: "", tone: "" },
   accountLibrarySyncedHash: "",
   accountLibrarySyncQueued: false,
-  billingConfig: { enabled: false, trialDays: 0, prices: {} },
-  billingPending: false,
   emailConfig: { enabled: false },
   // Set only while the page is showing the form a reset link led to. It is deliberately not
   // persisted: the token belongs to the link that was clicked, not to this browser.
   resetToken: "",
-  // Set when the server answers 402. Sync then stops trying until the page reloads, because every
-  // save would otherwise fire another doomed request at a customer who already knows.
+  // Set if the server ever answers 402. Nothing does today — the library gate came out with the
+  // payment path on 2026-09-03 — but the client half is kept so that restoring the gate is a
+  // server-side change on its own. Sync stops trying until the page reloads, because every save
+  // would otherwise fire another doomed request at a customer who already knows.
   librarySyncLocked: false,
   retainedRemoteSetCount: 0,
   scheduledTestMessage: "",
@@ -1723,12 +1723,6 @@ const accountDeleteToggle = document.querySelector("#account-delete-toggle");
 const accountDeleteForm = document.querySelector("#account-delete-form");
 const accountDeletePasswordInput = document.querySelector("#account-delete-password-input");
 const accountStatusBox = document.querySelector("#account-status");
-const accountBillingBlock = document.querySelector("#account-billing");
-const accountBillingSummary = document.querySelector("#account-billing-summary");
-const accountBillingActions = document.querySelector("#account-billing-actions");
-const accountUpgradeAnnualButton = document.querySelector("#account-upgrade-annual");
-const accountUpgradeMonthlyButton = document.querySelector("#account-upgrade-monthly");
-const accountBillingPortalButton = document.querySelector("#account-billing-portal");
 const accountForgotRow = document.querySelector("#account-forgot-row");
 const accountForgotToggle = document.querySelector("#account-forgot-toggle");
 const accountForgotForm = document.querySelector("#account-forgot-form");
@@ -6774,63 +6768,22 @@ function renderAccountStatus() {
   accountStatusBox.classList.toggle("is-working", tone === "working");
 }
 
-function describeAccountPlan(account) {
-  const entitlement = account?.entitlement;
-
-  if (!entitlement || !entitlement.active) {
-    return { label: "Trial ended — sync paused", paid: false };
-  }
-
-  if (entitlement.status === "past_due") {
-    return { label: "Payment failed — still active", paid: true };
-  }
-
-  if (entitlement.trialing) {
-    const days = countDaysUntil(entitlement.currentPeriodEnd);
-    if (days === null) {
-      return { label: "Free trial", paid: true };
-    }
-
-    // Counting down in days rather than printing a date, because "3 days left" is the number that
-    // makes someone decide and a timestamp is the number they ignore.
-    return { label: days <= 0 ? "Free trial — ends today" : `Free trial — ${days} day${days === 1 ? "" : "s"} left`, paid: true };
-  }
-
-  if (entitlement.cancelAtPeriodEnd) {
-    const days = countDaysUntil(entitlement.currentPeriodEnd);
-    return { label: days === null ? "Ending soon" : `Ends in ${days} day${days === 1 ? "" : "s"}`, paid: true };
-  }
-
-  return { label: entitlement.interval === "month" ? "Subscribed — monthly" : "Subscribed — annual", paid: true };
+// The pill under the signed-in address. Every entitlement state the payment path used to
+// distinguish — trialing, past due, cancelling, subscribed monthly or annually — resolved to a
+// different label here. With nothing to buy, all of them would be fiction, and the worst of them
+// ("Trial ended — sync paused") would be a straight lie about an endpoint that no longer pauses
+// anything. So it reports the one thing that is true of every signed-in account.
+//
+// It stays a single word because the element is a badge — uppercase, letter-spaced, pill-shaped —
+// and a sentence set that way is unreadable. What syncing actually buys is spelled out in prose
+// beside the saved sets, which is where someone is standing when they care.
+//
+// state.account.entitlement is still populated by the server; when a purchase path exists this is
+// the second place to change, after the gate in handleAccountLibrary.
+function describeAccountPlan() {
+  return { label: "Synced", active: true };
 }
 
-// Whole days remaining, rounded up, so the last partial day still reads as "1 day left" rather than
-// "0" on the morning it expires.
-function countDaysUntil(isoDate) {
-  if (!isoDate) {
-    return null;
-  }
-
-  const target = new Date(isoDate).getTime();
-  if (Number.isNaN(target)) {
-    return null;
-  }
-
-  return Math.max(0, Math.ceil((target - Date.now()) / (24 * 60 * 60 * 1000)));
-}
-
-// Billing degrades to invisible. If the server has no Stripe keys the upgrade controls never
-// render, which is the normal state for a local checkout of this repo.
-async function loadBillingConfig() {
-  try {
-    const payload = await accountRequest("/api/billing/config");
-    state.billingConfig = payload || state.billingConfig;
-  } catch {
-    state.billingConfig = { enabled: false, trialDays: 0, prices: {} };
-  }
-
-  renderAccount();
-}
 
 // Email degrades the same way. With no provider the server says so, and the client stops offering
 // a reset link it knows cannot be delivered.
@@ -6843,127 +6796,6 @@ async function loadEmailConfig() {
   }
 
   renderAccount();
-}
-
-async function startCheckout(interval) {
-  if (state.billingPending) {
-    return;
-  }
-
-  state.billingPending = true;
-  setAccountStatus("Opening secure checkout…", "working");
-  renderAccount();
-
-  try {
-    const payload = await accountRequest("/api/billing/checkout", { method: "POST", body: { interval } });
-    if (!payload?.url) {
-      throw new Error("Checkout did not come back with a link.");
-    }
-
-    // A full navigation, not a popup: Stripe's hosted page is a separate origin and the return trip
-    // is a top-level redirect, which is exactly what the SameSite=Lax session cookie is chosen for.
-    window.location.assign(payload.url);
-  } catch (error) {
-    state.billingPending = false;
-    setAccountStatus(error.message, "error");
-    renderAccount();
-  }
-}
-
-async function openBillingPortal() {
-  if (state.billingPending) {
-    return;
-  }
-
-  state.billingPending = true;
-  setAccountStatus("Opening your billing settings…", "working");
-  renderAccount();
-
-  try {
-    const payload = await accountRequest("/api/billing/portal", { method: "POST" });
-    if (!payload?.url) {
-      throw new Error("The billing portal did not come back with a link.");
-    }
-
-    window.location.assign(payload.url);
-  } catch (error) {
-    state.billingPending = false;
-    setAccountStatus(error.message, "error");
-    renderAccount();
-  }
-}
-
-function renderAccountBilling() {
-  if (!accountBillingBlock) {
-    return;
-  }
-
-  const account = state.account;
-  const entitlement = account?.entitlement;
-  const config = state.billingConfig || {};
-
-  accountBillingBlock.hidden = !account || !config.enabled;
-
-  if (accountBillingBlock.hidden || !entitlement) {
-    return;
-  }
-
-  if (accountBillingSummary) {
-    accountBillingSummary.textContent = buildBillingSummary(entitlement);
-  }
-
-  const subscribed = entitlement.active && !entitlement.trialing && entitlement.status !== "past_due";
-  const monthly = config.prices?.month || {};
-  const annual = config.prices?.year || {};
-
-  if (accountUpgradeAnnualButton) {
-    accountUpgradeAnnualButton.hidden = subscribed || !annual.available;
-    accountUpgradeAnnualButton.disabled = state.billingPending;
-    accountUpgradeAnnualButton.textContent = `Subscribe — ${annual.label || "annual"}`;
-  }
-
-  if (accountUpgradeMonthlyButton) {
-    accountUpgradeMonthlyButton.hidden = subscribed || !monthly.available;
-    accountUpgradeMonthlyButton.disabled = state.billingPending;
-    accountUpgradeMonthlyButton.textContent = `Subscribe — ${monthly.label || "monthly"}`;
-  }
-
-  if (accountBillingPortalButton) {
-    // Shown whenever Stripe knows this customer, not only while they are paid up: a lapsed or
-    // cancelled subscriber needs the portal more than an active one does.
-    accountBillingPortalButton.hidden = !entitlement.manageable;
-    accountBillingPortalButton.disabled = state.billingPending;
-  }
-}
-
-function buildBillingSummary(entitlement) {
-  if (state.librarySyncLocked || !entitlement.active) {
-    const retained = state.retainedRemoteSetCount;
-    const held = retained
-      ? ` Your ${retained} saved curb set${retained === 1 ? " is" : "s are"} still stored on your account.`
-      : "";
-    // Deliberately specific about what has and has not stopped. The reminders on this phone keep
-    // firing whether or not anyone pays, and someone deciding whether to subscribe should not be
-    // left guessing about that.
-    return `Your trial has ended, so saved curb sets no longer sync between devices.${held} Reminders on this device keep running, and everything on the map stays free.`;
-  }
-
-  if (entitlement.status === "past_due") {
-    return "Your last payment did not go through. Your reminders and sync keep running while the card is retried — update it to avoid an interruption.";
-  }
-
-  if (entitlement.trialing) {
-    const days = countDaysUntil(entitlement.currentPeriodEnd);
-    const when = days === null ? "soon" : days <= 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`;
-    return `Your trial ends ${when}. Subscribing keeps your saved curb sets synced to every device you sign in on.`;
-  }
-
-  if (entitlement.cancelAtPeriodEnd) {
-    const days = countDaysUntil(entitlement.currentPeriodEnd);
-    return `Your subscription is set to end${days === null ? "" : ` in ${days} day${days === 1 ? "" : "s"}`}. Sync keeps working until then.`;
-  }
-
-  return "Thanks for subscribing. Your saved curb sets sync to every device you sign in on.";
 }
 
 // The chip lives in a nav row that already scrolls sideways on a phone, so a full address cannot
@@ -7041,10 +6873,10 @@ function renderAccount() {
       accountEmailLabel.textContent = account.email;
     }
 
-    const plan = describeAccountPlan(account);
+    const plan = describeAccountPlan();
     if (accountPlanLabel) {
       accountPlanLabel.textContent = plan.label;
-      accountPlanLabel.classList.toggle("is-paid", plan.paid);
+      accountPlanLabel.classList.toggle("is-active", plan.active);
     }
   }
 
@@ -7074,7 +6906,6 @@ function renderAccount() {
     accountForgotForm.hidden = true;
   }
 
-  renderAccountBilling();
   renderAccountStatus();
 }
 
@@ -7105,77 +6936,6 @@ async function loadCurrentAccount() {
   if (state.account) {
     await mergeAccountLibrary();
   }
-}
-
-// Stripe redirects back the instant the payment is taken, but the webhook that makes the account
-// entitled is a separate request from Stripe's servers to ours, and it can land a second or two
-// later. Reloading straight into "trial ended" after a successful payment is the worst possible
-// first impression of having paid, so the return trip re-asks a few times before giving up.
-const CHECKOUT_CONFIRM_ATTEMPTS = 6;
-const CHECKOUT_CONFIRM_INTERVAL_MS = 1000;
-
-async function handleCheckoutReturn() {
-  const params = new URLSearchParams(window.location.search);
-  const checkout = params.get("checkout");
-  const billingUpdated = params.get("billing") === "updated";
-
-  if (!checkout && !billingUpdated) {
-    return;
-  }
-
-  // Clean the query string first, so a reload does not replay this and so the session id Stripe
-  // appends does not sit in the address bar.
-  clearBillingQueryParams(params);
-
-  // Stripe returns to `/?checkout=` with no hash, so boot lands on the map. Every message below
-  // goes to the account view's status line, and the customer has just paid - being dropped on the
-  // map with no acknowledgement is the worst moment in the product to be silent.
-  setActiveView("account", { instant: true });
-
-  if (checkout === "cancelled") {
-    setAccountStatus("Checkout cancelled. Nothing was charged.", "");
-    renderAccount();
-    return;
-  }
-
-  setAccountStatus(billingUpdated ? "Checking your billing details…" : "Confirming your subscription…", "working");
-  renderAccount();
-
-  for (let attempt = 0; attempt < CHECKOUT_CONFIRM_ATTEMPTS; attempt += 1) {
-    try {
-      const payload = await accountRequest("/api/accounts/me");
-      state.account = payload.account || null;
-    } catch {
-      // Keep trying; a single failed poll is not worth abandoning the confirmation over.
-    }
-
-    const entitlement = state.account?.entitlement;
-    if (entitlement?.active && !entitlement.trialing) {
-      state.librarySyncLocked = false;
-      setAccountStatus("You're subscribed. Your saved curb sets sync from here on.", "");
-      renderAccount();
-      await syncAccountLibrary({ force: true });
-      return;
-    }
-
-    if (billingUpdated) {
-      break;
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, CHECKOUT_CONFIRM_INTERVAL_MS));
-  }
-
-  setAccountStatus(
-    billingUpdated
-      ? "Billing details updated."
-      : "Payment received. It can take a moment to show up here — reload if this does not update shortly.",
-    ""
-  );
-  renderAccount();
-}
-
-function clearBillingQueryParams(params) {
-  clearQueryParams(params, ["checkout", "session_id", "billing"]);
 }
 
 function clearQueryParams(params, keys) {
@@ -7596,9 +7356,6 @@ function registerAccountEvents() {
   accountDeleteToggle?.addEventListener("click", () => toggleAccountSubform(accountDeleteForm));
   accountPasswordForm?.addEventListener("submit", submitAccountPasswordChange);
   accountDeleteForm?.addEventListener("submit", submitAccountDeletion);
-  accountUpgradeAnnualButton?.addEventListener("click", () => startCheckout("year"));
-  accountUpgradeMonthlyButton?.addEventListener("click", () => startCheckout("month"));
-  accountBillingPortalButton?.addEventListener("click", openBillingPortal);
   accountForgotToggle?.addEventListener("click", () => toggleAccountSubform(accountForgotForm));
   accountForgotForm?.addEventListener("submit", submitForgotPassword);
   accountResetForm?.addEventListener("submit", submitPasswordReset);
@@ -7828,13 +7585,10 @@ try {
 
 renderAll();
 initializePushFeatures();
-loadBillingConfig();
 loadEmailConfig();
-// The checkout return has to run after the account is loaded, or it polls an entitlement on a
-// state.account that is still null and reports failure on a payment that went through. The email
-// links come last for the same reason: confirming an address re-reads the account, and doing that
-// before the first load would race it.
-loadCurrentAccount().then(handleCheckoutReturn).then(handleEmailLinks);
+// The email links run after the account is loaded: confirming an address re-reads the account, and
+// doing that before the first load would race it.
+loadCurrentAccount().then(handleEmailLinks);
 loadStaticRouteInventory();
 
 function capitalize(value) {

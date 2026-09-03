@@ -2954,7 +2954,6 @@ a.ghost-button {
    reset for an address that does not have an account yet. */
 .account-card[hidden],
 .account-form[hidden],
-.account-billing[hidden],
 .account-verify-notice[hidden],
 .account-action-row[hidden] {
   display: none;
@@ -3051,7 +3050,7 @@ a.ghost-button {
   text-transform: uppercase;
 }
 
-.account-plan.is-paid {
+.account-plan.is-active {
   background: rgba(47, 158, 68, 0.14);
   color: #1f6b31;
 }
@@ -3060,30 +3059,6 @@ a.ghost-button {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.account-billing {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(31, 47, 55, 0.04);
-  border: 1px solid rgba(31, 47, 55, 0.09);
-}
-
-.account-billing-summary {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.account-billing .account-hint {
-  font-size: 0.78rem;
-}
-
-.account-billing button[disabled] {
-  opacity: 0.55;
-  cursor: progress;
 }
 
 .account-subform {

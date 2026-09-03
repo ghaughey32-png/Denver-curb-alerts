@@ -88,7 +88,7 @@ async function withServer(run, extraEnv = {}) {
       origin,
       dataDir,
       // Reaching into the collection files is how a test reaches a state the API cannot produce —
-      // an expired trial, a subscription Stripe would have written. The server re-reads them on
+      // an expired trial, a subscription a processor would have written. The server re-reads them on
       // every request, so an edit here takes effect on the next call with no restart.
       readCollection: (name) => JSON.parse(fs.readFileSync(path.join(dataDir, `${name}.json`), "utf8")),
       writeCollection: (name, items) =>

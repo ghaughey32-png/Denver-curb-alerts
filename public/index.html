@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260829-account-view" />
+    <link rel="stylesheet" href="./styles.css?v=20260903-no-payments" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
@@ -369,7 +369,7 @@
 
       <!-- The account has its own view rather than a card on the alerts page. It is settings, not
            a step in the reminder flow, and the eight forms below (sign in, create, forgot, reset,
-           verify, billing, change password, delete) buried the page that is supposed to say what
+           verify, change password, delete) buried the page that is supposed to say what
            is still missing before a reminder can fire. It is reached from the header chip rather
            than the tab row, because the account is optional and a fourth tab beside Map would
            advertise a sign-up wall to people the app works fine for signed out. It needs a view of
@@ -381,7 +381,7 @@
 
           <!-- The account is optional and always will be. Every screen works signed out; what an
                account buys is that a saved curb set is no longer stranded in one browser's
-               localStorage, and it is the identity a paid plan attaches to. Signed-out, signed-in
+               localStorage, and it is the identity any future plan would attach to. Signed-out, signed-in
                and reset are three cards in one section rather than three pages, because this is a
                single-panel app and only one of them is ever on screen. -->
           <section class="panel-section panel-step-section account-section">
@@ -504,21 +504,6 @@
                 </div>
               </div>
 
-              <!-- Hidden unless the server has Stripe keys, so a deployment with no payments
-                   configured shows the account card exactly as it looked before billing existed. -->
-              <div id="account-billing" class="account-billing" hidden>
-                <p class="account-billing-summary" id="account-billing-summary"></p>
-                <div class="account-action-row" id="account-billing-actions">
-                  <button id="account-upgrade-annual" class="primary-button" type="button" hidden>Subscribe</button>
-                  <button id="account-upgrade-monthly" class="ghost-button" type="button" hidden>Subscribe monthly</button>
-                  <button id="account-billing-portal" class="ghost-button" type="button" hidden>Manage billing</button>
-                </div>
-                <p class="account-hint">
-                  Payments are handled by Stripe. Cancel any time — the map, curb colors, and the reminders already
-                  running on this device stay free either way.
-                </p>
-              </div>
-
               <div class="account-action-row">
                 <button id="account-sign-out-button" class="ghost-button" type="button">Sign out</button>
                 <button id="account-password-toggle" class="ghost-button" type="button">Change password</button>
@@ -595,62 +580,33 @@
                 construction, weather, and official Denver rules always control over anything shown in this app.
               </p>
 
-              <!-- The free/paid line is drawn on scope, never on reliability. Reminders and push
-                   subscriptions key on the push endpoint rather than the account and fire for
-                   signed-out and lapsed users alike, and this paragraph is the promise that says so
-                   out loud. If the gating in server.js ever changes, this changes with it. -->
-              <h2>What is free and what costs money</h2>
+              <!-- This app charges nobody. The payment path was removed on 2026-09-03 and this
+                   copy went with it: describing a subscription, a renewal or a refund window that
+                   does not exist is worse than saying nothing. If a purchase path ever ships, the
+                   sections that came out of here — what is free, trial and renewal, cancelling,
+                   refunds, payments — have to come back with it, and the free/paid line still has
+                   to be drawn on scope rather than on reliability. Reminders key on the push
+                   endpoint rather than the account and fire for signed-out users; that is the one
+                   promise below that must survive any change to how this is sold. -->
+              <h2>What it costs</h2>
               <p>
-                The map, address search, curb colors, saved curb sets, and street sweeping reminders are free, work without
-                an account, and are not going behind a paywall. A paid subscription buys one thing: an account, so that your
-                saved curb sets follow you to a new phone or a cleared browser instead of living only in the browser that
-                created them.
+                Nothing. The map, address search, curb colors, saved curb sets, accounts, and street sweeping reminders are
+                all free, and there is no way to pay us. We do not ask for a card, we do not store one, and no part of the
+                app is behind a paywall.
               </p>
               <p>
-                Your reminders are never withheld for a billing reason. If a subscription lapses, expires, or is cancelled,
-                any reminders you have already set up keep running.
-              </p>
-
-              <h2>Free trial, billing, and automatic renewal</h2>
-              <p>
-                New accounts include a 14-day free trial. No payment method is required to start it, and if you do nothing
-                when it ends, the account simply stops syncing — you are not charged.
-              </p>
-              <p>
-                If you subscribe, the plan you pick renews automatically at the price shown at checkout — currently
-                $1.99 per month for the monthly plan, or $15 per year for the annual plan — charged to your payment method at
-                the start of each billing period, and continuing until you cancel. We will tell you by email before any price
-                change takes effect on your renewal.
-              </p>
-
-              <h2>Cancelling</h2>
-              <p>
-                You can cancel at any time from the Account page, which opens Stripe's billing portal. Cancelling stops the
-                next charge; your subscription stays active through the end of the period you have already paid for, and
-                your account sync continues until then. You can also delete your account outright from the Account page.
-              </p>
-
-              <h2>Refunds</h2>
-              <p>
-                If you are unhappy with a charge, email us within 30 days of that charge and we will refund it in full. After
-                30 days, we do not refund the current period, but you can cancel at any time to avoid the next one.
-              </p>
-
-              <h2>Payments</h2>
-              <p>
-                Payments are processed by Stripe. Your card details go to Stripe directly and are never sent to or stored on
-                our servers.
+                If that ever changes, reminders will not be what changes. An alert that stops you getting a ticket is never
+                going to be withheld over money.
               </p>
 
               <h2>Changes to the app</h2>
               <p>
-                We may change, add, pause, or stop features as the app improves. If we discontinue a paid feature you are
-                currently paying for, we will refund the unused part of your current billing period.
+                We may change, add, pause, or stop features as the app improves.
               </p>
               <p>
                 Curb coverage is best effort and always will be. Denver's published sweeping data is incomplete in places,
-                the city changes schedules, and a paid subscription does not buy a guarantee that a given block is correct
-                or that a reminder will arrive. See the Disclaimer for what that means in practice.
+                the city changes schedules, and nothing here guarantees that a given block is correct or that a reminder
+                will arrive. See the Disclaimer for what that means in practice.
               </p>
 
               <h2>Acceptable use</h2>
@@ -659,12 +615,13 @@
                 use it in a way that could harm other users or the city data services it relies on.
               </p>
 
-              <!-- TODO before launch: replace with the real support address on the purchased domain.
-                   Stripe expects a working customer service contact, and the refund promise above is
-                   only as good as this line. -->
+              <!-- TODO before launch: replace with a real mailbox on the purchased domain. It was
+                   Stripe's customer-service requirement that made this urgent; with payments gone it
+                   is no longer a launch blocker, but a contact address nobody reads is still worse
+                   than none. Any store listing will require one again. -->
               <h2>Contact</h2>
               <p>
-                For billing questions, refunds, and cancellations, email
+                For questions about your account or your data, email
                 <a href="mailto:support@denvercurbalerts.com">support@denvercurbalerts.com</a>. For map corrections and bug
                 reports, the in-app Report an issue form reaches us fastest.
               </p>
@@ -699,10 +656,6 @@
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
                   account, so your saved curb sets can follow you to another device. We never store your actual password.
                 </li>
-                <li>
-                  If you subscribe, your Stripe customer and subscription identifiers, your plan, and whether it is
-                  currently active. We never receive or store your card number.
-                </li>
                 <li>Your approximate or precise location only when you tap Use my location, so the map can move to you.</li>
                 <li>Issue reports you choose to send, including your note and helpful app context.</li>
               </ul>
@@ -710,8 +663,8 @@
               <h2>How information is used</h2>
               <p>
                 We use this information to show the map, save your alert setup, send test notifications, schedule reminders,
-                confirm your email address, let you reset a forgotten password, manage a subscription if you have one,
-                troubleshoot bugs, and improve curb coverage. We do not use it for advertising.
+                confirm your email address, let you reset a forgotten password, troubleshoot bugs, and improve curb
+                coverage. We do not use it for advertising.
               </p>
 
               <h2>Services involved</h2>
@@ -722,9 +675,9 @@
                 information needed to load maps, routes, and notifications.
               </p>
               <p>
-                Two more are involved only if you create an account. Stripe processes payments and holds your billing
-                details and card information under its own privacy policy; we hold only the identifiers listed above. Resend
-                delivers the confirmation and password reset emails, which means your email address passes through it.
+                One more is involved only if you create an account: Resend delivers the confirmation and password reset
+                emails, which means your email address passes through it. There is no payment processor, because there are
+                no payments.
               </p>
 
               <h2>Keeping and deleting your data</h2>
@@ -734,9 +687,8 @@
                 running unless you turn them off, because they belong to the device rather than to the account.
               </p>
               <p>
-                Stripe keeps its own record of past payments after that, which we cannot delete — payment processors are
-                required to retain transaction records. If you want a copy of what we hold, or want it removed without using
-                the in-app delete, email us at the address below.
+                If you want a copy of what we hold, or want it removed without using the in-app delete, email us at the
+                address below.
               </p>
 
               <h2>Your choices</h2>
@@ -1078,6 +1030,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260830-drop-ls-inventory-cache"></script>
+    <script src="./app.js?v=20260903-no-payments"></script>
   </body>
 </html>
