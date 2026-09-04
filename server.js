@@ -635,8 +635,16 @@ function getRequestIp(request) {
 }
 
 async function resolveSession(request) {
+  // The bearer token is read first because it is the explicit one: a client that sends a
+  // header means it, and a stale cookie riding along on the same request must not win. A
+  // browser never sends this header, so nothing about the cookie path changes.
+  //
+  // This shares the Authorization header with the admin token, and the two cannot be confused:
+  // hasAdminAccess compares the whole header against a value from the environment and answers
+  // false when it is unset, while a token that is not a live session simply hashes to nothing
+  // here. Neither can be presented as the other.
   const jar = accounts.parseCookies(request.headers.cookie);
-  const token = jar[accounts.SESSION_COOKIE_NAME];
+  const token = accounts.parseBearerToken(request.headers.authorization) || jar[accounts.SESSION_COOKIE_NAME];
 
   if (!token) {
     return { account: null, session: null };
@@ -667,7 +675,17 @@ async function startSession(request, response, account) {
 
   await writeSessions([record, ...sessions]);
   response.setHeader("Set-Cookie", accounts.buildSessionCookie(token, { secure: isSecureRequest(request) }));
-  return record;
+  return { record, token };
+}
+
+// The raw token goes in the response body only when the client asks for it. A browser has no
+// use for it -- it has the cookie, and the cookie is HttpOnly precisely so that page scripts
+// cannot read it -- so handing the same 30-day credential to JS on every sign-in would put it
+// somewhere an XSS could take it, and buy nothing. A shell that cannot use cookies asks.
+function buildSessionTokenFields(body, started) {
+  return body.issueSessionToken === true
+    ? { sessionToken: started.token, sessionExpiresAt: started.record.expiresAt }
+    : {};
 }
 
 // Sign-in throttling. The counters are held in memory and read from there, so the common case —
@@ -1413,10 +1431,13 @@ async function handleAccounts(request, response) {
   record.library = { savedSets: [], updatedAt: record.createdAt };
 
   await writeAccounts([record, ...existingAccounts]);
-  await startSession(request, response, record);
+  const started = await startSession(request, response, record);
   await attachSessionToDevices(record.id, body.pushEndpoint);
 
-  sendJson(response, 201, { account: accounts.toPublicAccount(record) });
+  sendJson(response, 201, {
+    account: accounts.toPublicAccount(record),
+    ...buildSessionTokenFields(body, started)
+  });
 
   // After the response, and deliberately not awaited. Verification gates nothing in this app, so
   // an email provider having a bad minute must not be the reason someone cannot create an account.
@@ -1461,16 +1482,21 @@ async function handleSessions(request, response) {
     }
 
     await clearSignInFailures([emailKey, addressKey], now);
-    await startSession(request, response, account);
+    const started = await startSession(request, response, account);
     await attachSessionToDevices(account.id, body.pushEndpoint);
 
-    sendJson(response, 200, { account: accounts.toPublicAccount(account) });
+    sendJson(response, 200, {
+      account: accounts.toPublicAccount(account),
+      ...buildSessionTokenFields(body, started)
+    });
     return;
   }
 
   if (request.method === "DELETE") {
+    // Signing out has to revoke whichever credential was presented, or a shell would keep a
+    // working token after the app told it it had signed out.
     const jar = accounts.parseCookies(request.headers.cookie);
-    const token = jar[accounts.SESSION_COOKIE_NAME];
+    const token = accounts.parseBearerToken(request.headers.authorization) || jar[accounts.SESSION_COOKIE_NAME];
 
     if (token) {
       const tokenHash = accounts.hashSessionToken(token);

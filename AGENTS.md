@@ -596,6 +596,27 @@ reader a set of live logins. That is also what makes "changing your password sig
 devices" possible, which a stateless JWT could not do without a revocation list that is a session
 table by another name.
 
+**Sessions travel as a cookie or a bearer token, and both name the same record.** Added
+2026-09-04 for the iOS shell (see **Shipping on iOS**), which cannot use the cookie at all.
+`resolveSession` reads `Authorization: Bearer <token>` first and falls back to the jar — the header
+is the explicit one, and a stale cookie riding along on the same request must not beat it. The token
+is the *same* session token the cookie carries, looked up against the same sha256 records, so there
+is one expiry, one revocation path, and one thing for a password change or an account deletion to
+sweep up. Do not let it become a second kind of credential with rules of its own.
+
+**The raw token is returned only to a client that asks** (`issueSessionToken: true` on sign-up or
+sign-in, and it must be the boolean). The cookie is `HttpOnly` so that page scripts cannot read it;
+handing the identical 30-day value to JS on every sign-in would undo that for every browser in order
+to serve the one client that is not a browser. Signing out revokes whichever credential was
+presented, or a shell would keep a working token after being told it had signed out.
+
+**Sessions and the admin token now share the `Authorization` header, and neither can be presented as
+the other.** `hasAdminAccess` compares the whole header against a value from the environment and
+answers false when it is unset; a token that is not a live session hashes to nothing in
+`resolveSession`. `test/accounts.test.js` asserts both directions — a session bearer token gets 403
+from the bulk listings, and the admin token is not an account. That test is the one that fails if
+someone tries to make one header do both jobs.
+
 **The session cookie is `SameSite=Lax`, not Strict.** Strict is dropped on a top-level redirect
 back in from a third-party origin. That was chosen for the return trip from Stripe's hosted
 checkout, which is gone; it still holds for the emailed verify and reset links, and for any hosted
@@ -784,14 +805,19 @@ change, that is a wrong message and a dead end rather than an absent one.
 - `buildCredentialedOrigins` cannot accept a custom scheme at all: `normalizeOrigin` rejects
   non-HTTP schemes at boot, deliberately (see the accounts section).
 
-**Accounts break in the shell, and the fix is a server change rather than a shell one.** The session
-cookie is `SameSite=Lax` over what is, from the API's point of view, a cross-scheme third-party
-origin. Do not try to solve that by loosening the cookie or by adding the shell's scheme to
-`CREDENTIALED_ORIGINS` — the first weakens every browser client for the sake of the one that is not
-a browser, and the second cannot work because of the `normalizeOrigin` rule above. Issue a bearer
-token alongside the cookie and have `resolveSession` accept either. It reads the same sha256 session
-records, so revocation, "changing your password signs out your other devices", and the deletion
-cascade all keep working unchanged.
+**Accounts break in the shell, and the fix was a server change rather than a shell one.**
+**Done 2026-09-04.** The session cookie is `SameSite=Lax` over what is, from the API's point of
+view, a cross-scheme third-party origin. Loosening the cookie or adding the shell's scheme to
+`CREDENTIALED_ORIGINS` were both dead ends — the first weakens every browser client for the sake of
+the one that is not a browser, and the second cannot work because of the `normalizeOrigin` rule
+above. `resolveSession` accepts a bearer token instead; see **Sessions travel as a cookie or a
+bearer token** in the accounts section for what it does and does not change.
+
+**The client half of that is deliberately not built, and belongs to step 3.** The server will issue
+a token; nothing in `public/app.js` asks for one or sends one, because the only honest place to keep
+a 30-day credential on a device is the native keychain, reached through the bridge. **Do not park it
+in `localStorage` to close the gap** — that is precisely the exposure the `HttpOnly` cookie exists
+to avoid, and it would apply to every browser rather than only to the shell that needs it.
 
 **The shell talks to the client through `window.DenverCurbAlertsNative`, and the seam for it is
 already in `public/app.js`** (added 2026-09-04 as step 1 below). `getNativeReminderBridge` returns
@@ -842,8 +868,9 @@ are defects in the web app's assumptions rather than shell scaffolding.
    native capability branch beside `canUseWebPush`.~~ **Done 2026-09-04.** Verified in a browser by
    injecting a stub bridge: permission flow, job handoff, the no-op on an unchanged schedule, the
    refusal path, and the retry after one. With no bridge present every reading is unchanged.
-2. Bearer-token sessions on the server, alongside the cookie.
-3. The shell plus local notifications, so reminders work on a device. Bundle
+2. ~~Bearer-token sessions on the server, alongside the cookie.~~ **Done 2026-09-04.**
+3. The shell plus local notifications, so reminders work on a device. This is also where the
+   bridge gains keychain storage for the session token and starts sending the header. Bundle
    `public/denver-west-routes.json` as an app resource while doing this and the 12 MB cold fetch
    disappears entirely.
 4. Geofencing and the widget — the 4.2 answer.

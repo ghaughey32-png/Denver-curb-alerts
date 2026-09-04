@@ -222,6 +222,137 @@ test("a forged or stale session cookie is simply not signed in", async () => {
   });
 });
 
+test("bearer tokens are read from the header the way a cookie is read from the jar", () => {
+  assert.equal(accounts.parseBearerToken("Bearer abc123"), "abc123");
+  // RFC 7235 makes the scheme case-insensitive, and whitespace around it is legal.
+  assert.equal(accounts.parseBearerToken("bearer abc123"), "abc123");
+  assert.equal(accounts.parseBearerToken("  Bearer   abc123  "), "abc123");
+  assert.equal(accounts.parseBearerToken("Basic abc123"), "");
+  assert.equal(accounts.parseBearerToken("Bearer"), "");
+  assert.equal(accounts.parseBearerToken("abc123"), "");
+  assert.equal(accounts.parseBearerToken(undefined), "");
+});
+
+// A shell cannot use the session cookie, so the same session has to be presentable as a header.
+// What matters is that it is the *same* session and not a second kind of credential: one record,
+// one expiry, one revocation path.
+test("a session works as a bearer token, and is the same session the cookie names", async () => {
+  await withServer(async ({ call, readCollection }) => {
+    const created = await call("/api/accounts", {
+      method: "POST",
+      json: { email: "shell@example.com", password: "sweeping-tuesday-8am", issueSessionToken: true }
+    });
+
+    assert.equal(created.status, 201);
+    const token = created.payload.sessionToken;
+    assert.ok(token, "an opted-in sign-up must return the raw session token");
+    assert.ok(created.payload.sessionExpiresAt, "and say when it expires");
+
+    // One record, not two: the header and the cookie name the same session.
+    assert.equal(readCollection("sessions").length, 1);
+    // Storage still holds only the hash, exactly as it does for the cookie.
+    assert.ok(!JSON.stringify(readCollection("sessions")).includes(token));
+
+    const bearer = { headers: { Authorization: `Bearer ${token}` } };
+    const me = await call("/api/accounts/me", bearer);
+    assert.equal(me.payload.account.email, "shell@example.com");
+
+    // The endpoints that refuse a signed-out caller accept it too, so this is a session and not a
+    // read-only identity.
+    const library = await call("/api/accounts/me/library", {
+      ...bearer,
+      method: "POST",
+      json: { savedSets: [{ id: "set-1", name: "Home", segmentIds: ["a"], createdAt: "2026-09-04T00:00:00.000Z" }] }
+    });
+    assert.equal(library.status, 200);
+
+    // Signing out with the header revokes it, rather than only clearing a cookie nobody sent.
+    const signedOut = await call("/api/sessions", { ...bearer, method: "DELETE" });
+    assert.equal(signedOut.status, 200);
+    assert.equal(readCollection("sessions").length, 0);
+    assert.equal((await call("/api/accounts/me", bearer)).payload.account, null);
+    assert.equal((await call("/api/accounts/me/library", bearer)).status, 401);
+  });
+});
+
+// The token is a 30-day credential. The cookie is HttpOnly so that page scripts cannot read it, and
+// handing the same value to JS on every sign-in would undo that for every browser to buy nothing.
+test("the raw session token is withheld unless the client asks for it", async () => {
+  await withServer(async ({ call }) => {
+    const created = await call("/api/accounts", {
+      method: "POST",
+      json: { email: "browser@example.com", password: "sweeping-tuesday-8am" }
+    });
+
+    assert.equal(created.status, 201);
+    assert.equal(created.payload.sessionToken, undefined);
+    assert.ok(created.sessionCookie, "the cookie is still set either way");
+
+    const signedIn = await call("/api/sessions", {
+      method: "POST",
+      json: { email: "browser@example.com", password: "sweeping-tuesday-8am" }
+    });
+    assert.equal(signedIn.payload.sessionToken, undefined);
+
+    // Opting in is what returns it, and it has to be the boolean rather than anything truthy.
+    const asked = await call("/api/sessions", {
+      method: "POST",
+      json: { email: "browser@example.com", password: "sweeping-tuesday-8am", issueSessionToken: "yes" }
+    });
+    assert.equal(asked.payload.sessionToken, undefined);
+  });
+});
+
+// Sessions and the admin token now share the Authorization header. Neither may be presented as the
+// other: a session that could open the bulk listings would hand every user's push keys to anyone
+// with an account.
+test("a session bearer token does not open the admin listings, and the admin token is not a session", async () => {
+  await withServer(async ({ call }) => {
+    const created = await call("/api/accounts", {
+      method: "POST",
+      json: { email: "shell2@example.com", password: "sweeping-tuesday-8am", issueSessionToken: true }
+    });
+
+    const asSession = { headers: { Authorization: `Bearer ${created.payload.sessionToken}` } };
+    assert.equal((await call("/api/push/subscriptions", asSession)).status, 403);
+    assert.equal((await call("/api/reminder-plans", asSession)).status, 403);
+
+    const asAdmin = { headers: { Authorization: "Bearer test-admin-token" } };
+    assert.equal((await call("/api/push/subscriptions", asAdmin)).status, 200);
+    // The admin token authorizes those listings and nothing else -- it is not an account.
+    assert.equal((await call("/api/accounts/me", asAdmin)).payload.account, null);
+    assert.equal((await call("/api/accounts/me/library", asAdmin)).status, 401);
+  }, { ISSUE_REPORT_ADMIN_TOKEN: "test-admin-token" });
+});
+
+// The reason the header had to name an existing session rather than mint a new kind of credential.
+test("changing a password revokes a shell's bearer session like any other device", async () => {
+  await withServer(async ({ call }) => {
+    const created = await call("/api/accounts", {
+      method: "POST",
+      json: { email: "both@example.com", password: "sweeping-tuesday-8am" }
+    });
+
+    const shell = await call("/api/sessions", {
+      method: "POST",
+      json: { email: "both@example.com", password: "sweeping-tuesday-8am", issueSessionToken: true }
+    });
+    const bearer = { headers: { Authorization: `Bearer ${shell.payload.sessionToken}` } };
+    assert.equal((await call("/api/accounts/me", bearer)).payload.account.email, "both@example.com");
+
+    const changed = await call("/api/accounts/me/password", {
+      method: "POST",
+      cookie: created.sessionCookie,
+      json: { currentPassword: "sweeping-tuesday-8am", newPassword: "sweeping-thursday-9am" }
+    });
+    assert.equal(changed.status, 200);
+
+    // The browser that asked keeps its session; the shell is signed out with every other device.
+    assert.equal((await call("/api/accounts/me", { cookie: created.sessionCookie })).payload.account.email, "both@example.com");
+    assert.equal((await call("/api/accounts/me", bearer)).payload.account, null);
+  });
+});
+
 test("saved curb sets survive on the account, and only for their owner", async () => {
   await withServer(async ({ call }) => {
     const owner = await call("/api/accounts", {
