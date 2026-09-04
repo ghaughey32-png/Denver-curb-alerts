@@ -1623,6 +1623,9 @@ const state = {
   reminderPlanSyncPending: false,
   reminderPlanSyncQueued: false,
   lastSyncedReminderPlanHash: "",
+  nativeReminderError: "",
+  nativeReminderSyncQueued: false,
+  lastSyncedNativeReminderHash: "",
   account: null,
   accountMode: "signin",
   accountPending: false,
@@ -2094,7 +2097,12 @@ function canUseBrowserStorage() {
 }
 
 function getApiBaseOrigin() {
-  if (window.location.protocol === "file:") {
+  // Anything that is not an http(s) page is reaching the API from somewhere the API does not
+  // live: a file:// preview, or a native shell serving this bundle off its own scheme. Only the
+  // first was handled, and the fall-through was worse than unreachable -- an opaque origin
+  // serializes to the string "null", and new URL(path, "null/") throws, so buildApiUrl took the
+  // whole caller down rather than failing one request. See "Shipping on iOS" in AGENTS.md.
+  if (window.location.protocol !== "http:" && window.location.protocol !== "https:") {
     return HOSTED_APP_ORIGIN;
   }
 
@@ -2231,6 +2239,38 @@ function canUseBrowserNotifications() {
 
 function canUseWebPush() {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
+// A native shell has neither the Push API nor the Notification constructor, so every check above
+// answers false and the app reports that this *browser* cannot do notifications -- true of the
+// WebView it happens to be running in, and useless to someone holding what looks like an app.
+// The shell injects this bridge instead and schedules the same jobs on the device itself.
+//
+// The contract is deliberately the array the job builder already produces, so nothing upstream
+// has to know a shell exists: scheduleReminders replaces every pending reminder with the ones it
+// is handed. showTestNotification is optional, and without it the test button stays disabled
+// rather than appearing to work. See "Shipping on iOS" in AGENTS.md.
+function getNativeReminderBridge() {
+  const bridge = typeof window !== "undefined" ? window.DenverCurbAlertsNative : null;
+  if (!bridge || typeof bridge.scheduleReminders !== "function" || typeof bridge.requestPermission !== "function") {
+    return null;
+  }
+
+  return bridge;
+}
+
+function canUseNativeReminders() {
+  return Boolean(getNativeReminderBridge());
+}
+
+function getNativeReminderPermission() {
+  const bridge = getNativeReminderBridge();
+  if (!bridge) {
+    return "unsupported";
+  }
+
+  const permission = String(bridge.permission || "default");
+  return permission === "granted" || permission === "denied" ? permission : "default";
 }
 
 function hasServiceWorkerProtocol() {
@@ -6009,6 +6049,60 @@ function queueReminderPlanSync(options = {}) {
   }, 0);
 }
 
+// The native counterpart of syncReminderPlanToServer. A shell schedules on the device, so there
+// is no endpoint, no subscription record and no server round trip -- the jobs already carry
+// absolute times, which is the whole reason a shell can skip push to begin with.
+async function syncNativeReminderSchedule(options = {}) {
+  const bridge = getNativeReminderBridge();
+  if (!bridge || getNativeReminderPermission() !== "granted") {
+    return;
+  }
+
+  const jobs = state.notificationJobs.map((job) => ({
+    id: job.id,
+    title: job.title,
+    body: job.body,
+    scheduledAt: job.scheduledAt,
+    setName: job.setName,
+    segmentLabels: Array.isArray(job.segmentLabels) ? [...job.segmentLabels] : [],
+    triggerLabels: Array.isArray(job.triggerLabels) ? [...job.triggerLabels] : []
+  }));
+
+  const payloadHash = JSON.stringify(jobs);
+  if (!options.force && payloadHash === state.lastSyncedNativeReminderHash) {
+    return;
+  }
+
+  try {
+    await bridge.scheduleReminders(jobs);
+    state.lastSyncedNativeReminderHash = payloadHash;
+    state.nativeReminderError = "";
+  } catch (error) {
+    // A refused handoff must never read as scheduled reminders. Dropping the hash is what makes
+    // the next render retry, instead of treating a schedule the device never took as current.
+    state.lastSyncedNativeReminderHash = "";
+    state.nativeReminderError = error.message || "This device did not accept the reminder schedule.";
+  }
+
+  renderNotificationStatus();
+}
+
+function queueNativeReminderSync(options = {}) {
+  if (!canUseNativeReminders()) {
+    return;
+  }
+
+  if (state.nativeReminderSyncQueued && !options.force) {
+    return;
+  }
+
+  state.nativeReminderSyncQueued = true;
+  window.setTimeout(async () => {
+    state.nativeReminderSyncQueued = false;
+    await syncNativeReminderSchedule(options);
+  }, 0);
+}
+
 async function initializePushFeatures() {
   if (!canUseWebPush() || !isSecureHost()) {
     renderNotificationStatus();
@@ -6053,6 +6147,12 @@ function scheduleBrowserNotifications() {
   clearNotificationTimers();
 
   if (hasRemotePushReady()) {
+    return;
+  }
+
+  // A shell holds its own local notifications. A setTimeout here would only ever fire while the
+  // app is open, which is exactly when the driver does not need telling.
+  if (canUseNativeReminders()) {
     return;
   }
 
@@ -6171,6 +6271,33 @@ function renderNotificationStatus() {
     : "Turn on push for this device";
   enableNotificationsButton.classList.toggle("notifications-on", notificationsAllowed);
 
+  // Ahead of the browser checks, because in a shell every one of them answers false and the
+  // message below is both wrong and a dead end -- there is no browser setting to go and change.
+  if (canUseNativeReminders()) {
+    const nativePermission = getNativeReminderPermission();
+    const canShowNativeTest = typeof getNativeReminderBridge().showTestNotification === "function";
+
+    if (nativePermission === "granted") {
+      notificationStatus.textContent = state.nativeReminderError
+        ? `Reminders are on for this device, but the schedule was not accepted: ${state.nativeReminderError}`
+        : "Reminders are on for this device. Upcoming sweep times are scheduled on the device itself, so they arrive with no connection.";
+    } else if (nativePermission === "denied") {
+      notificationStatus.textContent = "Notifications are turned off for Curb Alerts in your device settings.";
+    } else {
+      notificationStatus.textContent = "This device is ready to turn on street sweeping reminders.";
+    }
+
+    enableNotificationsButton.textContent = nativePermission === "granted" ? "Reminders On" : "Turn on reminders";
+    enableNotificationsButton.classList.toggle("notifications-on", nativePermission === "granted");
+    enableNotificationsButton.disabled = nativePermission !== "default";
+    sendTestButton.disabled = !(canShowNativeTest && nativePermission === "granted");
+    scheduleTestButton.disabled = true;
+    if (installHelpButton) {
+      installHelpButton.hidden = true;
+    }
+    return;
+  }
+
   if (!canUseBrowserNotifications()) {
     notificationStatus.textContent = "This browser does not support notifications for this prototype.";
     enableNotificationsButton.disabled = true;
@@ -6267,6 +6394,19 @@ function renderNotificationStatus() {
 }
 
 async function requestBrowserNotifications() {
+  const nativeBridge = getNativeReminderBridge();
+  if (nativeBridge) {
+    try {
+      await nativeBridge.requestPermission();
+    } catch (error) {
+      state.nativeReminderError = error.message || "This device did not grant notification permission.";
+    }
+
+    queueNativeReminderSync({ force: true });
+    renderNotificationStatus();
+    return;
+  }
+
   if (!canUseBrowserNotifications()) {
     renderNotificationStatus();
     return;
@@ -6379,6 +6519,23 @@ async function sendPushTestRequest(job) {
 }
 
 async function sendImmediateTestNotification(job = null) {
+  const nativeBridge = getNativeReminderBridge();
+  if (nativeBridge) {
+    if (typeof nativeBridge.showTestNotification === "function") {
+      try {
+        await nativeBridge.showTestNotification({
+          title: job?.title || "Street sweeping reminder test",
+          body: job?.body || "Test alert: this is how your move-your-car reminder will look."
+        });
+      } catch (error) {
+        state.nativeReminderError = error.message || "This device could not show a test reminder.";
+      }
+    }
+
+    renderNotificationStatus();
+    return;
+  }
+
   if (!canUseBrowserNotifications()) {
     renderNotificationStatus();
     return;
@@ -7380,6 +7537,7 @@ function renderAll() {
   renderAccount();
   renderStats();
   queueReminderPlanSync();
+  queueNativeReminderSync();
 }
 
 function parseSweepDate(dateString) {

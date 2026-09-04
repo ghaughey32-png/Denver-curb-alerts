@@ -768,15 +768,19 @@ plan join, `attachSessionToDevices`, the account-deletion cascade and `/api/remi
 are all transport-agnostic already; what is not is that a device record is keyed by the Web Push
 endpoint URL and carries `keys.p256dh` and `keys.auth`.
 
-**A `WKWebView` shell fails closed and silent in four places, and silent is the dangerous half.**
-None of these throw; the app simply renders as though notifications were unsupported and syncs
-nothing.
+**A `WKWebView` shell fails closed in four places.** An earlier version of this note called that
+failure silent. It is not, and the truth is worse: `renderNotificationStatus` reaches its
+`canUseBrowserNotifications` branch and says *this browser does not support notifications for this
+prototype*, then disables all three buttons. Inside an app that names no browser the user can go and
+change, that is a wrong message and a dead end rather than an absent one.
 
 - `canUseWebPush` tests `"PushManager" in window`, so `initializePushFeatures` returns early.
 - `canUseBrowserNotifications` tests `"Notification" in window`, so the in-page timer fallback that
   would otherwise cover for it is dead too.
-- `getApiBaseOrigin` special-cases only `file:`, so it returns the shell's own origin and every
-  `buildApiUrl` call builds a URL that resolves to nothing.
+- `getApiBaseOrigin` special-cased only `file:`. **Fixed 2026-09-04**: anything that is not `http:`
+  or `https:` now falls back to `HOSTED_APP_ORIGIN`. This was a real defect rather than shell
+  scaffolding — an opaque origin serializes to the string `"null"`, and `new URL(path, "null/")`
+  throws, so `buildApiUrl` took its whole caller down instead of failing one request.
 - `buildCredentialedOrigins` cannot accept a custom scheme at all: `normalizeOrigin` rejects
   non-HTTP schemes at boot, deliberately (see the accounts section).
 
@@ -788,6 +792,24 @@ a browser, and the second cannot work because of the `normalizeOrigin` rule abov
 token alongside the cookie and have `resolveSession` accept either. It reads the same sha256 session
 records, so revocation, "changing your password signs out your other devices", and the deletion
 cascade all keep working unchanged.
+
+**The shell talks to the client through `window.DenverCurbAlertsNative`, and the seam for it is
+already in `public/app.js`** (added 2026-09-04 as step 1 below). `getNativeReminderBridge` returns
+it only when it carries both required methods, and `canUseNativeReminders` gates every branch off
+that, so a browser with no bridge takes byte-identical paths to before. The contract:
+
+- `permission` — `"granted"`, `"denied"` or `"default"`. Anything else reads as `"default"`.
+- `requestPermission()` — async. The enable button calls it, then forces a reschedule.
+- `scheduleReminders(jobs)` — async, and **replaces** every pending reminder with what it is handed.
+  `jobs` is the array `buildNotificationJobs` already produces, which is why nothing upstream had to
+  learn a shell exists.
+- `showTestNotification({ title, body })` — optional. Without it the test button stays disabled
+  rather than appearing to work.
+
+A rejected `scheduleReminders` clears `lastSyncedNativeReminderHash` as well as setting the error.
+That is deliberate and worth keeping: leaving the hash set would make the next render skip the retry
+as a no-op and leave the UI reporting reminders the device never accepted, which is the same class
+of lie as pink over curb another city sweeps.
 
 **Local notifications come before APNs, and the existing job builder is the whole input.** The jobs
 are already absolute timestamps computed on the client, so `UNUserNotificationCenter` can schedule
@@ -816,8 +838,10 @@ rule in the payments section holds here too.
 **The sequence.** Steps 1 and 2 are worth doing whether or not the shell ever ships, because they
 are defects in the web app's assumptions rather than shell scaffolding.
 
-1. Make the client shell-safe: teach `getApiBaseOrigin` about the custom scheme, and add a native
-   capability branch beside `canUseWebPush` so the app stops failing closed and silent.
+1. ~~Make the client shell-safe: teach `getApiBaseOrigin` about the custom scheme, and add a
+   native capability branch beside `canUseWebPush`.~~ **Done 2026-09-04.** Verified in a browser by
+   injecting a stub bridge: permission flow, job handoff, the no-op on an unchanged schedule, the
+   refusal path, and the retry after one. With no bridge present every reading is unchanged.
 2. Bearer-token sessions on the server, alongside the cookie.
 3. The shell plus local notifications, so reminders work on a device. Bundle
    `public/denver-west-routes.json` as an app resource while doing this and the 12 MB cold fetch

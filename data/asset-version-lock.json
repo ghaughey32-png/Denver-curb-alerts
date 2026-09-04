@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v165",
+    "cacheName": "curb-alerts-shell-v166",
     "files": {
-      "index.html": "dd1efca685e7c9fb30d693c99689dd733b728313514f14bceeb2899c53e54054",
-      "sw.js": "c9c9293f2b9fb48b9bb8605e2ff9804d7f6078afe718acc2f9661d531df17306"
+      "index.html": "95b000ee60df8565a870df9b15cd269bb3bf69373c4c39e680c3a9fd88e93d3c",
+      "sw.js": "19d8b9f68b1bb91351639916a31f0c84b446f39ca7b01de3415374a3459d6ee3"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260903-no-payments",
-      "sha256": "d4bd18981444171f625fbea39c40d38449c278c8b758a9802f99fb0ce8a57b27"
+      "version": "20260904-native-shell-seam",
+      "sha256": "738b9c472ccc2582976731aa35c25157935418844d7c5fb63e17573d903c5323"
     },
     "curb-geometry.js": {
       "version": "20260813b",
