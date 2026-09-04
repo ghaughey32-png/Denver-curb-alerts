@@ -745,11 +745,92 @@ selling something the Terms say is free is worse than either state on its own. T
 is no longer a launch blocker now that Stripe's customer-service requirement is gone; any app store
 listing will require a real mailbox again.
 
-**Two things about selling on iOS that are not in the code yet.** Web Push does not work inside a
-`WKWebView`, so a Capacitor or Cordova shell around this PWA gets no reminders at all and the push
-dispatch loop has to be rebuilt on APNs — reminders are the entire product, so that is the real cost
-of the move, not the payment plumbing. And Apple's Guideline 4.2 rejects thin wrappers around a
-website, so the shell has to use native capability rather than proxy it. Neither is started.
+**Selling on iOS is gated on the shell, not on the payment plumbing.** Apple requires in-app
+purchase for a digital subscription sold inside an iOS app, so a purchase path there is StoreKit
+filling the same `provider*` fields. But there is no iOS app yet, and what stands in front of one is
+reminders and native capability rather than billing. See **Shipping on iOS** below.
+
+## Shipping on iOS
+
+Nothing is started. Scoped 2026-09-04 by reading the push path end to end, which corrected two
+claims an earlier two-sentence version of this note made — see the last item. Everything below
+about *this* codebase was read out of the source; the platform facts (what `WKWebView` exposes, the
+local-notification cap, ITP's treatment of cross-scheme cookies) are not measured here and should be
+confirmed on a device before anyone budgets against them.
+
+**The reminder pipeline is already split the way the move needs, which is why this is cheaper than
+it looks.** `buildNotificationJobs` in [public/app.js](public/app.js) computes every job **on the
+client**, with an absolute `scheduledAt` — saved sets to segments to `getUpcomingSweepDates` (capped
+at 8 sweeps per segment) to the day-before and day-of slots. The server is a dumb dispatcher:
+`dispatchDueReminderPlans` in [server.js](server.js) wakes every 60 seconds, finds jobs past due,
+and calls `sendNotification`. That call is the **only** place the app touches Web Push. Storage, the
+plan join, `attachSessionToDevices`, the account-deletion cascade and `/api/reminder-plans?endpoint=`
+are all transport-agnostic already; what is not is that a device record is keyed by the Web Push
+endpoint URL and carries `keys.p256dh` and `keys.auth`.
+
+**A `WKWebView` shell fails closed and silent in four places, and silent is the dangerous half.**
+None of these throw; the app simply renders as though notifications were unsupported and syncs
+nothing.
+
+- `canUseWebPush` tests `"PushManager" in window`, so `initializePushFeatures` returns early.
+- `canUseBrowserNotifications` tests `"Notification" in window`, so the in-page timer fallback that
+  would otherwise cover for it is dead too.
+- `getApiBaseOrigin` special-cases only `file:`, so it returns the shell's own origin and every
+  `buildApiUrl` call builds a URL that resolves to nothing.
+- `buildCredentialedOrigins` cannot accept a custom scheme at all: `normalizeOrigin` rejects
+  non-HTTP schemes at boot, deliberately (see the accounts section).
+
+**Accounts break in the shell, and the fix is a server change rather than a shell one.** The session
+cookie is `SameSite=Lax` over what is, from the API's point of view, a cross-scheme third-party
+origin. Do not try to solve that by loosening the cookie or by adding the shell's scheme to
+`CREDENTIALED_ORIGINS` — the first weakens every browser client for the sake of the one that is not
+a browser, and the second cannot work because of the `normalizeOrigin` rule above. Issue a bearer
+token alongside the cookie and have `resolveSession` accept either. It reads the same sha256 session
+records, so revocation, "changing your password signs out your other devices", and the deletion
+cascade all keep working unchanged.
+
+**Local notifications come before APNs, and the existing job builder is the whole input.** The jobs
+are already absolute timestamps computed on the client, so `UNUserNotificationCenter` can schedule
+them directly: no APNs key, no dispatcher, no round trip, and it works with no connection. Two
+honest limits. It stops if the app is not opened for weeks, because rescheduling happens on open.
+And iOS keeps only the soonest **64** pending local notifications per app, which the defaults reach
+sooner than you would guess — 1 day-before plus 1 day-of over 8 sweeps is 16 jobs per saved set, so
+four sets hit the cap, and with all three day-of slots enabled two sets do. That wants a horizon
+trim, not a redesign.
+
+**APNs is the durability layer under that, not an alternative to it, and it needs no new
+dependency.** `node:http2` connects to `api.push.apple.com` and `node:crypto` signs the ES256 JWT
+from the `.p8` key; the only fiddly part is converting the DER signature to the 64-byte `r||s` JOSE
+form. Generalize the device record to carry a transport (`webpush` or `apns`) and store an APNs
+token as a synthetic `apns://<token>` endpoint — keeping the endpoint as the primary key is what
+lets the plan join, the session attach and the deletion cascade stay untouched. Reach for this when
+there is a reason not to depend on app opens, not before.
+
+**Guideline 4.2 wants capability, and the one worth building is park-here geofencing.** Drop a pin
+where you parked, register a region around it, and the reminder becomes *you are parked on the north
+side of W 32nd, and it sweeps Tuesday at 7am*. Background location is native-only and it is the
+actual product rather than a wrapper fig leaf. A home-screen widget showing the next sweep for a
+saved set is the cheap second one. Whatever gets built, it stays off the reminders themselves — the
+rule in the payments section holds here too.
+
+**The sequence.** Steps 1 and 2 are worth doing whether or not the shell ever ships, because they
+are defects in the web app's assumptions rather than shell scaffolding.
+
+1. Make the client shell-safe: teach `getApiBaseOrigin` about the custom scheme, and add a native
+   capability branch beside `canUseWebPush` so the app stops failing closed and silent.
+2. Bearer-token sessions on the server, alongside the cookie.
+3. The shell plus local notifications, so reminders work on a device. Bundle
+   `public/denver-west-routes.json` as an app resource while doing this and the 12 MB cold fetch
+   disappears entirely.
+4. Geofencing and the widget — the 4.2 answer.
+5. The APNs dispatcher.
+
+**Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost
+of the move". It is not the largest piece: the client's browser assumptions and the session change
+are comparable, and both are invisible from the payment side. And it implied server push was the
+only way to get reminders inside a shell, which is wrong for the specific reason that this app
+computes its jobs client-side with absolute times — that is what makes step 3 sufficient on its own.
+
 
 ## Email
 
