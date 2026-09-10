@@ -28,9 +28,12 @@ Deliberately minimal stack:
 - CommonJS everywhere, including tests and scripts. There is no `"type": "module"`.
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
-Render only (`render.yaml`); the live origin is `https://denver-curb-alerts-2.onrender.com`.
-`curbalerts.co` was bought on 2026-09-10 and is not pointed at Render yet. Until it is, do not move
-`APP_ORIGIN` or `HOSTED_APP_ORIGIN` in `public/app.js` onto it.
+Render only (`render.yaml`); the live origin is `https://www.curbalerts.co`, since 2026-09-10.
+Render 301s the bare `curbalerts.co` to `www`, so **`www` is the canonical origin** — it is what
+browsers send as `Origin`, and it is what `APP_ORIGIN` and `HOSTED_APP_ORIGIN` in `public/app.js`
+must say. DNS is on Cloudflare with both records set to DNS only; turning Cloudflare's proxy on can
+break Render's certificate renewal. The old `https://denver-curb-alerts-2.onrender.com` still serves
+and stays in `BUILT_IN_CREDENTIALED_ORIGINS` so installs pointed at it keep signing in.
 
 See [README.md](README.md) for product behavior, the reminder cadence, and the reasoning behind the
 Denver API integration. Don't duplicate that content here.
