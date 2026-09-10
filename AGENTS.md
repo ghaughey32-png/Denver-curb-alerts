@@ -29,6 +29,8 @@ Deliberately minimal stack:
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
 Render only (`render.yaml`); the live origin is `https://denver-curb-alerts-2.onrender.com`.
+`curbalerts.co` was bought on 2026-09-10 and is not pointed at Render yet. Until it is, do not move
+`APP_ORIGIN` or `HOSTED_APP_ORIGIN` in `public/app.js` onto it.
 
 See [README.md](README.md) for product behavior, the reminder cadence, and the reasoning behind the
 Denver API integration. Don't duplicate that content here.
@@ -762,9 +764,9 @@ loop never shows someone what they would be paying for.
 the app costs nothing and there is no way to pay; the Privacy page lists no payment processor and no
 card data, because there is none. If a purchase path ships, that copy changes in the same commit —
 selling something the Terms say is free is worse than either state on its own. The support address
-(`support@denvercurbalerts.com`) is still a `TODO before launch` placeholder in both pages, but it
-is no longer a launch blocker now that Stripe's customer-service requirement is gone; any app store
-listing will require a real mailbox again.
+in both pages is `support@curbalerts.co`, on the domain bought 2026-09-10. It replaced a
+`support@denvercurbalerts.com` placeholder on a domain nobody owned. Printing it is not the same as
+it receiving mail: confirm the forwarding or mailbox exists before any store listing points at it.
 
 **Selling on iOS is gated on the shell, not on the payment plumbing.** Apple requires in-app
 purchase for a digital subscription sold inside an iOS app, so a purchase path there is StoreKit
