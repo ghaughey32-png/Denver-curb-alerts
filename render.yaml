@@ -23,6 +23,10 @@ services:
   - type: web
     name: denver-curb-alerts
     runtime: node
+    # Releases go out from main; develop is where work happens. The branch is also a setting on the
+    # service in the Render dashboard, and this line only governs it when the service is managed by
+    # this blueprint - so if a push to develop ever changes the live site, check the dashboard.
+    branch: main
     plan: starter
     buildCommand: npm install
     startCommand: npm start

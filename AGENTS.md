@@ -28,7 +28,8 @@ Deliberately minimal stack:
 - CommonJS everywhere, including tests and scripts. There is no `"type": "module"`.
 
 Storage is Postgres when `DATABASE_URL` is set, JSON files under `data/` otherwise. Deployment is
-Render only (`render.yaml`); the live origin is `https://www.curbalerts.co`, since 2026-09-10.
+Render only (`render.yaml`), deploying the `main` branch — work happens on `develop` (see
+**Working across Claude Code and Codex**); the live origin is `https://www.curbalerts.co`, since 2026-09-10.
 Render 301s the bare `curbalerts.co` to `www`, so **`www` is the canonical origin** — it is what
 browsers send as `Origin`, and it is what `APP_ORIGIN` and `HOSTED_APP_ORIGIN` in `public/app.js`
 must say. DNS is on Cloudflare with both records set to DNS only; turning Cloudflare's proxy on can
@@ -1212,12 +1213,18 @@ The user alternates between tools on this repo. These rules keep that from corru
    rewrite the same three published files and share the `data/mapping-cache-*.json` files.
 4. **Before handing off:** run `npm run audit:inventory`, then commit. Leave the tree clean.
 5. **After picking up:** run `git status` and `git log --oneline -5` before editing anything.
-6. Work happens on `develop`, **and Render deploys from `develop`** — pushing it changes the live
-   site. `main` is a record of what has shipped, fast-forwarded to `develop` from time to time; it
-   deploys nothing. Established 2026-09-15, when the live site was found serving a `?v=` tag that
-   existed only on `develop` while `main` sat ten commits behind. Keep `main` a strict ancestor of
-   `develop` so catching it up is always a fast-forward. If Render is ever switched to deploy from
-   `main`, rewrite this item in the same change.
+6. Work happens on `develop`. **Render deploys from `main`**, so nothing reaches the live site
+   until `main` moves. Releasing is fast-forwarding `main` to `develop` and pushing it —
+   `git branch -f main develop && git push origin main` — once `npm test` and
+   `npm run audit:inventory` pass on `develop`. Never commit to `main` directly: keeping it a strict
+   ancestor of `develop` is what makes every release a fast-forward rather than a merge.
+
+   Decided 2026-09-15. Before that Render had in fact been deploying `develop`, so every push there
+   went live — found when the site was serving a `?v=` tag that existed only on `develop` while
+   `main` sat ten commits behind. `render.yaml` now says `branch: main`, but the branch is also a
+   setting on the service in the Render dashboard, and the file only governs it when the service is
+   managed by the blueprint. **If the live site ever serves a `?v=` tag that is on `develop` but not
+   on `main`, the dashboard is still deploying the old branch.**
 
 ## Environment variables
 
