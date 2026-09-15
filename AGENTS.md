@@ -1212,7 +1212,12 @@ The user alternates between tools on this repo. These rules keep that from corru
    rewrite the same three published files and share the `data/mapping-cache-*.json` files.
 4. **Before handing off:** run `npm run audit:inventory`, then commit. Leave the tree clean.
 5. **After picking up:** run `git status` and `git log --oneline -5` before editing anything.
-6. Work happens on `develop`. `main` is the release branch.
+6. Work happens on `develop`, **and Render deploys from `develop`** — pushing it changes the live
+   site. `main` is a record of what has shipped, fast-forwarded to `develop` from time to time; it
+   deploys nothing. Established 2026-09-15, when the live site was found serving a `?v=` tag that
+   existed only on `develop` while `main` sat ten commits behind. Keep `main` a strict ancestor of
+   `develop` so catching it up is always a fast-forward. If Render is ever switched to deploy from
+   `main`, rewrite this item in the same change.
 
 ## Environment variables
 
