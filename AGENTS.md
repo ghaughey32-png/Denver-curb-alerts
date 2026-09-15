@@ -776,6 +776,41 @@ purchase for a digital subscription sold inside an iOS app, so a purchase path t
 filling the same `provider*` fields. But there is no iOS app yet, and what stands in front of one is
 reminders and native capability rather than billing. See **Shipping on iOS** below.
 
+## Reminders keep going until the car is moved
+
+Added 2026-09-15, after the app's own author got a sweeping ticket with two reminders set. One alert
+swiped away at 7am is forgotten by 7:05, so a sweep now keeps reminding until the driver says the
+car is moved. With the defaults that is 6pm and a **9pm check-in** the night before, then **7:00,
+7:30 and 8:00** on the day, each firmer than the last. `nagUntilMoved` on a saved set's reminders
+turns the extras off and restores the old two. It defaults on.
+
+**The follow-ups hang off the driver's first morning alert, not off the sweep time, because Denver
+publishes no sweep time.** The payload carries dates only. Do not invent a start time to schedule
+"an hour before the sweep" from; if one is ever sourced, that is the change to make.
+
+**Confirmation removes jobs rather than flagging them, and that is why the server needed no
+change.** A sweep is keyed `<set id>|<local YYYY-MM-DD>`, kept in `MOVED_SWEEPS_KEY`, and
+`buildNotificationJobs` skips a confirmed sweep entirely. The next plan sync replaces the device's
+job list wholesale (`mergeReminderJobs` keeps only ids it is handed), so the server's copy of those
+follow-ups stops existing. A failed sync means the nagging continues, which is the right way to fail.
+
+**Opening a reminder is not confirmation.** Each job's URL is `/?moved=<sweep key>`, and
+`handleSweepCheckLink` only puts that sweep at the front of the `#sweep-check` banner; the driver
+still has to tap **I moved my car**. People tap a lock-screen alert to read it. The banner lives
+outside every view, so unlike the emailed links it needs no `setActiveView`. It also appears
+unprompted on a sweep day, and the evening before once the heads-up time has passed. Undo exists
+because a mistap would silence the one warning that mattered.
+
+**The service worker used to throw notification URLs away when the app was already open.**
+`notificationclick` focused the existing window, and focusing does not navigate. It now
+`postMessage`s the URL to that window as well. Any future deep link from a notification depends on
+this, so keep the message.
+
+**This is not a Live Activity and cannot be one on the web.** iOS web push has no persistent
+notification, no `requireInteraction` and no action buttons, so the stickiness comes from
+repetition plus the in-app question. A true lock-screen Live Activity is ActivityKit and belongs
+with the native shell below. The follow-ups also raise the local-notification arithmetic there.
+
 ## Shipping on iOS
 
 Nothing is started. Scoped 2026-09-04 by reading the push path end to end, which corrected two
@@ -847,9 +882,10 @@ are already absolute timestamps computed on the client, so `UNUserNotificationCe
 them directly: no APNs key, no dispatcher, no round trip, and it works with no connection. Two
 honest limits. It stops if the app is not opened for weeks, because rescheduling happens on open.
 And iOS keeps only the soonest **64** pending local notifications per app, which the defaults reach
-sooner than you would guess — 1 day-before plus 1 day-of over 8 sweeps is 16 jobs per saved set, so
-four sets hit the cap, and with all three day-of slots enabled two sets do. That wants a horizon
-trim, not a redesign.
+sooner than you would guess. Since the follow-ups landed (see **Reminders keep going until the car
+is moved**) the defaults are 5 jobs per sweep, and over 8 sweeps that is 40 per saved set, so **two
+sets hit the cap**, and with all three day-of slots enabled a single set nearly does. That wants a
+horizon trim, not a redesign, and it is more pressing than it was when this note said 16.
 
 **APNs is the durability layer under that, not an alternative to it, and it needs no new
 dependency.** `node:http2` connects to `api.push.apple.com` and `node:crypto` signs the ES256 JWT
@@ -874,12 +910,70 @@ are defects in the web app's assumptions rather than shell scaffolding.
    injecting a stub bridge: permission flow, job handoff, the no-op on an unchanged schedule, the
    refusal path, and the retry after one. With no bridge present every reading is unchanged.
 2. ~~Bearer-token sessions on the server, alongside the cookie.~~ **Done 2026-09-04.**
-3. The shell plus local notifications, so reminders work on a device. This is also where the
+3. **Started 2026-09-15; see "The iOS project" below for what is and is not done.** The shell plus
+   local notifications, so reminders work on a device. This is also where the
    bridge gains keychain storage for the session token and starts sending the header. Bundle
    `public/denver-west-routes.json` as an app resource while doing this and the 12 MB cold fetch
    disappears entirely.
 4. Geofencing and the widget — the 4.2 answer.
 5. The APNs dispatcher.
+
+### The iOS project
+
+`ios/CurbAlerts.xcodeproj`, begun 2026-09-15. SwiftUI app, iOS 17+, bundle id `co.curbalerts.app`,
+no Swift packages — the same no-dependency rule as the server. The project uses Xcode's
+file-system-synchronized groups, so a new `.swift` file in `ios/CurbAlerts/` is picked up without
+touching `project.pbxproj`. Build from the command line with:
+
+```
+xcodebuild -project ios/CurbAlerts.xcodeproj -scheme CurbAlerts -destination "platform=iOS Simulator,name=iPhone 17 Pro" build
+```
+
+**The app serves `public/` out of its own bundle, copied in by the "Bundle web app" build phase on
+every build.** `BundledWebSchemeHandler` answers `curbalerts://app/...` from that copy, ignoring the
+`?v=` query because the bundle holds one version of everything. So the 12 MB inventory is on the
+phone from first launch, and there is no second copy of the client to drift: whatever is in
+`public/` at build time ships. That also means **a web change reaches the app only in a new app
+build** — the asset-version rules still matter for the website and are irrelevant inside the app.
+`sw.js` is not copied; a custom scheme cannot run a service worker.
+
+**What the shell adds to the bridge contract above**, all backwards compatible with a page that
+ignores them:
+
+- `scheduleReminders(jobs, { movedSweepKeys })`. Each job now carries `url` and `sweepKeys`, and the
+  second argument is the page's whole confirmed-sweep list. The shell stores both, so its lock-screen
+  button and background refresh work while the page is not running. The page's list **replaces**
+  the shell's, which is what lets the page's Undo restore a sweep on the device.
+- `movedSweepKeys` on the bridge object, injected at document start: sweeps confirmed from the lock
+  screen while the page was not running. `loadMovedSweepKeys` merges it at boot.
+- A `curb-alerts-native` DOM event from shell to page, with `detail.type` one of `open-url` (a
+  reminder was tapped; the page focuses that sweep but does not confirm it), `sweep-moved` (the lock
+  screen's **I moved my car** was pressed) or `permission-changed` (changed in Settings).
+- `getCurrentPosition()`, resolving `{ latitude, longitude, accuracy }` from Core Location. **The
+  page's own `navigator.geolocation` never works in the app**: `curbalerts://` is not a secure
+  context, and `isSecureHost` refused before even asking. Found on a device 2026-09-15, where "Use
+  my location" was a dead end. `requestUserLocation` prefers the bridge whenever it has this method,
+  and a rejection's message is shown to the driver as written, so keep the native messages plain.
+
+Verified on an iPhone 15 Pro on 2026-09-15: install, notification permission, a test alert on the
+lock screen, and its **I moved my car** button on long-press.
+
+**The 64-notification limit is handled on the device, not in the job builder.** `ReminderScheduler`
+keeps the full list but schedules only the next 21 days, capped at 60, and refills that window on
+every foreground and on a `BGAppRefreshTask`. Background refresh is best effort — iOS decides when,
+and never on the simulator — so opening the app remains the guaranteed refill. Reminders are
+`timeSensitive` (entitlement in `CurbAlerts.entitlements`) so a Focus mode does not hold a sweep
+warning back until after the ticket.
+
+**Not done yet, in the order they matter:**
+
+- **Signing in does not work inside the app.** `accountRequest` sends `credentials: "include"`, the
+  API answers a non-browser origin with `Access-Control-Allow-Origin: *`, and the browser refuses the
+  combination. The bearer-token half is on the server already; the client half — keychain storage
+  through the bridge and the `Authorization` header — is not built. Reminders need no account.
+- **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
+- Live Activity, geofencing, the widget and APNs (steps 4 and 5).
+- `DEVELOPMENT_TEAM` is empty. It has to be set before the app installs on a phone.
 
 **Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost
 of the move". It is not the largest piece: the client's browser assumptions and the session change

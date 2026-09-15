@@ -1548,6 +1548,7 @@ const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
 const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=96";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
+const MOVED_SWEEPS_KEY = "denver-curb-alerts-moved-sweeps";
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
   { enabled: true, time: "07:00" },
@@ -1557,8 +1558,18 @@ const DEFAULT_DAY_OF_REMINDERS = [
 const DEFAULT_REMINDERS = {
   dayBeforeEnabled: true,
   dayBeforeTime: "18:00",
-  dayOfReminders: DEFAULT_DAY_OF_REMINDERS
+  dayOfReminders: DEFAULT_DAY_OF_REMINDERS,
+  nagUntilMoved: true
 };
+// One reminder is how people get the ticket anyway: an alert swiped away at 7am is forgotten by
+// 7:05. With nagUntilMoved on, a sweep keeps reminding - a check-in later the night before, then
+// follow-ups after the first sweep-day alert - until the driver taps "I moved my car". Denver
+// publishes sweep dates but no start times, so the follow-ups hang off the driver's own first
+// alert rather than off a sweep time the data does not have.
+const EVENING_CHECK_IN_TIME = "21:00";
+const SWEEP_DAY_FOLLOW_UP_MINUTES = [30, 60];
+// Least to most urgent. A job that lands on two stages at once takes the copy of the later one.
+const JOB_KIND_URGENCY = ["day-before", "evening-check", "day-of", "follow-up", "last-call"];
 
 const colors = {
   north: "#2f9e44",
@@ -1611,6 +1622,9 @@ const state = {
   savedSets: [],
   notificationJobs: [],
   deliveredJobIds: [],
+  movedSweepKeys: [],
+  sweepCheckFocusKey: "",
+  sweepCheckConfirmed: null,
   pushConfig: {
     enabled: false,
     libraryInstalled: false,
@@ -1737,6 +1751,13 @@ const accountResetCancel = document.querySelector("#account-reset-cancel");
 const accountVerifyNotice = document.querySelector("#account-verify-notice");
 const accountVerifyResend = document.querySelector("#account-verify-resend");
 const pushPrimer = document.querySelector("#push-primer");
+const sweepCheck = document.querySelector("#sweep-check");
+const sweepCheckKicker = document.querySelector("#sweep-check-kicker");
+const sweepCheckTitle = document.querySelector("#sweep-check-title");
+const sweepCheckBody = document.querySelector("#sweep-check-body");
+const sweepCheckConfirmButton = document.querySelector("#sweep-check-confirm");
+const sweepCheckUndoButton = document.querySelector("#sweep-check-undo");
+const sweepCheckDismissButton = document.querySelector("#sweep-check-dismiss");
 const pushPrimerTitle = document.querySelector("#push-primer-title");
 const pushPrimerBody = document.querySelector("#push-primer-body");
 const pushPrimerAccept = document.querySelector("#push-primer-accept");
@@ -2115,6 +2136,7 @@ function buildApiUrl(path) {
 
 const hasBrowserStorage = canUseBrowserStorage();
 state.deliveredJobIds = loadJson(DELIVERED_JOBS_KEY, []);
+state.movedSweepKeys = loadMovedSweepKeys();
 
 function loadJson(key, fallback) {
   try {
@@ -2309,7 +2331,10 @@ function isStandaloneDisplay() {
 }
 
 function requiresHomeScreenInstallForPush() {
-  return isAppleMobileDevice();
+  // The Home Screen wall is Safari's rule for web push. The native app is already installed and
+  // schedules its own notifications, so telling someone inside it to "add Curb Alerts to your
+  // Home Screen" sends them to do something they have done and that would not help anyway.
+  return isAppleMobileDevice() && !canUseNativeReminders();
 }
 
 function hasRemotePushReady() {
@@ -2322,7 +2347,8 @@ function buildDefaultReminders(reminders = {}) {
     dayBeforeEnabled:
       typeof reminders.dayBeforeEnabled === "boolean" ? reminders.dayBeforeEnabled : DEFAULT_REMINDERS.dayBeforeEnabled,
     dayBeforeTime: isValidTimeValue(reminders.dayBeforeTime) ? reminders.dayBeforeTime : DEFAULT_REMINDERS.dayBeforeTime,
-    dayOfReminders
+    dayOfReminders,
+    nagUntilMoved: typeof reminders.nagUntilMoved === "boolean" ? reminders.nagUntilMoved : DEFAULT_REMINDERS.nagUntilMoved
   };
 }
 
@@ -4437,17 +4463,44 @@ async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", opt
   }
 }
 
+function showUserLocation(latitude, longitude) {
+  useMyLocationButton.disabled = false;
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    lookupStatus.textContent = "We hit a snag trying to find your location. You can still move around the map manually for now.";
+    return;
+  }
+
+  if (!isWithinDenverBounds(latitude, longitude)) {
+    lookupStatus.textContent =
+      "We found you, but you look outside the Denver map area right now. You can still pan around Denver and tap curb sides manually.";
+    return;
+  }
+
+  state.userLocation = { lat: latitude, lon: longitude };
+  renderContext();
+  focusMapOnUserLocation();
+  lookupStatus.textContent = "You're on the map now. We dropped a dot at your location so you can tap nearby curbs more easily.";
+}
+
 function requestUserLocation() {
   if (!lookupStatus || !useMyLocationButton) {
     return;
   }
 
-  if (!canUseGeolocation()) {
+  // A native shell answers from Core Location instead. Its page is served off a custom scheme, which
+  // is not a secure context, so navigator.geolocation is refused there whatever the user allows -
+  // and the isSecureHost check below turned this button into a dead end inside the iOS app.
+  // Confirmed on a device on 2026-09-15. See "The iOS project" in AGENTS.md.
+  const nativeBridge = getNativeReminderBridge();
+  const nativeLocator = typeof nativeBridge?.getCurrentPosition === "function" ? nativeBridge : null;
+
+  if (!nativeLocator && !canUseGeolocation()) {
     lookupStatus.textContent = "This browser cannot share your location yet, so keep using the map with your fingers for now.";
     return;
   }
 
-  if (!isSecureHost()) {
+  if (!nativeLocator && !isSecureHost()) {
     lookupStatus.textContent = "Location only works on the hosted app or localhost. This local file preview cannot ask for your location.";
     return;
   }
@@ -4455,23 +4508,19 @@ function requestUserLocation() {
   useMyLocationButton.disabled = true;
   lookupStatus.textContent = "Finding your location in Denver now...";
 
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const { latitude, longitude } = position.coords;
-
-      if (!isWithinDenverBounds(latitude, longitude)) {
+  if (nativeLocator) {
+    Promise.resolve(nativeLocator.getCurrentPosition())
+      .then((position) => showUserLocation(Number(position?.latitude), Number(position?.longitude)))
+      .catch((error) => {
         useMyLocationButton.disabled = false;
         lookupStatus.textContent =
-          "We found you, but you look outside the Denver map area right now. You can still pan around Denver and tap curb sides manually.";
-        return;
-      }
+          error?.message || "We hit a snag trying to find your location. You can still move around the map manually for now.";
+      });
+    return;
+  }
 
-      state.userLocation = { lat: latitude, lon: longitude };
-      renderContext();
-      focusMapOnUserLocation();
-      lookupStatus.textContent = "You're on the map now. We dropped a dot at your location so you can tap nearby curbs more easily.";
-      useMyLocationButton.disabled = false;
-    },
+  navigator.geolocation.getCurrentPosition(
+    (position) => showUserLocation(position.coords.latitude, position.coords.longitude),
     (error) => {
       useMyLocationButton.disabled = false;
 
@@ -5845,6 +5894,18 @@ function renderSavedSets() {
         input.addEventListener("change", () => updateDayOfReminder(set.id, index, "time", input.value));
       });
 
+      const nagUntilMovedInput = item.querySelector(".nag-until-moved-enabled");
+      if (nagUntilMovedInput) {
+        nagUntilMovedInput.checked = reminders.nagUntilMoved;
+        nagUntilMovedInput.addEventListener("change", () =>
+          updateSavedSet(set.id, {
+            reminders: {
+              nagUntilMoved: nagUntilMovedInput.checked
+            }
+          })
+        );
+      }
+
       item.querySelector(".apply-set-button").addEventListener("click", () => applySavedSet(set.id));
       item.querySelector(".delete-set-button").addEventListener("click", () => deleteSavedSet(set.id));
       savedSetsList.appendChild(item);
@@ -5866,6 +5927,14 @@ function buildNotificationJobs() {
       }
 
       sweepDates.forEach((sweepDate) => {
+        // A confirmed sweep schedules nothing at all. Dropping the jobs here, rather than flagging
+        // them, is what stops the server too: the next plan sync replaces the device's job list
+        // wholesale, so the follow-ups it was holding for this sweep simply stop existing.
+        const sweepKey = buildSweepKey(set.id, sweepDate);
+        if (state.movedSweepKeys.includes(sweepKey)) {
+          return;
+        }
+
         const candidates = [];
 
         if (reminders.dayBeforeEnabled) {
@@ -5874,6 +5943,14 @@ function buildNotificationJobs() {
             label: "Day before",
             scheduledAt: applyTimeToDate(addDays(sweepDate, -1), reminders.dayBeforeTime)
           });
+
+          if (reminders.nagUntilMoved && EVENING_CHECK_IN_TIME > reminders.dayBeforeTime) {
+            candidates.push({
+              kind: "evening-check",
+              label: "Day before check-in",
+              scheduledAt: applyTimeToDate(addDays(sweepDate, -1), EVENING_CHECK_IN_TIME)
+            });
+          }
         }
 
         reminders.dayOfReminders.forEach((slot, index) => {
@@ -5887,6 +5964,27 @@ function buildNotificationJobs() {
             scheduledAt: applyTimeToDate(sweepDate, slot.time)
           });
         });
+
+        const firstDayOfSlot = reminders.dayOfReminders
+          .filter((slot) => slot.enabled)
+          .sort((a, b) => a.time.localeCompare(b.time))[0];
+
+        if (reminders.nagUntilMoved && firstDayOfSlot) {
+          const firstAlertAt = applyTimeToDate(sweepDate, firstDayOfSlot.time);
+          SWEEP_DAY_FOLLOW_UP_MINUTES.forEach((minutes, index) => {
+            const scheduledAt = new Date(firstAlertAt.getTime() + minutes * 60 * 1000);
+            if (formatLocalDateKey(scheduledAt) !== formatLocalDateKey(sweepDate)) {
+              return;
+            }
+
+            const isLast = index === SWEEP_DAY_FOLLOW_UP_MINUTES.length - 1;
+            candidates.push({
+              kind: isLast ? "last-call" : "follow-up",
+              label: isLast ? "Day of last call" : `Day of follow-up ${index + 1}`,
+              scheduledAt
+            });
+          });
+        }
 
         candidates.forEach((candidate) => {
           if (!candidate.scheduledAt || candidate.scheduledAt.getTime() <= now.getTime()) {
@@ -5902,7 +6000,10 @@ function buildNotificationJobs() {
               scheduledAt: candidate.scheduledAt.toISOString(),
               segmentIds: [],
               segmentLabels: [],
-              triggerLabels: []
+              triggerLabels: [],
+              kinds: [],
+              sweepKeys: [],
+              nagUntilMoved: reminders.nagUntilMoved
             });
           }
 
@@ -5915,6 +6016,14 @@ function buildNotificationJobs() {
           if (!job.triggerLabels.includes(candidate.label)) {
             job.triggerLabels.push(candidate.label);
           }
+
+          if (!job.kinds.includes(candidate.kind)) {
+            job.kinds.push(candidate.kind);
+          }
+
+          if (!job.sweepKeys.includes(sweepKey)) {
+            job.sweepKeys.push(sweepKey);
+          }
         });
       });
     });
@@ -5924,11 +6033,262 @@ function buildNotificationJobs() {
     .map((job) => ({
       ...job,
       title: buildJobTitle(job),
-      body: buildJobBody(job)
+      body: buildJobBody(job),
+      url: buildSweepCheckUrl(job)
     }))
     .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
 
   saveJson(NOTIFICATION_JOBS_KEY, state.notificationJobs);
+}
+
+// The sweep-day check.
+//
+// A sweep is identified by the saved set and the local calendar date, not by a job id: a job is one
+// alert, and confirming the car is moved has to silence every alert left for that sweep at once.
+
+function formatLocalDateKey(date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function buildSweepKey(setId, sweepDate) {
+  return `${setId}|${formatLocalDateKey(sweepDate)}`;
+}
+
+function parseSweepKeyDate(sweepKey) {
+  const match = /\|(\d{4})-(\d{2})-(\d{2})$/.exec(String(sweepKey || ""));
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 0, 0, 0, 0) : null;
+}
+
+function buildSweepCheckUrl(job) {
+  return Array.isArray(job.sweepKeys) && job.sweepKeys.length ? `/?moved=${encodeURIComponent(job.sweepKeys[0])}` : "/";
+}
+
+// Keys for sweeps already behind us are dropped on load, so the list stays the handful of upcoming
+// sweeps someone has confirmed rather than a record of every one they ever moved for.
+function loadMovedSweepKeys() {
+  const yesterday = addDays(getStartOfToday(), -1);
+  const stored = loadJson(MOVED_SWEEPS_KEY, []);
+  // A shell also remembers sweeps confirmed from its lock-screen button while this page was not
+  // running, and hands them over at boot.
+  const fromShell = Array.isArray(window.DenverCurbAlertsNative?.movedSweepKeys) ? window.DenverCurbAlertsNative.movedSweepKeys : [];
+  const merged = new Set([...(Array.isArray(stored) ? stored : []), ...fromShell].map(String));
+  return Array.from(merged).filter((key) => {
+    const sweepDate = parseSweepKeyDate(key);
+    return Boolean(sweepDate) && sweepDate.getTime() >= yesterday.getTime();
+  });
+}
+
+// What the banner asks about: a sweep today, or tomorrow once the evening heads-up would have gone
+// out. Earlier than that the question is premature - nobody moves their car two days early.
+function getPendingSweepChecks(now = new Date()) {
+  const todayKey = formatLocalDateKey(now);
+  const tomorrowKey = formatLocalDateKey(addDays(now, 1));
+  const checks = new Map();
+
+  state.savedSets.forEach((set) => {
+    const reminders = buildDefaultReminders(set.reminders);
+    const eveningTime = reminders.dayBeforeEnabled ? reminders.dayBeforeTime : DEFAULT_REMINDERS.dayBeforeTime;
+    const eveningStart = applyTimeToDate(now, eveningTime);
+
+    getSegmentsForSavedSet(set).forEach((segment) => {
+      const sweepDate = getNextSweepDate(segment);
+      if (!sweepDate) {
+        return;
+      }
+
+      const dateKey = formatLocalDateKey(sweepDate);
+      const isToday = dateKey === todayKey;
+      const isTomorrow = dateKey === tomorrowKey && now.getTime() >= eveningStart.getTime();
+      if (!isToday && !isTomorrow) {
+        return;
+      }
+
+      const key = buildSweepKey(set.id, sweepDate);
+      if (state.movedSweepKeys.includes(key)) {
+        return;
+      }
+
+      if (!checks.has(key)) {
+        checks.set(key, { key, setName: set.name, isToday, sweepDate, segmentLabels: [] });
+      }
+
+      const label = `${segment.street} - ${segment.sideLabel}`;
+      const check = checks.get(key);
+      if (!check.segmentLabels.includes(label)) {
+        check.segmentLabels.push(label);
+      }
+    });
+  });
+
+  return Array.from(checks.values()).sort((a, b) => a.sweepDate - b.sweepDate);
+}
+
+function renderSweepCheck() {
+  if (!sweepCheck) {
+    return;
+  }
+
+  const confirmed = state.sweepCheckConfirmed;
+  if (confirmed) {
+    sweepCheck.classList.add("is-done");
+    sweepCheckKicker.textContent = "Nice work";
+    sweepCheckTitle.textContent = "Car moved. That's it for this sweep.";
+    sweepCheckBody.textContent = `No more reminders for ${confirmed.setName}. We'll start again before the next sweep.`;
+    sweepCheckConfirmButton.hidden = true;
+    sweepCheckUndoButton.hidden = false;
+    sweepCheckDismissButton.hidden = false;
+    sweepCheck.hidden = false;
+    return;
+  }
+
+  const checks = getPendingSweepChecks();
+  if (!checks.length) {
+    sweepCheck.hidden = true;
+    return;
+  }
+
+  const check = checks.find((candidate) => candidate.key === state.sweepCheckFocusKey) || checks[0];
+  const others = checks.length - 1;
+  sweepCheck.classList.remove("is-done");
+  sweepCheckKicker.textContent = check.isToday ? "Street sweeping today" : "Street sweeping tomorrow";
+  sweepCheckTitle.textContent = check.isToday ? "Did you move your car?" : "Move your car tonight?";
+  sweepCheckBody.textContent =
+    `${check.setName}: ${formatSegmentPreview(check.segmentLabels)}.` +
+    (others ? ` ${others} more sweep${others === 1 ? "" : "s"} coming up after this one.` : "");
+  sweepCheckConfirmButton.dataset.sweepKey = check.key;
+  sweepCheckConfirmButton.hidden = false;
+  sweepCheckUndoButton.hidden = true;
+  sweepCheckDismissButton.hidden = true;
+  sweepCheck.hidden = false;
+}
+
+function confirmSweepMoved(sweepKey) {
+  if (!sweepKey || state.movedSweepKeys.includes(sweepKey)) {
+    return;
+  }
+
+  const check = getPendingSweepChecks().find((candidate) => candidate.key === sweepKey);
+  state.movedSweepKeys = [...state.movedSweepKeys, sweepKey];
+  saveJson(MOVED_SWEEPS_KEY, state.movedSweepKeys);
+  state.sweepCheckConfirmed = { key: sweepKey, setName: check?.setName || "this curb" };
+  state.sweepCheckFocusKey = "";
+  closeDeliveredSweepNotifications(sweepKey);
+  // renderAll rebuilds the jobs without this sweep, reschedules the in-page timers from them, and
+  // queues the plan sync that takes the follow-ups off the server.
+  renderAll();
+}
+
+// A mistap on "I moved my car" would otherwise silence the one warning that mattered. Undo puts
+// back only what is still in the future; buildNotificationJobs already skips anything past due.
+function undoSweepMoved() {
+  const confirmed = state.sweepCheckConfirmed;
+  if (!confirmed) {
+    return;
+  }
+
+  state.movedSweepKeys = state.movedSweepKeys.filter((key) => key !== confirmed.key);
+  saveJson(MOVED_SWEEPS_KEY, state.movedSweepKeys);
+  state.sweepCheckConfirmed = null;
+  state.sweepCheckFocusKey = confirmed.key;
+  renderAll();
+}
+
+function dismissSweepCheckConfirmation() {
+  state.sweepCheckConfirmed = null;
+  renderSweepCheck();
+}
+
+// iOS stacks every alert from the app on the lock screen. Once the car is moved, the ones already
+// delivered for that sweep are only noise, so clear them rather than leave a pile to swipe away.
+async function closeDeliveredSweepNotifications(sweepKey) {
+  try {
+    const registration = state.serviceWorkerRegistration;
+    if (!registration?.getNotifications) {
+      return;
+    }
+
+    const marker = `moved=${encodeURIComponent(sweepKey)}`;
+    const notifications = await registration.getNotifications();
+    notifications
+      .filter((notification) => String(notification.data?.url || "").includes(marker))
+      .forEach((notification) => notification.close());
+  } catch {
+    // Best effort. The reminders are already off; a stale alert on the lock screen is harmless.
+  }
+}
+
+// A reminder opens the app at /?moved=<sweep key>. Opening it is not confirmation - people tap a
+// lock-screen alert to read it, not to swear the car is gone - so this only puts that sweep at the
+// front of the banner and leaves the button to the driver. The banner sits outside every view, so
+// unlike the emailed links there is no view to switch to first.
+function handleSweepCheckLink(targetUrl) {
+  let params;
+  try {
+    // Only the query matters, so the base is a placeholder. It cannot be window.location.origin: in
+    // a shell serving this page off its own scheme that origin is opaque and serializes to "null".
+    params = targetUrl ? new URL(targetUrl, "https://curbalerts.invalid").searchParams : new URLSearchParams(window.location.search);
+  } catch {
+    return;
+  }
+
+  const sweepKey = params.get("moved");
+  if (!sweepKey) {
+    return;
+  }
+
+  if (!targetUrl) {
+    clearQueryParams(params, ["moved"]);
+  }
+
+  state.sweepCheckConfirmed = null;
+  state.sweepCheckFocusKey = sweepKey;
+  renderSweepCheck();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// The lock screen's I moved my car button, pressed while this page was running. The driver is not
+// looking at the banner, so there is no "Nice work" to show; the question simply goes away.
+function recordSweepsMovedElsewhere(sweepKeys) {
+  const keys = (Array.isArray(sweepKeys) ? sweepKeys : [])
+    .map(String)
+    .filter((key) => !state.movedSweepKeys.includes(key));
+  if (!keys.length) {
+    return;
+  }
+
+  state.movedSweepKeys = [...state.movedSweepKeys, ...keys];
+  saveJson(MOVED_SWEEPS_KEY, state.movedSweepKeys);
+  renderAll();
+}
+
+function registerSweepCheckEvents() {
+  sweepCheckConfirmButton?.addEventListener("click", () => confirmSweepMoved(sweepCheckConfirmButton.dataset.sweepKey));
+  sweepCheckUndoButton?.addEventListener("click", undoSweepMoved);
+  sweepCheckDismissButton?.addEventListener("click", dismissSweepCheckConfirmation);
+
+  // What a native shell reports from outside the page: a reminder opened, a reminder's I moved my
+  // car button pressed, or notification permission changed in Settings. See "Shipping on iOS".
+  window.addEventListener("curb-alerts-native", (event) => {
+    const detail = event.detail || {};
+    if (detail.type === "open-url") {
+      handleSweepCheckLink(detail.url);
+    } else if (detail.type === "sweep-moved") {
+      recordSweepsMovedElsewhere(detail.sweepKeys);
+    } else if (detail.type === "permission-changed") {
+      renderNotificationStatus();
+      queueNativeReminderSync({ force: true });
+    }
+  });
+
+  // A tap on a notification while the app is already open arrives here from the service worker,
+  // because focusing an existing window does not navigate it to the notification's URL.
+  navigator.serviceWorker?.addEventListener("message", (event) => {
+    if (event.data?.type === "curb-alert-notification-click") {
+      handleSweepCheckLink(event.data.url);
+    }
+  });
 }
 
 function buildReminderPlanPayload() {
@@ -5952,7 +6312,7 @@ function buildReminderPlanPayload() {
       body: job.body,
       scheduledAt: job.scheduledAt,
       setName: job.setName,
-      url: "/",
+      url: job.url || "/",
       segmentLabels: Array.isArray(job.segmentLabels) ? [...job.segmentLabels] : [],
       triggerLabels: Array.isArray(job.triggerLabels) ? [...job.triggerLabels] : []
     }))
@@ -6065,16 +6425,22 @@ async function syncNativeReminderSchedule(options = {}) {
     scheduledAt: job.scheduledAt,
     setName: job.setName,
     segmentLabels: Array.isArray(job.segmentLabels) ? [...job.segmentLabels] : [],
-    triggerLabels: Array.isArray(job.triggerLabels) ? [...job.triggerLabels] : []
+    triggerLabels: Array.isArray(job.triggerLabels) ? [...job.triggerLabels] : [],
+    url: job.url || "/",
+    sweepKeys: Array.isArray(job.sweepKeys) ? [...job.sweepKeys] : []
   }));
 
-  const payloadHash = JSON.stringify(jobs);
+  // The confirmed sweeps travel with the jobs. The shell keeps its own copy so its lock-screen
+  // button can silence a sweep while this page is not running, and this list replacing that copy
+  // is what lets Undo here bring a sweep's reminders back on the device too.
+  const movedSweepKeys = [...state.movedSweepKeys];
+  const payloadHash = JSON.stringify({ jobs, movedSweepKeys });
   if (!options.force && payloadHash === state.lastSyncedNativeReminderHash) {
     return;
   }
 
   try {
-    await bridge.scheduleReminders(jobs);
+    await bridge.scheduleReminders(jobs, { movedSweepKeys });
     state.lastSyncedNativeReminderHash = payloadHash;
     state.nativeReminderError = "";
   } catch (error) {
@@ -6203,11 +6569,17 @@ function closeInstallSheet() {
 }
 
 function pushIsConnected() {
+  if (canUseNativeReminders()) {
+    return getNativeReminderPermission() === "granted";
+  }
   return canUseBrowserNotifications() && window.Notification.permission === "granted";
 }
 
 // True when there is still something useful to ask for on this device.
 function canStillEnablePush() {
+  if (canUseNativeReminders()) {
+    return getNativeReminderPermission() === "default";
+  }
   if (!canUseBrowserNotifications()) {
     return false;
   }
@@ -6238,7 +6610,7 @@ function renderPushPrimer() {
   } else {
     pushPrimerTitle.textContent = "Want a heads-up before the sweeper comes?";
     pushPrimerBody.textContent =
-      "We'll send one reminder the evening before your sweep day, and one on the morning of. Nothing else.";
+      "We'll remind you the evening before your sweep day and the morning of, and keep at it until you tap I moved my car.";
     pushPrimerAccept.textContent = "Turn on reminders";
   }
 
@@ -6612,23 +6984,52 @@ async function scheduleHostedTestNotification() {
   renderNotificationStatus();
 }
 
-function buildJobTitle(job) {
-  if (isDayBeforeJob(job)) {
-    return "Move your car tomorrow";
+function getJobKind(job) {
+  const ranks = (Array.isArray(job.kinds) ? job.kinds : [])
+    .map((kind) => JOB_KIND_URGENCY.indexOf(kind))
+    .filter((rank) => rank >= 0);
+
+  if (!ranks.length) {
+    return isDayBeforeJob(job) ? "day-before" : "day-of";
   }
 
-  return "Move your car today";
+  return JOB_KIND_URGENCY[Math.max(...ranks)];
+}
+
+// Firmer as the sweep gets closer, never guilt. The point is a nudge that is hard to ignore, not
+// one that makes someone dread opening the app.
+function buildJobTitle(job) {
+  switch (getJobKind(job)) {
+    case "day-before":
+      return "Move your car tomorrow";
+    case "evening-check":
+      return "Did you move your car yet?";
+    case "follow-up":
+      return "Your car still needs to move";
+    case "last-call":
+      return "Last reminder: move your car now";
+    default:
+      return "Move your car today";
+  }
 }
 
 function buildJobBody(job) {
   const segmentPreview = formatSegmentPreview(job.segmentLabels);
   const segmentLead = job.segmentLabels.length === 1 ? "Street sweeping is scheduled for" : "Street sweeping is scheduled for these curb sides:";
+  const stopHint = job.nagUntilMoved ? " Moved it? Open this and tap I moved my car." : "";
 
-  if (isDayBeforeJob(job)) {
-    return `${segmentLead} ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.`;
+  switch (getJobKind(job)) {
+    case "day-before":
+      return `${segmentLead} ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.${stopHint}`;
+    case "evening-check":
+      return `Sweeping is tomorrow on ${segmentPreview}. Moving it tonight means one less thing to remember in the morning.${stopHint}`;
+    case "follow-up":
+      return `Sweeping is today on ${segmentPreview}, and your car isn't marked as moved yet.${stopHint}`;
+    case "last-call":
+      return `This is the last reminder for today's sweep on ${segmentPreview}. Move your car now.`;
+    default:
+      return `${segmentLead} ${segmentPreview}. Move your car before the sweep begins today.${stopHint}`;
   }
-
-  return `${segmentLead} ${segmentPreview}. Move your car before the sweep begins today.`;
 }
 
 function formatSegmentPreview(labels) {
@@ -6727,7 +7128,10 @@ function renderReminderReadiness() {
   const savedSegments = state.savedSets.flatMap(getSegmentsForSavedSet);
   const hasCurb = selectedSegments.length > 0 || savedSegments.length > 0;
   const hasSavedSet = state.savedSets.length > 0;
-  const hasPush = hasRemotePushReady();
+  // A native shell never has a push subscription - it schedules on the device - so checking web push
+  // alone left this item unticked forever inside the app, even with notifications allowed.
+  const hasNativeReminders = canUseNativeReminders() && getNativeReminderPermission() === "granted";
+  const hasPush = hasRemotePushReady() || hasNativeReminders;
   const hasJobs = state.notificationJobs.length > 0;
   const readyTotal = [hasCurb, hasPush, hasSavedSet, hasJobs].filter(Boolean).length;
 
@@ -6744,7 +7148,7 @@ function renderReminderReadiness() {
   setReadinessItem(
     readinessItems.push,
     hasPush,
-    "This device is connected for push alerts.",
+    hasNativeReminders ? "Notifications are allowed on this phone." : "This device is connected for push alerts.",
     "Turn on push notifications for this phone."
   );
   setReadinessItem(
@@ -6801,7 +7205,8 @@ function summarizeReminders(reminders) {
     return "Reminders are turned off for this set.";
   }
 
-  return `Scheduled ${parts.join(" and ")}.`;
+  const nagNote = reminders.nagUntilMoved ? " Keeps reminding you until you confirm the car is moved." : "";
+  return `Scheduled ${parts.join(" and ")}.${nagNote}`;
 }
 
 function formatTime(timeValue) {
@@ -7533,6 +7938,7 @@ function renderAll() {
   renderNotificationJobs();
   renderNotificationStatus();
   renderPushPrimer();
+  renderSweepCheck();
   renderReminderReadiness();
   renderAccount();
   renderStats();
@@ -7741,7 +8147,9 @@ try {
   hideMapLoadingOverlay();
 }
 
+registerSweepCheckEvents();
 renderAll();
+handleSweepCheckLink();
 initializePushFeatures();
 loadEmailConfig();
 // The email links run after the account is loaded: confirming an address re-reads the account, and

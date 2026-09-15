@@ -2710,6 +2710,60 @@ a.ghost-button {
   flex: 1 1 auto;
 }
 
+.sweep-check {
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  background: linear-gradient(180deg, rgba(180, 93, 42, 0.16), rgba(180, 93, 42, 0.06));
+  border: 1px solid rgba(180, 93, 42, 0.36);
+  border-radius: 22px;
+}
+
+/* .sweep-check sets display, which beats the UA [hidden] rule. The buttons inside set none. */
+.sweep-check[hidden] {
+  display: none;
+}
+
+.sweep-check.is-done {
+  background: rgba(47, 158, 68, 0.1);
+  border-color: rgba(47, 158, 68, 0.32);
+}
+
+.sweep-check strong {
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.sweep-check p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.sweep-check .sweep-check-kicker {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sweep-check.is-done .sweep-check-kicker {
+  color: #2f7d3e;
+}
+
+.sweep-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.sweep-check-actions .primary-button {
+  flex: 1 1 220px;
+  font-size: 1.05rem;
+}
+
 .install-sheet {
   position: fixed;
   inset: 0;

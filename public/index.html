@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260903-no-payments" />
+    <link rel="stylesheet" href="./styles.css?v=20260915-keep-reminding" />
     <link rel="icon" href="./icon.svg?v=20260808d" type="image/svg+xml" />
   </head>
   <body>
@@ -37,6 +37,19 @@
              people look for an account anyway, and it says "Sign in" until there is a name to show. -->
         <button id="account-chip" class="account-chip" type="button" data-view-target="account">Sign in</button>
       </nav>
+      <!-- The sweep-day check. Outside every view on purpose: on a sweep day the one question that
+           matters is whether the car has moved, and it should be the first thing on screen whichever
+           tab the app opens on. Confirming it is what stops the follow-up reminders. -->
+      <section id="sweep-check" class="sweep-check" aria-live="polite" hidden>
+        <p id="sweep-check-kicker" class="sweep-check-kicker">Street sweeping today</p>
+        <strong id="sweep-check-title">Did you move your car?</strong>
+        <p id="sweep-check-body"></p>
+        <div class="sweep-check-actions">
+          <button id="sweep-check-confirm" class="primary-button" type="button">I moved my car</button>
+          <button id="sweep-check-undo" class="ghost-button" type="button" hidden>Undo</button>
+          <button id="sweep-check-dismiss" class="ghost-button" type="button" hidden>Done</button>
+        </div>
+      </section>
       <section class="app-view landing-view is-active" data-view="landing">
         <header class="hero">
         <div class="hero-copy">
@@ -100,7 +113,7 @@
             <span class="step-number">3</span>
             <div>
               <strong>Turn on reminders.</strong>
-              <span>One the evening before, one on the morning of.</span>
+              <span>The evening before and the morning of, until you tell us the car is moved.</span>
             </div>
           </li>
         </ol>
@@ -229,7 +242,7 @@
             <div id="push-primer" class="push-primer" hidden>
               <strong id="push-primer-title">Want a heads-up before the sweeper comes?</strong>
               <p id="push-primer-body">
-                We'll send one reminder the evening before your sweep day, and one on the morning of. Nothing else.
+                We'll remind you the evening before your sweep day and the morning of, and keep at it until you tap I moved my car.
               </p>
               <div class="push-primer-actions">
                 <button id="push-primer-accept" class="primary-button" type="button">Turn on reminders</button>
@@ -1004,6 +1017,19 @@
               </span>
             </label>
           </div>
+          <label class="reminder-row reminder-row-featured">
+            <span class="reminder-copy">
+              <span class="reminder-kicker">Until it's done</span>
+              <span class="reminder-label">Keep reminding me</span>
+              <span class="reminder-help">A check-in at 9 PM the night before, then two more 30 minutes apart after your first morning reminder. Stops when you tap I moved my car.</span>
+            </span>
+            <span class="reminder-controls">
+              <span class="reminder-switch-wrap">
+                <input class="reminder-toggle nag-until-moved-enabled" type="checkbox" />
+                <span class="reminder-switch" aria-hidden="true"></span>
+              </span>
+            </span>
+          </label>
         </div>
         <div class="saved-set-actions">
           <button class="ghost-button apply-set-button" type="button">Load set</button>
@@ -1036,6 +1062,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260910-curbalerts-domain"></script>
+    <script src="./app.js?v=20260915-native-location"></script>
   </body>
 </html>

@@ -11,10 +11,12 @@ This is a working Denver pilot for a parking-protection app that helps people av
 - Includes device push subscription plumbing for a hosted web-push setup
 - Offers an optional account (email and password) so saved curb sets follow you to a new phone or a cleared browser
 - Supports scheduled-route reminder planning with a default cadence:
-  - Day before at 6:00 PM
-  - Day of at 7:00 AM
-  - Day of at 9:00 AM
-  - Day of at 11:00 AM
+  - Day before at 6:00 PM, then a check-in at 9:00 PM
+  - Day of at 7:00 AM, then follow-ups at 7:30 and 8:00 AM
+  - Optional extra day-of reminders, off by default, at 9:00 and 11:00 AM
+- Keeps reminding until you tap **I moved my car**, which cancels every reminder left for that sweep.
+  Opening the app on a sweep day (or the evening before) shows the same question at the top of every
+  screen. Each saved set can turn the follow-ups off with **Keep reminding me**.
 - Uses a real database automatically when `DATABASE_URL` is set, and falls back to local JSON files only for local development
 
 ## What this version does not do yet

@@ -1,11 +1,11 @@
-const CACHE_NAME = "curb-alerts-shell-v169";
+const CACHE_NAME = "curb-alerts-shell-v174";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css?v=20260903-no-payments",
+  "/styles.css?v=20260915-keep-reminding",
   "/curb-geometry.js?v=20260813b",
   "/denver-city-limits.js?v=20260825-enclave-pink-withdrawn",
-  "/app.js?v=20260910-curbalerts-domain",
+  "/app.js?v=20260915-native-location",
   "/denver-west-routes.json?v=96",
   "/manifest.webmanifest?v=20260808d",
   "/icon.svg?v=20260808d"
@@ -132,6 +132,9 @@ self.addEventListener("notificationclick", (event) => {
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       const matchingClient = clients.find((client) => client.url === targetUrl || client.url.startsWith(self.location.origin));
       if (matchingClient) {
+        // Focusing a window does not navigate it, so an open app used to swallow the reminder's URL
+        // and the /?moved= link never arrived. Hand the URL over explicitly instead.
+        matchingClient.postMessage({ type: "curb-alert-notification-click", url: targetUrl });
         return matchingClient.focus();
       }
 
