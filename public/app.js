@@ -1625,6 +1625,9 @@ const state = {
   movedSweepKeys: [],
   sweepCheckFocusKey: "",
   sweepCheckConfirmed: null,
+  // The native shell's session token, read from the device keychain once and held here. null means
+  // "not read yet", "" means "no session". It is never written to localStorage.
+  nativeSessionToken: null,
   pushConfig: {
     enabled: false,
     libraryInstalled: false,
@@ -7281,16 +7284,91 @@ function getLocalSavedSetsForAccount() {
   }));
 }
 
+// Sessions inside the native shell.
+//
+// The shell serves this page off its own scheme, so to the API it is a cross-site origin. The API
+// answers those with Access-Control-Allow-Origin: *, which a browser refuses to combine with
+// credentials - so the session cookie is never sent, and every account request used to fail. The
+// server has accepted the same session as a bearer token since the shell work began; this is the
+// client half. The token lives in the device keychain, reached through the bridge, and in memory
+// for the life of the page. It is deliberately never put in localStorage: that would expose a
+// 30-day credential to every browser in order to serve the one client that cannot use cookies.
+// See "Sessions travel as a cookie or a bearer token" in AGENTS.md.
+function getNativeSessionBridge() {
+  const bridge = typeof window !== "undefined" ? window.DenverCurbAlertsNative : null;
+  if (
+    !bridge ||
+    typeof bridge.getSessionToken !== "function" ||
+    typeof bridge.setSessionToken !== "function" ||
+    typeof bridge.clearSessionToken !== "function"
+  ) {
+    return null;
+  }
+
+  return bridge;
+}
+
+async function loadNativeSessionToken() {
+  const bridge = getNativeSessionBridge();
+  if (!bridge) {
+    return "";
+  }
+
+  if (state.nativeSessionToken === null) {
+    try {
+      state.nativeSessionToken = String((await bridge.getSessionToken()) || "");
+    } catch {
+      state.nativeSessionToken = "";
+    }
+  }
+
+  return state.nativeSessionToken;
+}
+
+async function storeNativeSessionToken(token) {
+  state.nativeSessionToken = token;
+  try {
+    await getNativeSessionBridge()?.setSessionToken(token);
+  } catch {
+    // The session still works for as long as this page is open; it just will not survive a restart.
+  }
+}
+
+async function forgetNativeSessionToken() {
+  state.nativeSessionToken = "";
+  try {
+    await getNativeSessionBridge()?.clearSessionToken();
+  } catch {
+    // Nothing useful to do. The server-side session is what matters, and signing out revoked it.
+  }
+}
+
 async function accountRequest(pathname, options = {}) {
   if (!window.fetch) {
     throw new Error("This browser cannot sign in.");
   }
 
+  const sessionBridge = getNativeSessionBridge();
+  const headers = {};
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (sessionBridge) {
+    const token = await loadNativeSessionToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
   const response = await fetch(buildApiUrl(pathname), {
     method: options.method || "GET",
-    // Without this the session cookie is neither sent nor stored, and every request looks signed out.
-    credentials: "include",
-    headers: options.body ? { "Content-Type": "application/json" } : undefined,
+    // In a browser, without "include" the session cookie is neither sent nor stored, and every
+    // request looks signed out. In the shell the cookie can never travel, and asking for
+    // credentials against the API's wildcard CORS answer makes the browser refuse the whole request,
+    // so the shell omits them and sends its bearer token instead.
+    credentials: sessionBridge ? "omit" : "include",
+    headers: Object.keys(headers).length ? headers : undefined,
     body: options.body ? JSON.stringify(options.body) : undefined
   });
 
@@ -7299,6 +7377,10 @@ async function accountRequest(pathname, options = {}) {
     payload = await response.json();
   } catch {
     payload = null;
+  }
+
+  if (sessionBridge && response.ok && typeof payload?.sessionToken === "string" && payload.sessionToken) {
+    await storeNativeSessionToken(payload.sessionToken);
   }
 
   if (!response.ok) {
@@ -7481,6 +7563,14 @@ async function loadCurrentAccount() {
   try {
     const payload = await accountRequest("/api/accounts/me");
     state.account = payload.account || null;
+
+    // The server answered and does not recognise the stored token - it expired, a password change
+    // or reset elsewhere revoked it, or the account was deleted. Keeping it would send a dead
+    // credential with every request. Only a real answer clears it; the catch below does not,
+    // because being offline is not the same as being signed out.
+    if (!state.account && state.nativeSessionToken) {
+      await forgetNativeSessionToken();
+    }
   } catch {
     // Being unable to reach the account API is not worth an error message on a map that works
     // offline. The user is simply treated as signed out until the next load.
@@ -7535,7 +7625,10 @@ async function submitAccountForm(event) {
         password,
         // Ties this browser's push subscription to the account, so a reminder the server sends can
         // be attributed to a person rather than to an anonymous endpoint.
-        pushEndpoint: state.pushSubscription?.endpoint || ""
+        pushEndpoint: state.pushSubscription?.endpoint || "",
+        // Only the shell asks for the raw token. The server hands it out solely on this exact
+        // boolean, so a browser - which has the HttpOnly cookie - never receives one.
+        ...(getNativeSessionBridge() ? { issueSessionToken: true } : {})
       }
     });
 
@@ -7663,6 +7756,9 @@ async function signOutAccount() {
     // Whatever the server said, this browser is done with the session.
   }
 
+  // After the request, not before: the DELETE has to carry the token for the server to revoke it.
+  await forgetNativeSessionToken();
+
   state.account = null;
   state.accountLibrarySyncedHash = "";
   state.librarySyncLocked = false;
@@ -7732,6 +7828,7 @@ async function submitAccountDeletion(event) {
 
   try {
     await accountRequest("/api/accounts/me", { method: "DELETE", body: { password } });
+    await forgetNativeSessionToken();
     state.account = null;
     state.accountLibrarySyncedHash = "";
     hideAccountSubforms();

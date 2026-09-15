@@ -854,11 +854,22 @@ the one that is not a browser, and the second cannot work because of the `normal
 above. `resolveSession` accepts a bearer token instead; see **Sessions travel as a cookie or a
 bearer token** in the accounts section for what it does and does not change.
 
-**The client half of that is deliberately not built, and belongs to step 3.** The server will issue
-a token; nothing in `public/app.js` asks for one or sends one, because the only honest place to keep
-a 30-day credential on a device is the native keychain, reached through the bridge. **Do not park it
-in `localStorage` to close the gap** — that is precisely the exposure the `HttpOnly` cookie exists
-to avoid, and it would apply to every browser rather than only to the shell that needs it.
+**The client half landed on 2026-09-15.** Inside the shell, `accountRequest` sends
+`credentials: "omit"` and an `Authorization: Bearer` header; a browser still sends
+`credentials: "include"` and never sees a token. Sign-in and sign-up ask for `issueSessionToken`
+only when the shell's bridge is present, the returned token goes to the iOS keychain through
+`setSessionToken` (`SessionKeychain`, `AfterFirstUnlockThisDeviceOnly`, so a backup restored onto
+another phone does not carry a live session across), and it is held in page memory for the life of
+the page. Signing out sends the token *then* forgets it, deleting the account forgets it, and a
+`/api/accounts/me` that answers with no account clears a stored token — but an unreachable server
+does not, because offline is not signed out. **Do not park the token in `localStorage`** — that is
+precisely the exposure the `HttpOnly` cookie exists to avoid, and it would apply to every browser
+rather than only to the shell that needs it. `test/native-session.test.js` guards both halves,
+including that the API answers the shell's origin with a wildcard and no credentials.
+
+The shell does not tie its device to the account. `pushEndpoint` is empty in the shell, because it
+schedules on the device and has no push subscription, so `attachSessionToDevices` has nothing to
+attach. That changes when APNs arrives (step 5).
 
 **The shell talks to the client through `window.DenverCurbAlertsNative`, and the seam for it is
 already in `public/app.js`** (added 2026-09-04 as step 1 below). `getNativeReminderBridge` returns
@@ -1006,10 +1017,6 @@ also the fallback when the card was never started - Live Activities switched off
 
 **Not done yet, in the order they matter:**
 
-- **Signing in does not work inside the app.** `accountRequest` sends `credentials: "include"`, the
-  API answers a non-browser origin with `Access-Control-Allow-Origin: *`, and the browser refuses the
-  combination. The bearer-token half is on the server already; the client half — keychain storage
-  through the bridge and the `Authorization` header — is not built. Reminders need no account.
 - **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
 - Geofencing, the home-screen widget and APNs (steps 4 and 5).
 - `DEVELOPMENT_TEAM` is empty. It has to be set before the app installs on a phone.

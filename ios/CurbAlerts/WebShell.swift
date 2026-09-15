@@ -141,6 +141,15 @@ final class WebShell: NSObject {
         },
         getCurrentPosition: function () {
           return call("getCurrentPosition");
+        },
+        getSessionToken: function () {
+          return call("getSessionToken");
+        },
+        setSessionToken: function (token) {
+          return call("setSessionToken", { token: token });
+        },
+        clearSessionToken: function () {
+          return call("clearSessionToken");
         }
       };
       window.DenverCurbAlertsNative = bridge;
@@ -180,6 +189,23 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                 #if DEBUG
                 LiveActivityScheduler.startPreview()
                 #endif
+                return (true, nil)
+
+            case "getSessionToken":
+                if let token = SessionKeychain.read() {
+                    return (token, nil)
+                }
+                return (nil, nil)
+
+            case "setSessionToken":
+                guard let token = payload["token"] as? String, !token.isEmpty else {
+                    return (nil, "No session token to save.")
+                }
+                try SessionKeychain.write(token)
+                return (true, nil)
+
+            case "clearSessionToken":
+                SessionKeychain.delete()
                 return (true, nil)
 
             case "getCurrentPosition":

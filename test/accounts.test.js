@@ -497,8 +497,12 @@ test("account requests send the session cookie", () => {
   const request = appSource.match(/async function accountRequest\([\s\S]*?\n}/)[0];
 
   // Omitting this is the failure that looks like everything works: the sign-in succeeds, the cookie
-  // is dropped, and every request after it is anonymous.
-  assert.match(request, /credentials: "include"/);
+  // is dropped, and every request after it is anonymous. A browser must always include credentials;
+  // only the native shell omits them, because it signs in with a bearer token and the API's wildcard
+  // CORS answer makes a credentialed request from its origin fail outright. Matching the whole
+  // expression keeps "include" pinned to the browser branch rather than accepting it anywhere.
+  assert.match(request, /credentials: sessionBridge \? "omit" : "include"/);
+  assert.match(request, /const sessionBridge = getNativeSessionBridge\(\);/);
 });
 
 test("the upload reads localStorage, not the hydrated in-memory list", () => {
