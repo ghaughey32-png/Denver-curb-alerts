@@ -1034,6 +1034,19 @@ and never on the simulator — so opening the app remains the guaranteed refill.
 `timeSensitive` (entitlement in `CurbAlerts.entitlements`) so a Focus mode does not hold a sweep
 warning back until after the ticket.
 
+**`ITSAppUsesNonExemptEncryption` is `false` in `ios/CurbAlerts/Info.plist`**, added 2026-09-15 so
+App Store Connect stops asking the export-compliance question on every TestFlight upload. It is true
+only because the app's sole cryptography is what iOS provides: HTTPS through the system networking
+stack, and the session token in the keychain (`SessionKeychain`, the `SecItem` APIs). Both are exempt.
+**Adding CryptoKit, CommonCrypto or any encryption of our own makes this key false, and it must be
+revisited in the same commit.** The widget extension does not need the key; App Store Connect reads
+the main app's.
+
+The account signing the app (team `XLGGMG362T`) is a paid Apple Developer Program membership,
+confirmed 2026-09-15 from its one-year provisioning profiles and access to Certificates, Identifiers
+& Profiles. TestFlight is therefore available. The first archive creates the Apple Distribution
+certificate, so its absence before then means nothing.
+
 ### The lock-screen card (Live Activity)
 
 Added 2026-09-15 and verified on an iPhone 15 Pro: the card shows on the lock screen and in the
@@ -1076,7 +1089,9 @@ also the fallback when the card was never started - Live Activities switched off
 
 - **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
 - Geofencing, the home-screen widget and APNs (steps 4 and 5).
-- `DEVELOPMENT_TEAM` is empty. It has to be set before the app installs on a phone.
+- Nothing has been uploaded to App Store Connect yet. `DEVELOPMENT_TEAM` is set (`XLGGMG362T`), and
+  the app installs on a phone from Xcode; TestFlight needs an app record for `co.curbalerts.app`
+  and a first archive.
 
 **Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost
 of the move". It is not the largest piece: the client's browser assumptions and the session change
