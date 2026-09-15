@@ -12,6 +12,7 @@ struct ReminderJob: Codable, Equatable {
     var setName: String?
     var url: String?
     var sweepKeys: [String]?
+    var segmentLabels: [String]?
 }
 
 /// The full job list and the confirmed sweeps, kept outside the web view. The page is not running
@@ -109,6 +110,13 @@ actor ReminderScheduler {
     }
 
     func reschedule() async throws {
+        let jobs = store.jobs
+        let moved = Set(store.movedSweepKeys)
+
+        // The lock-screen card has its own switch in Settings and does not need notification
+        // permission, so it is kept in step before the permission check below can return early.
+        await LiveActivityScheduler.sync(jobs: jobs, movedSweepKeys: moved)
+
         let pending = await center.pendingNotificationRequests()
         center.removePendingNotificationRequests(
             withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(Self.requestPrefix) }
@@ -118,8 +126,7 @@ actor ReminderScheduler {
 
         let now = Date()
         let latest = now.addingTimeInterval(Self.horizon)
-        let moved = Set(store.movedSweepKeys)
-        let upcoming = store.jobs
+        let upcoming = jobs
             .compactMap { job -> (ReminderJob, Date)? in
                 guard let date = Self.parseDate(job.scheduledAt), date > now, date <= latest,
                       !Self.isSilenced(job.sweepKeys ?? [], moved: moved) else { return nil }
@@ -181,7 +188,7 @@ actor ReminderScheduler {
         return UNNotificationRequest(identifier: requestPrefix + job.id, content: content, trigger: trigger)
     }
 
-    private static func parseDate(_ value: String) -> Date? {
+    static func parseDate(_ value: String) -> Date? {
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
@@ -193,17 +200,23 @@ actor ReminderScheduler {
         let calendar = Calendar.current
         guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date())) else { return keys }
 
+        return Set(keys)
+            .filter { key in
+                guard let date = Self.sweepDay(fromKey: key) else { return false }
+                return date >= yesterday
+            }
+            .sorted()
+    }
+
+    /// Local midnight of the day a sweep key names.
+    static func sweepDay(fromKey key: String) -> Date? {
+        guard let suffix = key.split(separator: "|").last else { return nil }
+
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd"
-
-        return Set(keys)
-            .filter { key in
-                guard let suffix = key.split(separator: "|").last, let date = formatter.date(from: String(suffix)) else { return false }
-                return date >= yesterday
-            }
-            .sorted()
+        return formatter.date(from: String(suffix))
     }
 }

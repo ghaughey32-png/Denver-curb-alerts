@@ -965,6 +965,44 @@ and never on the simulator — so opening the app remains the guaranteed refill.
 `timeSensitive` (entitlement in `CurbAlerts.entitlements`) so a Focus mode does not hold a sweep
 warning back until after the ticket.
 
+### The lock-screen card (Live Activity)
+
+Added 2026-09-15 and verified on an iPhone 15 Pro: the card shows on the lock screen and in the
+Dynamic Island, survives the phone being woken and unlocked, and its **I moved my car** button works
+without opening the app. `ios/CurbAlertsWidgets` draws it; `ios/Shared` holds the two types both
+targets compile, `SweepActivityAttributes` and `MovedCarIntent`.
+
+**A card starts at a sweep's first alert on the sweep day itself, never the evening before.** A
+Live Activity lives about eight hours, so one started at 6pm would be gone by the morning it is
+about. `LiveActivityScheduler` plans from the jobs the page already hands over, keyed on the same
+sweep key, up to three sweeps within three days.
+
+**Starting one in the future needs iOS 26** — `Activity.request(...alertConfiguration:start:)`,
+read out of the SDK rather than assumed. Below iOS 26 a card can only start when it is already due,
+so it appears when the app is opened on the sweep day. A scheduled card reports `.pending` in
+`Activity.activities`, which is what stops each foreground scheduling it again. That last part is
+reasoned from the SDK, not yet watched happen across a real sweep; check it the first time a saved
+sweep comes within three days.
+
+**The button's intent runs in the app, and the widget compiles a stub of its handler.** A
+LiveActivityIntent is performed in the app's process, which is how it reaches `ReminderScheduler`
+with the app backgrounded. The widget target has to compile `MovedCarIntent` because its button
+names it, so each target has its own `MovedCarIntentHandler`: the app's does the work, the widget's
+is empty. Do not "fix" the empty one.
+
+**A sync ends a card only when its sweep is confirmed or has no reminders left.** The first version
+ended every card missing from that pass's plan, which killed cards the plan had merely capped out,
+and on a device ended the preview card the instant Face ID brought the app to the foreground.
+Keep the narrower rule.
+
+Debug builds start a preview card from "Send test now", keyed `debug-preview|<date>` so it names no
+saved set. The preview never ships.
+
+**At the first morning alert the driver gets both the card's alert and the ordinary notification,
+on purpose.** Decided 2026-09-15 by the app's author, for the reason the follow-ups exist at all: a
+reminder that is easy to ignore is how the ticket happened. Do not dedupe them. The notification is
+also the fallback when the card was never started - Live Activities switched off, or iOS below 26.
+
 **Not done yet, in the order they matter:**
 
 - **Signing in does not work inside the app.** `accountRequest` sends `credentials: "include"`, the
@@ -972,7 +1010,7 @@ warning back until after the ticket.
   combination. The bearer-token half is on the server already; the client half — keychain storage
   through the bridge and the `Authorization` header — is not built. Reminders need no account.
 - **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
-- Live Activity, geofencing, the widget and APNs (steps 4 and 5).
+- Geofencing, the home-screen widget and APNs (steps 4 and 5).
 - `DEVELOPMENT_TEAM` is empty. It has to be set before the app installs on a phone.
 
 **Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost

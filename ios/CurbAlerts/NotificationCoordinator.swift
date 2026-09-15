@@ -22,6 +22,7 @@ final class NotificationCoordinator: NSObject, UNUserNotificationCenterDelegate 
 
         switch response.actionIdentifier {
         case ReminderScheduler.movedActionIdentifier:
+            await LiveActivityScheduler.markMoved(sweepKeys: sweepKeys)
             await ReminderScheduler.shared.recordMoved(sweepKeys)
             await WebShell.shared.dispatch(["type": "sweep-moved", "sweepKeys": sweepKeys])
         case UNNotificationDefaultActionIdentifier:

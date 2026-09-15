@@ -177,6 +177,9 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                     title: payload["title"] as? String ?? "Curb Alerts",
                     body: payload["body"] as? String ?? "This is what a sweeping reminder looks like."
                 )
+                #if DEBUG
+                LiveActivityScheduler.startPreview()
+                #endif
                 return (true, nil)
 
             case "getCurrentPosition":
