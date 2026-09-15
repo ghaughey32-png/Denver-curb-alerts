@@ -111,7 +111,7 @@ actor ReminderScheduler {
 
     func reschedule() async throws {
         let jobs = store.jobs
-        let moved = Set(store.movedSweepKeys)
+        let moved = effectiveMovedSweepKeys()
 
         // The lock-screen card has its own switch in Settings and does not need notification
         // permission, so it is kept in step before the permission check below can return early.
@@ -153,8 +153,25 @@ actor ReminderScheduler {
 
     // MARK: - Helpers
 
-    private func clearDeliveredForMovedSweeps() async {
+    /// The confirmed sweeps, plus every sweep of a parking pin the car has left. A pin's set id starts
+    /// `parked-`, and confirming any one of its sweeps means the car is no longer at that spot, so its
+    /// later reminders are for a curb nobody is parked on. The page drops that pin the next time it
+    /// opens; this is what stops the device reminding about it in the meantime.
+    private func effectiveMovedSweepKeys() -> Set<String> {
         let moved = Set(store.movedSweepKeys)
+        let releasedPins = Set(moved.compactMap { key -> Substring? in
+            key.hasPrefix("parked-") ? key.split(separator: "|").first : nil
+        })
+        guard !releasedPins.isEmpty else { return moved }
+
+        let pinSweeps = store.jobs
+            .flatMap { $0.sweepKeys ?? [] }
+            .filter { key in key.split(separator: "|").first.map(releasedPins.contains) ?? false }
+        return moved.union(pinSweeps)
+    }
+
+    private func clearDeliveredForMovedSweeps() async {
+        let moved = effectiveMovedSweepKeys()
         let delivered = await center.deliveredNotifications()
         let identifiers = delivered
             .filter { Self.isSilenced($0.request.content.userInfo["sweepKeys"] as? [String] ?? [], moved: moved) }

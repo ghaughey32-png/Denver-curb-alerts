@@ -2599,6 +2599,121 @@ a.ghost-button {
   cursor: not-allowed;
 }
 
+.map-overlay-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* White rather than primary: two orange buttons side by side would leave nothing saying which one
+   the map is for. It still needs the shadow to read against busy map tiles. */
+.park-here-button {
+  white-space: nowrap;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(31, 47, 55, 0.18);
+}
+
+.curb-sheet-park {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.curb-sheet-park[hidden] {
+  display: none;
+}
+
+/* The pin. A divIcon rather than an image, so there is nothing else to version and precache. */
+.parked-car-marker {
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+}
+
+.parked-car-pin {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #1f2f37;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 16px rgba(31, 47, 55, 0.4);
+}
+
+.parked-car-pin span {
+  transform: rotate(45deg);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.park-sheet-reminders {
+  margin: 12px 0 0;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.park-sheet-sides {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* .park-sheet-sides sets display, which beats the UA [hidden] rule. */
+.park-sheet-sides[hidden] {
+  display: none;
+}
+
+.park-side-button {
+  flex: 1 1 0;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 47, 55, 0.18);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.park-side-button.is-on {
+  background: #1f2f37;
+  border-color: #1f2f37;
+  color: #fff;
+}
+
+.park-side-button[hidden] {
+  display: none;
+}
+
+.park-sheet-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.park-sheet-hint[hidden] {
+  display: none;
+}
+
+.park-sheet-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.park-sheet-actions .primary-button {
+  flex: 1 1 auto;
+}
+
+.saved-set-item.is-parked {
+  border: 1px solid rgba(31, 47, 55, 0.3);
+  border-left: 5px solid #1f2f37;
+}
+
 @media (max-width: 720px) {
   /* Full-bleed map. A 420px map inside a scrolling document turns every pan
      into an accidental page scroll, so the map takes the viewport instead. */
@@ -2644,8 +2759,9 @@ a.ghost-button {
     width: auto;
   }
 
-  .locate-button {
-    width: 100%;
+  .locate-button,
+  .park-here-button {
+    flex: 1 1 0;
   }
 
   .curb-sheet {

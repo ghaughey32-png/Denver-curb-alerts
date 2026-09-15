@@ -37,6 +37,8 @@ function loadJobBuilder(savedSets, movedSweepKeys = []) {
 
   const functions = [
     "buildNotificationJobs",
+    "getReminderSets",
+    "isCurbCoveredByParkedCar",
     "buildDefaultReminders",
     "isValidTimeValue",
     "buildDayOfReminderSlots",
@@ -44,6 +46,7 @@ function loadJobBuilder(savedSets, movedSweepKeys = []) {
     "addDays",
     "formatLocalDateKey",
     "buildSweepKey",
+    "buildMovedCurbKey",
     "buildSweepCheckUrl",
     "getJobKind",
     "buildJobTitle",
@@ -59,7 +62,7 @@ function loadJobBuilder(savedSets, movedSweepKeys = []) {
   ].join("\n");
 
   const sandbox = {
-    state: { savedSets, movedSweepKeys, notificationJobs: [] },
+    state: { savedSets, movedSweepKeys, notificationJobs: [], parkedCar: null },
     getSegmentsForSavedSet: (set) => set.segments,
     getUpcomingSweepDates: (segment) => segment.dates,
     saveJson: () => {},

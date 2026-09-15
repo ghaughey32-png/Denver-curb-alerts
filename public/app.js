@@ -1549,6 +1549,14 @@ const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=96";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const MOVED_SWEEPS_KEY = "denver-curb-alerts-moved-sweeps";
+// Where the car is right now, as one pin. It is kept apart from the saved sets on purpose: those are
+// the curbs someone parks on and sync to an account, while this is one car's position on one phone.
+const PARKED_CAR_KEY = "denver-curb-alerts-parked-car";
+// A phone's fix is good to 5-15 m between buildings, which is wider than the gap between the two
+// curbs of a residential street. So the pin decides the street, and the side is offered rather than
+// asserted: the nearest curb is the guess, and the one across the street is a tap away.
+const PARKING_SEARCH_RADIUS_METRES = 40;
+const PARKING_SIDE_OPPOSITES = { north: "south", south: "north", east: "west", west: "east" };
 const memoryStore = new Map();
 const DEFAULT_DAY_OF_REMINDERS = [
   { enabled: true, time: "07:00" },
@@ -1682,7 +1690,10 @@ const state = {
   // What the last render actually put on screen; findSegmentNearPoint walks this, not the city.
   visibleSegments: [],
   notificationTimers: new Map(),
-  serviceWorkerRegistration: null
+  serviceWorkerRegistration: null,
+  // The parking pin, shaped like a saved set with kind "parked" and a pin. null when no pin is down.
+  parkedCar: null,
+  parkSheetOpen: false
 };
 
 const selectionList = document.querySelector("#selection-list");
@@ -1720,6 +1731,22 @@ const curbSheetRule = document.querySelector("#curb-sheet-rule");
 const curbSheetNotice = document.querySelector("#curb-sheet-notice");
 const curbSheetAction = document.querySelector("#curb-sheet-action");
 const curbSheetClose = document.querySelector("#curb-sheet-close");
+const curbSheetPark = document.querySelector("#curb-sheet-park");
+const parkHereButton = document.querySelector("#park-here-button");
+const parkSheet = document.querySelector("#park-sheet");
+const parkSheetSide = document.querySelector("#park-sheet-side");
+const parkSheetStreet = document.querySelector("#park-sheet-street");
+const parkSheetHeadline = document.querySelector("#park-sheet-headline");
+const parkSheetRule = document.querySelector("#park-sheet-rule");
+const parkSheetNotice = document.querySelector("#park-sheet-notice");
+const parkSheetReminders = document.querySelector("#park-sheet-reminders");
+const parkSheetSides = document.querySelector("#park-sheet-sides");
+const parkSheetSideHere = document.querySelector("#park-sheet-side-here");
+const parkSheetSideAcross = document.querySelector("#park-sheet-side-across");
+const parkSheetHint = document.querySelector("#park-sheet-hint");
+const parkSheetDone = document.querySelector("#park-sheet-done");
+const parkSheetClear = document.querySelector("#park-sheet-clear");
+const parkSheetClose = document.querySelector("#park-sheet-close");
 const accountChip = document.querySelector("#account-chip");
 const savedSetsAccountText = document.querySelector("#saved-sets-account-text");
 const savedSetsAccountLink = document.querySelector("#saved-sets-account-link");
@@ -2569,6 +2596,84 @@ function loadSavedState() {
   const validIds = new Set(state.curbSegments.map((segment) => segment.id));
   state.currentSelectionIds = loadJson(CURRENT_SELECTION_KEY, []).filter((id) => validIds.has(id));
   state.savedSets = loadJson(SAVED_SETS_KEY, []).map((set) => hydrateSavedSet(set, validIds)).filter(Boolean);
+  state.parkedCar = loadParkedCar();
+}
+
+// The pin carries its own serialized curb, like a saved set does, so it does not wait for the
+// inventory to load and is never pruned by it.
+function loadParkedCar() {
+  const stored = loadJson(PARKED_CAR_KEY, null);
+  if (!stored || typeof stored !== "object" || !Array.isArray(stored.segments) || !stored.segments.length) {
+    return null;
+  }
+
+  const lat = Number(stored.pin?.lat);
+  const lon = Number(stored.pin?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return null;
+  }
+
+  return {
+    ...stored,
+    kind: "parked",
+    pin: { lat, lon, accuracy: Number.isFinite(stored.pin.accuracy) ? stored.pin.accuracy : null },
+    reminders: buildDefaultReminders(stored.reminders)
+  };
+}
+
+// Everything reminders are built from: the saved sets, plus the car's current spot when a pin is
+// down. The pin is shaped like a saved set on purpose, so the jobs, the sweep-day banner, the plan
+// sync and the shell's lock-screen card all handle it without having to know it exists.
+function getReminderSets() {
+  return state.parkedCar ? [state.parkedCar, ...state.savedSets] : state.savedSets;
+}
+
+// A pin dropped on a curb that is also in a saved set would otherwise remind twice at every time and
+// ask about the same curb twice in the banner. The pin wins, because it is the one that knows the
+// car is actually there.
+function isCurbCoveredByParkedCar(set, segment) {
+  if (!state.parkedCar || set.kind === "parked") {
+    return false;
+  }
+
+  return getSegmentsForSavedSet(state.parkedCar).some((parkedSegment) => parkedSegment.id === segment.id);
+}
+
+// Moving the car is what ends a pin. Once any of its sweeps is confirmed the car is somewhere else,
+// and a pin left behind would go on reminding about next month's sweep on a curb nobody is parked
+// on. This runs on every render because a sweep can be confirmed from outside the page - the iOS
+// lock screen hands those over at boot - and the page has to catch up whichever way it arrived.
+//
+// The pin was suppressing its curb in any saved set that covers it, and without the pin those
+// reminders would come straight back for the sweep the driver just moved for - naming the curb they
+// just left. So release records that curb, and only that curb, as moved for that one day (see
+// buildMovedCurbKey). A saved set with another curb swept the same day keeps warning about that
+// one, and the pinned curb's next sweep belongs to the saved set again. Returns what it released, so
+// Undo can put it all back.
+function releaseParkedCarIfMoved() {
+  const parked = state.parkedCar;
+  if (!parked) {
+    return null;
+  }
+
+  const movedKey = state.movedSweepKeys.find((key) => key.startsWith(`${parked.id}|`));
+  if (!movedKey) {
+    return null;
+  }
+
+  const movedDateKey = movedKey.slice(parked.id.length + 1);
+  const savedSegmentIds = new Set(state.savedSets.flatMap((set) => getSegmentsForSavedSet(set).map((segment) => segment.id)));
+  const carriedKeys = getSegmentsForSavedSet(parked)
+    .filter((segment) => savedSegmentIds.has(segment.id))
+    .map((segment) => buildMovedCurbKey(segment.id, movedDateKey))
+    .filter((key) => !state.movedSweepKeys.includes(key));
+
+  state.movedSweepKeys = [...state.movedSweepKeys, ...carriedKeys];
+  saveJson(MOVED_SWEEPS_KEY, state.movedSweepKeys);
+  state.parkedCar = null;
+  state.parkSheetOpen = false;
+  saveJson(PARKED_CAR_KEY, null);
+  return { parkedCar: parked, carriedKeys };
 }
 
 function setMapDataset({ streetWays, curbSegments, areaLabel, geometryLabel, mapTitleText, mapKickerText, sourceLabel, lookupAddress = "", context = [], mapNoteText }) {
@@ -4486,10 +4591,11 @@ function showUserLocation(latitude, longitude) {
   lookupStatus.textContent = "You're on the map now. We dropped a dot at your location so you can tap nearby curbs more easily.";
 }
 
-function requestUserLocation() {
-  if (!lookupStatus || !useMyLocationButton) {
-    return;
-  }
+// The one way the page asks where the device is, for both "Use my location" and "Park here". It
+// resolves { latitude, longitude, accuracy } and rejects with a message written for the driver, which
+// callers show as it is.
+function getDevicePosition(options = {}) {
+  const snagMessage = "We hit a snag trying to find your location. You can still move around the map manually for now.";
 
   // A native shell answers from Core Location instead. Its page is served off a custom scheme, which
   // is not a secure context, so navigator.geolocation is refused there whatever the user allows -
@@ -4498,53 +4604,306 @@ function requestUserLocation() {
   const nativeBridge = getNativeReminderBridge();
   const nativeLocator = typeof nativeBridge?.getCurrentPosition === "function" ? nativeBridge : null;
 
-  if (!nativeLocator && !canUseGeolocation()) {
-    lookupStatus.textContent = "This browser cannot share your location yet, so keep using the map with your fingers for now.";
-    return;
+  if (nativeLocator) {
+    return Promise.resolve()
+      .then(() => nativeLocator.getCurrentPosition())
+      .then((position) => ({
+        latitude: Number(position?.latitude),
+        longitude: Number(position?.longitude),
+        accuracy: Number(position?.accuracy)
+      }))
+      .catch((error) => {
+        throw new Error(error?.message || snagMessage);
+      });
   }
 
-  if (!nativeLocator && !isSecureHost()) {
-    lookupStatus.textContent = "Location only works on the hosted app or localhost. This local file preview cannot ask for your location.";
+  if (!canUseGeolocation()) {
+    return Promise.reject(new Error("This browser cannot share your location yet, so keep using the map with your fingers for now."));
+  }
+
+  if (!isSecureHost()) {
+    return Promise.reject(new Error("Location only works on the hosted app or localhost. This local file preview cannot ask for your location."));
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) =>
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        }),
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          reject(new Error("We can only find you if you allow location access. You can still move around the map manually."));
+          return;
+        }
+
+        if (error.code === error.TIMEOUT) {
+          reject(new Error("We couldn't find your location quickly enough. Try again in a moment, or keep exploring the map manually."));
+          return;
+        }
+
+        reject(new Error(snagMessage));
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: Number.isFinite(options.maximumAge) ? options.maximumAge : 60000
+      }
+    );
+  });
+}
+
+function requestUserLocation() {
+  if (!lookupStatus || !useMyLocationButton) {
     return;
   }
 
   useMyLocationButton.disabled = true;
   lookupStatus.textContent = "Finding your location in Denver now...";
 
-  if (nativeLocator) {
-    Promise.resolve(nativeLocator.getCurrentPosition())
-      .then((position) => showUserLocation(Number(position?.latitude), Number(position?.longitude)))
-      .catch((error) => {
-        useMyLocationButton.disabled = false;
-        lookupStatus.textContent =
-          error?.message || "We hit a snag trying to find your location. You can still move around the map manually for now.";
-      });
+  getDevicePosition()
+    .then((position) => showUserLocation(position.latitude, position.longitude))
+    .catch((error) => {
+      useMyLocationButton.disabled = false;
+      lookupStatus.textContent = error.message;
+    });
+}
+
+// The parking pin.
+//
+// "Park here" is a saved set made at the moment someone gets out of the car: the pin decides the
+// curb, the reminders follow it, and moving the car ends it (see releaseParkedCarIfMoved). There is
+// only ever one pin, and parking again replaces it.
+
+function parkHere() {
+  if (!parkHereButton || !lookupStatus) {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    (position) => showUserLocation(position.coords.latitude, position.coords.longitude),
-    (error) => {
-      useMyLocationButton.disabled = false;
+  parkHereButton.disabled = true;
+  lookupStatus.textContent = "Finding where you parked...";
 
-      if (error.code === error.PERMISSION_DENIED) {
-        lookupStatus.textContent = "We can only center on you if you allow location access. You can still move around the map manually.";
-        return;
-      }
+  // A fix from a minute ago could be from the drive in, so this asks for a fresh one.
+  getDevicePosition({ maximumAge: 5000 })
+    .then((position) => {
+      parkCarAt(position.latitude, position.longitude, { accuracy: position.accuracy });
+    })
+    .catch((error) => {
+      lookupStatus.textContent = `${error.message} You can also tap the curb you parked on and choose I parked here.`;
+    })
+    .finally(() => {
+      parkHereButton.disabled = false;
+    });
+}
 
-      if (error.code === error.TIMEOUT) {
-        lookupStatus.textContent = "We couldn't find your location quickly enough. Try again in a moment, or keep exploring the map manually.";
-        return;
-      }
+// Every curb within the search radius of a point, nearest first. It walks the whole loaded inventory
+// rather than state.visibleSegments, because a pin from a GPS fix lands wherever the car is, not
+// wherever the map happens to be looking. Bounding boxes reject almost everything before any
+// geometry is touched, the same shape as findSegmentNearPoint.
+function findParkingCurbCandidates(point, radiusMetres = PARKING_SEARCH_RADIUS_METRES) {
+  const latPad = radiusMetres / SEARCH_METRES_PER_DEGREE_LATITUDE;
+  const lonPad = radiusMetres / SEARCH_METRES_PER_DEGREE_LONGITUDE;
+  const matches = [];
 
-      lookupStatus.textContent = "We hit a snag trying to find your location. You can still move around the map manually for now.";
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 60000
+  for (const segment of state.curbSegments) {
+    const bounds = getCachedRenderBounds(segment);
+    if (
+      !bounds ||
+      point[0] < bounds.south - latPad ||
+      point[0] > bounds.north + latPad ||
+      point[1] < bounds.west - lonPad ||
+      point[1] > bounds.east + lonPad
+    ) {
+      continue;
     }
-  );
+
+    const geometry = segment.geometry;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (let index = 1; index < geometry.length; index += 1) {
+      nearest = Math.min(nearest, getDistanceToGeometryEdgeMetres(point, geometry[index - 1], geometry[index]));
+    }
+
+    if (nearest <= radiusMetres) {
+      matches.push({ segment, distance: nearest });
+    }
+  }
+
+  return matches.sort((a, b) => a.distance - b.distance);
+}
+
+// Both curbs of a way share an id up to the side: "<way>:north" and "<way>:south".
+function getOppositeCurb(segment) {
+  const separator = String(segment?.id || "").lastIndexOf(":");
+  const oppositeSide = PARKING_SIDE_OPPOSITES[segment?.sideKey];
+  if (separator < 0 || !oppositeSide) {
+    return null;
+  }
+
+  return getSegmentById(`${segment.id.slice(0, separator)}:${oppositeSide}`);
+}
+
+// options.segmentId parks on that curb instead of the nearest one; options.adjusting keeps the pin's
+// identity, for a side switch or a dragged pin, so its reminders are not treated as a new parking.
+function parkCarAt(lat, lon, options = {}) {
+  if (!lookupStatus) {
+    return false;
+  }
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !isWithinDenverBounds(lat, lon)) {
+    lookupStatus.textContent = "That spot looks outside the Denver map, so there is no Denver sweeping schedule for us to follow there.";
+    renderContext();
+    return false;
+  }
+
+  const segment = options.segmentId
+    ? getSegmentById(options.segmentId)
+    : findParkingCurbCandidates([lat, lon])[0]?.segment || null;
+
+  if (!segment) {
+    if (options.adjusting) {
+      lookupStatus.textContent = "There is no mapped curb where the pin landed, so it stayed where it was. Drop it onto the street.";
+    } else {
+      state.userLocation = { lat, lon };
+      focusMapOnUserLocation();
+      lookupStatus.textContent =
+        "We found you, but no mapped curb close enough to be sure. Tap the curb you parked on and choose I parked here.";
+    }
+    // Redrawing puts a dragged pin back where it was.
+    renderContext();
+    return false;
+  }
+
+  const previous = state.parkedCar;
+  const keepIdentity = Boolean(options.adjusting && previous);
+  let accuracy = null;
+  if (Number.isFinite(options.accuracy)) {
+    accuracy = Math.round(options.accuracy);
+  } else if (keepIdentity && options.segmentId) {
+    // A side switch leaves the pin where the phone put it, so the phone's accuracy still describes it.
+    accuracy = previous.pin.accuracy;
+  }
+
+  state.parkedCar = {
+    id: keepIdentity ? previous.id : `parked-${Date.now()}`,
+    kind: "parked",
+    name: "Where you parked",
+    pin: { lat, lon, accuracy },
+    segmentIds: [segment.id],
+    segments: [serializeSegment(segment)],
+    sourceLabel: "Dropped pin",
+    lookupAddress: "",
+    createdAt: keepIdentity ? previous.createdAt : new Date().toISOString(),
+    // Times someone changed on their last pin carry over to the next one.
+    reminders: buildDefaultReminders(previous?.reminders)
+  };
+
+  saveJson(PARKED_CAR_KEY, state.parkedCar);
+  saveJson(PUSH_PRIMER_DISMISSED_KEY, false);
+  closeCurbSheet();
+  state.parkSheetOpen = true;
+  renderAll();
+
+  if (!options.adjusting) {
+    focusMapOnParkedCar();
+  }
+  lookupStatus.textContent = `Parked on the ${segment.sideLabel.toLowerCase()} of ${segment.street}. Reminders now follow this spot.`;
+  return true;
+}
+
+function clearParkedCar() {
+  state.parkedCar = null;
+  state.parkSheetOpen = false;
+  saveJson(PARKED_CAR_KEY, null);
+  if (lookupStatus) {
+    lookupStatus.textContent = "Parking pin cleared. Tap Park here the next time you park.";
+  }
+  renderAll();
+}
+
+function focusMapOnParkedCar() {
+  if (!state.map || !state.parkedCar) {
+    return;
+  }
+
+  state.map.setView([state.parkedCar.pin.lat, state.parkedCar.pin.lon], Math.max(state.map.getZoom(), 17), {
+    animate: true
+  });
+}
+
+function openParkSheet() {
+  if (!state.parkedCar) {
+    return;
+  }
+
+  closeCurbSheet();
+  state.parkSheetOpen = true;
+  renderParkSheet();
+}
+
+function closeParkSheet() {
+  state.parkSheetOpen = false;
+  renderParkSheet();
+}
+
+function renderParkSheet() {
+  if (!parkSheet) {
+    return;
+  }
+
+  const parked = state.parkedCar;
+  const segment = parked ? getSegmentsForSavedSet(parked)[0] : null;
+  if (!state.parkSheetOpen || !segment) {
+    const wasOpen = !parkSheet.hidden;
+    parkSheet.hidden = true;
+    parkSheet.classList.remove("is-open");
+    if (wasOpen && !activeCurbSheetSegmentId) {
+      document.body.classList.remove("curb-sheet-open");
+    }
+    return;
+  }
+
+  const copy = buildCurbSheetCopy(segment);
+  parkSheetSide.textContent = `Parked · ${segment.sideLabel}`;
+  parkSheetSide.style.background = segment.color;
+  parkSheetStreet.textContent = segment.street;
+  parkSheetHeadline.textContent = copy.headline;
+  parkSheetRule.textContent = copy.rule;
+  parkSheetRule.hidden = !copy.rule;
+  parkSheetNotice.textContent = copy.notice;
+  parkSheetNotice.hidden = !copy.notice;
+
+  const jobs = state.notificationJobs.filter((job) => job.setId === parked.id);
+  if (jobs.length) {
+    const deliveryNote = pushIsConnected() ? "" : " Turn on notifications from My alerts so they reach you.";
+    parkSheetReminders.textContent = `Reminders follow this spot, starting ${formatJobHeading(jobs[0])}.${deliveryNote}`;
+  } else if (copy.canRemind) {
+    parkSheetReminders.textContent = "There is no dated sweep here, so there is nothing to remind you about yet.";
+  } else {
+    parkSheetReminders.textContent = "";
+  }
+  parkSheetReminders.hidden = !parkSheetReminders.textContent;
+
+  // The live segment is the one with a way id to pair against; the pin's copy may be from an older
+  // inventory, in which case there is simply no "other side" to offer.
+  const across = getOppositeCurb(getSegmentById(segment.id) || segment);
+  parkSheetSideHere.textContent = segment.sideLabel;
+  parkSheetSideAcross.hidden = !across;
+  parkSheetSides.hidden = !across;
+  if (across) {
+    parkSheetSideAcross.textContent = across.sideLabel;
+    parkSheetSideAcross.dataset.segmentId = across.id;
+  }
+
+  const accuracy = parked.pin.accuracy;
+  parkSheetHint.textContent = Number.isFinite(accuracy) && accuracy > 25
+    ? `Your phone placed you within about ${accuracy} m, so check the pin. Wrong block? Drag it onto your curb.`
+    : "Wrong block? Drag the pin onto your curb.";
+
+  parkSheet.hidden = false;
+  parkSheet.classList.add("is-open");
+  document.body.classList.add("curb-sheet-open");
 }
 
 function initializeMap() {
@@ -4723,6 +5082,32 @@ function renderContext() {
 
     searchRing.addTo(state.contextLayerGroup);
     searchDot.addTo(state.contextLayerGroup);
+  }
+
+  if (state.parkedCar) {
+    // Draggable, because the fix can be a block off and the driver knows where the car is. A drop
+    // re-resolves the curb; a drop with no curb near it redraws, which puts the pin back.
+    const parkedMarker = L.marker([state.parkedCar.pin.lat, state.parkedCar.pin.lon], {
+      icon: L.divIcon({
+        className: "parked-car-marker",
+        html: '<span class="parked-car-pin"><span>P</span></span>',
+        // The pin is a rotated teardrop; its point sits about 24 px below its centre.
+        iconSize: [40, 40],
+        iconAnchor: [20, 44]
+      }),
+      draggable: true,
+      keyboard: true,
+      title: "Where you parked",
+      alt: "Where you parked",
+      zIndexOffset: 1000
+    });
+
+    parkedMarker.on("click", openParkSheet);
+    parkedMarker.on("dragend", () => {
+      const { lat, lng } = parkedMarker.getLatLng();
+      parkCarAt(lat, lng, { adjusting: true });
+    });
+    parkedMarker.addTo(state.contextLayerGroup);
   }
 }
 
@@ -5203,6 +5588,8 @@ function attachCurbInteraction() {
   state.map.on("click", (event) => {
     const segment = findSegmentNearPoint(event.latlng);
     if (segment) {
+      // Kept so "I parked here" can put the pin where the driver tapped, not at the block's middle.
+      activeCurbSheetLatLng = { lat: event.latlng.lat, lon: event.latlng.lng };
       openCurbSheet(segment.id);
     }
   });
@@ -5237,6 +5624,7 @@ function attachCurbInteraction() {
 // value, turning on a reminder is the commitment, and asking for the commitment first is what
 // pushed the payoff four screens down the page.
 let activeCurbSheetSegmentId = null;
+let activeCurbSheetLatLng = null;
 
 function openCurbSheet(segmentId) {
   if (!curbSheet) {
@@ -5245,17 +5633,24 @@ function openCurbSheet(segmentId) {
     return;
   }
 
+  // One sheet at a time; both sit in the same corner of the screen.
+  if (state.parkSheetOpen) {
+    closeParkSheet();
+  }
   activeCurbSheetSegmentId = segmentId;
   renderCurbSheet();
 }
 
 function closeCurbSheet() {
   activeCurbSheetSegmentId = null;
+  activeCurbSheetLatLng = null;
   if (curbSheet) {
     curbSheet.hidden = true;
     curbSheet.classList.remove("is-open");
   }
-  document.body.classList.remove("curb-sheet-open");
+  if (!state.parkSheetOpen) {
+    document.body.classList.remove("curb-sheet-open");
+  }
 }
 
 function buildCurbSheetCopy(segment) {
@@ -5342,6 +5737,14 @@ function renderCurbSheet() {
       ? "Reminder on — tap to remove"
       : "Remind me about this curb";
   curbSheetAction.classList.toggle("is-on", copy.canRemind && selected);
+
+  if (curbSheetPark) {
+    const parkedHere = getSegmentsForSavedSet(state.parkedCar || { segments: [] }).some((parked) => parked.id === segment.id);
+    // A street Denver does not maintain has nothing for a pin to remind about.
+    curbSheetPark.hidden = !copy.canRemind;
+    curbSheetPark.textContent = parkedHere ? "You're parked here — show the pin" : "I parked here";
+    curbSheetPark.dataset.parkedHere = String(parkedHere);
+  }
 
   curbSheet.hidden = false;
   curbSheet.classList.add("is-open");
@@ -5478,6 +5881,13 @@ function showSaveConfirmation(savedSet, selectedSegments) {
 }
 
 function applySavedSet(setId) {
+  if (state.parkedCar?.id === setId) {
+    setActiveView("setup");
+    focusMapOnParkedCar();
+    openParkSheet();
+    return;
+  }
+
   const savedSet = state.savedSets.find((set) => set.id === setId);
   if (!savedSet) {
     return;
@@ -5498,12 +5908,28 @@ function applySavedSet(setId) {
 }
 
 function deleteSavedSet(setId) {
+  if (state.parkedCar?.id === setId) {
+    clearParkedCar();
+    return;
+  }
+
   state.savedSets = state.savedSets.filter((set) => set.id !== setId);
   persistSavedSets();
   renderAll();
 }
 
 function updateSavedSet(setId, updates) {
+  // The pin renders with the saved-set card and its reminder controls, and saves to its own key.
+  if (state.parkedCar?.id === setId) {
+    const nextReminders = updates.reminders
+      ? buildDefaultReminders({ ...state.parkedCar.reminders, ...updates.reminders })
+      : state.parkedCar.reminders;
+    state.parkedCar = { ...state.parkedCar, ...updates, reminders: nextReminders };
+    saveJson(PARKED_CAR_KEY, state.parkedCar);
+    renderAll();
+    return;
+  }
+
   let changed = false;
 
   state.savedSets = state.savedSets.map((set) => {
@@ -5638,7 +6064,7 @@ function getStartOfToday() {
 }
 
 function updateDayOfReminder(setId, slotIndex, field, value) {
-  const savedSet = state.savedSets.find((set) => set.id === setId);
+  const savedSet = getReminderSets().find((set) => set.id === setId);
   if (!savedSet) {
     return;
   }
@@ -5683,7 +6109,7 @@ function buildSavedSetDetails(set, segments, reminders) {
     ["Curbs", summarizeCurbList(segments)],
     ["Reminders", summarizeReminders(reminders).replace(/^Scheduled /, "")],
     ["Area", set.sourceLabel || "Saved curb set"],
-    ["Saved", formatSavedAt(set.createdAt)]
+    [set.kind === "parked" ? "Parked" : "Saved", formatSavedAt(set.createdAt)]
   ];
 
   return detailRows
@@ -5786,6 +6212,7 @@ function buildIssueReportPayload() {
     jobCount: state.notificationJobs.length,
     pushConnected: Boolean(state.pushSubscription),
     hasUserLocation: Boolean(state.userLocation),
+    hasParkedCar: Boolean(state.parkedCar),
     activeAreaLabel: state.activeAreaLabel,
     activeSourceLabel: state.activeSourceLabel,
     pageUrl: window.location.href,
@@ -5840,18 +6267,26 @@ async function submitIssueReport(event) {
 
 function renderSavedSets() {
   savedSetsList.innerHTML = "";
-  savedSetCount.textContent = `${state.savedSets.length} saved`;
-  emptySets.style.display = state.savedSets.length ? "none" : "block";
+  savedSetCount.textContent = `${state.savedSets.length} saved${state.parkedCar ? " + parked" : ""}`;
+  emptySets.style.display = getReminderSets().length ? "none" : "block";
 
-  state.savedSets
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  // The pin always comes first: it is where the car actually is.
+  const sortedSets = state.savedSets.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  (state.parkedCar ? [state.parkedCar, ...sortedSets] : sortedSets)
     .forEach((set) => {
       const item = savedSetTemplate.content.firstElementChild.cloneNode(true);
       const reminders = buildDefaultReminders(set.reminders);
       const savedSegments = getSegmentsForSavedSet(set);
+      const isParked = set.kind === "parked";
+      item.classList.toggle("is-parked", isParked);
       item.querySelector(".saved-set-title").textContent = set.name;
-      item.querySelector(".saved-set-meta").textContent = summarizeSavedSetMeta(savedSegments);
+      item.querySelector(".saved-set-meta").textContent = isParked
+        ? `${summarizeCurbList(savedSegments)}. Moving your car clears it.`
+        : summarizeSavedSetMeta(savedSegments);
+      if (isParked) {
+        item.querySelector(".apply-set-button").textContent = "Show on map";
+        item.querySelector(".delete-set-button").textContent = "Clear pin";
+      }
       item.querySelector(".saved-set-details").innerHTML = buildSavedSetDetails(set, savedSegments, reminders);
       item.querySelector(".reminder-summary").textContent = summarizeReminders(reminders);
 
@@ -5919,11 +6354,15 @@ function buildNotificationJobs() {
   const now = new Date();
   const groupedJobs = new Map();
 
-  state.savedSets.forEach((set) => {
+  getReminderSets().forEach((set) => {
     const reminders = buildDefaultReminders(set.reminders);
     const selectedSegments = getSegmentsForSavedSet(set);
 
     selectedSegments.forEach((segment) => {
+      if (isCurbCoveredByParkedCar(set, segment)) {
+        return;
+      }
+
       const sweepDates = getUpcomingSweepDates(segment);
       if (!sweepDates.length) {
         return;
@@ -5935,6 +6374,12 @@ function buildNotificationJobs() {
         // wholesale, so the follow-ups it was holding for this sweep simply stop existing.
         const sweepKey = buildSweepKey(set.id, sweepDate);
         if (state.movedSweepKeys.includes(sweepKey)) {
+          return;
+        }
+
+        // A curb the driver moved off while a pin held it; see releaseParkedCarIfMoved. A new pin on
+        // that curb is a new parking, so the old pin's move does not silence it.
+        if (set.kind !== "parked" && state.movedSweepKeys.includes(buildMovedCurbKey(segment.id, formatLocalDateKey(sweepDate)))) {
           return;
         }
 
@@ -6006,7 +6451,8 @@ function buildNotificationJobs() {
               triggerLabels: [],
               kinds: [],
               sweepKeys: [],
-              nagUntilMoved: reminders.nagUntilMoved
+              nagUntilMoved: reminders.nagUntilMoved,
+              parked: set.kind === "parked"
             });
           }
 
@@ -6059,6 +6505,14 @@ function buildSweepKey(setId, sweepDate) {
   return `${setId}|${formatLocalDateKey(sweepDate)}`;
 }
 
+// One curb confirmed moved on one day, where the sweep it belongs to has to carry on for the set's
+// other curbs. Only releaseParkedCarIfMoved writes these, into the same list as the sweep keys. The
+// date stays last so the page and the iOS scheduler prune it by date like any sweep key, and the
+// shell never matches it against a job's sweep keys, so it changes nothing on the device.
+function buildMovedCurbKey(segmentId, dateKey) {
+  return `moved-curb|${segmentId}|${dateKey}`;
+}
+
 function parseSweepKeyDate(sweepKey) {
   const match = /\|(\d{4})-(\d{2})-(\d{2})$/.exec(String(sweepKey || ""));
   return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 0, 0, 0, 0) : null;
@@ -6090,18 +6544,26 @@ function getPendingSweepChecks(now = new Date()) {
   const tomorrowKey = formatLocalDateKey(addDays(now, 1));
   const checks = new Map();
 
-  state.savedSets.forEach((set) => {
+  getReminderSets().forEach((set) => {
     const reminders = buildDefaultReminders(set.reminders);
     const eveningTime = reminders.dayBeforeEnabled ? reminders.dayBeforeTime : DEFAULT_REMINDERS.dayBeforeTime;
     const eveningStart = applyTimeToDate(now, eveningTime);
 
     getSegmentsForSavedSet(set).forEach((segment) => {
+      if (isCurbCoveredByParkedCar(set, segment)) {
+        return;
+      }
+
       const sweepDate = getNextSweepDate(segment);
       if (!sweepDate) {
         return;
       }
 
       const dateKey = formatLocalDateKey(sweepDate);
+      if (set.kind !== "parked" && state.movedSweepKeys.includes(buildMovedCurbKey(segment.id, dateKey))) {
+        return;
+      }
+
       const isToday = dateKey === todayKey;
       const isTomorrow = dateKey === tomorrowKey && now.getTime() >= eveningStart.getTime();
       if (!isToday && !isTomorrow) {
@@ -6138,7 +6600,9 @@ function renderSweepCheck() {
     sweepCheck.classList.add("is-done");
     sweepCheckKicker.textContent = "Nice work";
     sweepCheckTitle.textContent = "Car moved. That's it for this sweep.";
-    sweepCheckBody.textContent = `No more reminders for ${confirmed.setName}. We'll start again before the next sweep.`;
+    sweepCheckBody.textContent = confirmed.released
+      ? "We cleared your parking pin, since the car isn't there anymore. Tap Park here wherever you leave it next."
+      : `No more reminders for ${confirmed.setName}. We'll start again before the next sweep.`;
     sweepCheckConfirmButton.hidden = true;
     sweepCheckUndoButton.hidden = false;
     sweepCheckDismissButton.hidden = false;
@@ -6175,7 +6639,9 @@ function confirmSweepMoved(sweepKey) {
   const check = getPendingSweepChecks().find((candidate) => candidate.key === sweepKey);
   state.movedSweepKeys = [...state.movedSweepKeys, sweepKey];
   saveJson(MOVED_SWEEPS_KEY, state.movedSweepKeys);
-  state.sweepCheckConfirmed = { key: sweepKey, setName: check?.setName || "this curb" };
+  // Released here rather than left to renderAll, so Undo knows exactly what to put back.
+  const released = releaseParkedCarIfMoved();
+  state.sweepCheckConfirmed = { key: sweepKey, setName: check?.setName || "this curb", released };
   state.sweepCheckFocusKey = "";
   closeDeliveredSweepNotifications(sweepKey);
   // renderAll rebuilds the jobs without this sweep, reschedules the in-page timers from them, and
@@ -6191,8 +6657,13 @@ function undoSweepMoved() {
     return;
   }
 
-  state.movedSweepKeys = state.movedSweepKeys.filter((key) => key !== confirmed.key);
+  const restoredKeys = new Set([confirmed.key, ...(confirmed.released?.carriedKeys || [])]);
+  state.movedSweepKeys = state.movedSweepKeys.filter((key) => !restoredKeys.has(key));
   saveJson(MOVED_SWEEPS_KEY, state.movedSweepKeys);
+  if (confirmed.released?.parkedCar) {
+    state.parkedCar = confirmed.released.parkedCar;
+    saveJson(PARKED_CAR_KEY, state.parkedCar);
+  }
   state.sweepCheckConfirmed = null;
   state.sweepCheckFocusKey = confirmed.key;
   renderAll();
@@ -6299,9 +6770,11 @@ function buildReminderPlanPayload() {
     return null;
   }
 
+  // The parking pin goes up as a set like any other - id, name, curb ids. Its coordinates do not;
+  // the Privacy page promises that.
   return {
     endpoint: state.pushSubscription.endpoint,
-    savedSets: state.savedSets.map((set) => ({
+    savedSets: getReminderSets().map((set) => ({
       id: set.id,
       name: set.name,
       sourceLabel: set.sourceLabel || "",
@@ -6596,7 +7069,7 @@ function renderPushPrimer() {
     return;
   }
 
-  const hasSavedSet = state.savedSets.length > 0;
+  const hasSavedSet = getReminderSets().length > 0;
   const dismissed = loadJson(PUSH_PRIMER_DISMISSED_KEY, false) === true;
   const needsInstall = requiresHomeScreenInstallForPush() && !isStandaloneDisplay();
 
@@ -7021,6 +7494,22 @@ function buildJobBody(job) {
   const segmentLead = job.segmentLabels.length === 1 ? "Street sweeping is scheduled for" : "Street sweeping is scheduled for these curb sides:";
   const stopHint = job.nagUntilMoved ? " Moved it? Open this and tap I moved my car." : "";
 
+  // A pin is one curb the car is known to be on, so its alerts can say so plainly.
+  if (job.parked) {
+    switch (getJobKind(job)) {
+      case "day-before":
+        return `Sweeping is tomorrow where you parked, on ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.${stopHint}`;
+      case "evening-check":
+        return `Sweeping is tomorrow where you parked, on ${segmentPreview}. Moving it tonight means one less thing to remember in the morning.${stopHint}`;
+      case "follow-up":
+        return `Sweeping is today where you parked, on ${segmentPreview}, and your car isn't marked as moved yet.${stopHint}`;
+      case "last-call":
+        return `This is the last reminder for today's sweep where you parked, on ${segmentPreview}. Move your car now.`;
+      default:
+        return `Sweeping is today where you parked, on ${segmentPreview}. Move your car before the sweep begins.${stopHint}`;
+    }
+  }
+
   switch (getJobKind(job)) {
     case "day-before":
       return `${segmentLead} ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.${stopHint}`;
@@ -7128,9 +7617,14 @@ function renderReminderReadiness() {
   }
 
   const selectedSegments = getSelectedSegments();
-  const savedSegments = state.savedSets.flatMap(getSegmentsForSavedSet);
+  const savedSegments = getReminderSets().flatMap(getSegmentsForSavedSet);
   const hasCurb = selectedSegments.length > 0 || savedSegments.length > 0;
-  const hasSavedSet = state.savedSets.length > 0;
+  const hasSavedSet = getReminderSets().length > 0;
+  const savedSetText = !state.parkedCar
+    ? `${state.savedSets.length} reminder set${state.savedSets.length === 1 ? "" : "s"} saved.`
+    : state.savedSets.length
+      ? `${state.savedSets.length} reminder set${state.savedSets.length === 1 ? "" : "s"} saved, plus where you parked.`
+      : "Reminders are following where you parked.";
   // A native shell never has a push subscription - it schedules on the device - so checking web push
   // alone left this item unticked forever inside the app, even with notifications allowed.
   const hasNativeReminders = canUseNativeReminders() && getNativeReminderPermission() === "granted";
@@ -7157,7 +7651,7 @@ function renderReminderReadiness() {
   setReadinessItem(
     readinessItems.set,
     hasSavedSet,
-    `${state.savedSets.length} reminder set${state.savedSets.length === 1 ? "" : "s"} saved.`,
+    savedSetText,
     "Name it and save the curbs you want alerts for."
   );
   setReadinessItem(
@@ -8023,6 +8517,7 @@ function registerAccountEvents() {
 }
 
 function renderAll() {
+  releaseParkedCarIfMoved();
   buildNotificationJobs();
   scheduleBrowserNotifications();
   renderOnboarding();
@@ -8036,6 +8531,7 @@ function renderAll() {
   renderNotificationStatus();
   renderPushPrimer();
   renderSweepCheck();
+  renderParkSheet();
   renderReminderReadiness();
   renderAccount();
   renderStats();
@@ -8153,6 +8649,28 @@ function registerEvents() {
   registerAccountEvents();
   useMyLocationButton?.addEventListener("click", requestUserLocation);
   curbSheetClose?.addEventListener("click", closeCurbSheet);
+  parkHereButton?.addEventListener("click", parkHere);
+  curbSheetPark?.addEventListener("click", () => {
+    const segment = activeCurbSheetSegmentId ? getSegmentById(activeCurbSheetSegmentId) : null;
+    if (!segment) {
+      return;
+    }
+    if (curbSheetPark.dataset.parkedHere === "true") {
+      openParkSheet();
+      return;
+    }
+    const point = activeCurbSheetLatLng || { lat: getGeometryMidpoint(segment.geometry)[0], lon: getGeometryMidpoint(segment.geometry)[1] };
+    parkCarAt(point.lat, point.lon, { segmentId: segment.id });
+  });
+  parkSheetClose?.addEventListener("click", closeParkSheet);
+  parkSheetDone?.addEventListener("click", closeParkSheet);
+  parkSheetClear?.addEventListener("click", clearParkedCar);
+  parkSheetSideAcross?.addEventListener("click", () => {
+    const pin = state.parkedCar?.pin;
+    if (pin && parkSheetSideAcross.dataset.segmentId) {
+      parkCarAt(pin.lat, pin.lon, { segmentId: parkSheetSideAcross.dataset.segmentId, adjusting: true });
+    }
+  });
   pushPrimerAccept?.addEventListener("click", acceptPushPrimer);
   pushPrimerDismiss?.addEventListener("click", dismissPushPrimer);
   installHelpButton?.addEventListener("click", openInstallSheet);
@@ -8173,6 +8691,10 @@ function registerEvents() {
     }
     if (activeCurbSheetSegmentId) {
       closeCurbSheet();
+      return;
+    }
+    if (state.parkSheetOpen) {
+      closeParkSheet();
     }
   });
   onboardingDismissButton?.addEventListener("click", dismissOnboarding);

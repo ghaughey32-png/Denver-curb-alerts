@@ -812,6 +812,62 @@ notification, no `requireInteraction` and no action buttons, so the stickiness c
 repetition plus the in-app question. A true lock-screen Live Activity is ActivityKit and belongs
 with the native shell below. The follow-ups also raise the local-notification arithmetic there.
 
+## The parking pin
+
+Added 2026-09-15. **Park here** on the map drops a pin at the phone's position, and **I parked here**
+on the curb sheet drops one on a tapped curb. Reminders then follow that curb until the car is moved.
+It works in a browser and in the iOS app alike; the app answers the location request through the
+existing `getCurrentPosition` bridge, so no shell change was needed to park.
+
+**The pin is a saved set with `kind: "parked"`, stored under its own key, and that split is
+deliberate.** Being shaped like a saved set is what lets `buildNotificationJobs`, the sweep-day
+banner, the plan sync, the native schedule and the lock-screen card handle it untouched —
+`getReminderSets()` is the one place that adds it in. Being stored apart (`PARKED_CAR_KEY`, not
+`SAVED_SETS_KEY`) keeps it out of the account library: a saved set is a curb someone parks on and
+should follow them to a new phone, while a pin is one car's position on one phone. There is only
+ever one pin, and parking again replaces it. Its id is `parked-<timestamp>`, and a side switch or a
+dragged pin keeps that id rather than starting a new parking.
+
+**The pin picks the street, and the driver picks the side.** A phone's fix is good to 5–15 m between
+buildings, which is wider than the ~8 m between the two curbs this app draws for a residential
+street. `findParkingCurbCandidates` takes the nearest curb within `PARKING_SEARCH_RADIUS_METRES` as
+the guess, and the park sheet offers the curb across the street as one tap (`getOppositeCurb`, which
+pairs `<way>:north` with `<way>:south`). Do not "fix" a wrong side by tightening the search; the
+guess is not the product, the one-tap correction is. It searches `state.curbSegments`, not
+`state.visibleSegments`, because a GPS pin lands wherever the car is rather than wherever the map is
+looking.
+
+**Moving the car ends the pin**, in `releaseParkedCarIfMoved`. Once any sweep of the pin is
+confirmed, the car is somewhere else, and a pin left behind would remind about next month's sweep on
+a curb nobody is parked on. It runs on every render because a confirmation can arrive from the iOS
+lock screen while the page is not running. Undo on the banner puts the pin back.
+`ReminderScheduler.effectiveMovedSweepKeys` is the device half: a confirmed `parked-` sweep silences
+every other sweep of that pin on the phone until the page next opens and drops it.
+
+**A pin on a curb a saved set already covers suppresses the saved set's reminders for that curb**
+(`isCurbCoveredByParkedCar`), or the driver gets every alert twice and the banner asks twice. That
+created a trap: releasing the pin would bring the saved set's alerts straight back for the sweep the
+driver just moved for, naming the curb they had just left. So release writes a
+`moved-curb|<segment id>|<date>` key into the confirmed-sweep list (`buildMovedCurbKey`), which
+silences that one curb on that one day and nothing else. A saved set with another curb swept that
+day keeps warning about that curb alone, and the pinned curb's next sweep belongs to the saved set
+again.
+
+It is per curb rather than per set on purpose: a set-level sweep key would either silence the set's
+other curbs or, withheld, leave the alerts naming a curb the car is no longer on. The key keeps its
+date last, so it prunes by date on the page and on the phone like any sweep key, and the iOS
+scheduler never matches it to a job. It deliberately does not silence a new pin on the same curb
+that day — parking there again is a new parking, and it reminds.
+
+**The pin's coordinates never leave the device.** `buildReminderPlanPayload` sends the pin like any
+set — id, name, segment ids — and the jobs carry street and side labels, which saved sets already
+did. The Privacy page says exactly this; keep it true if the payload changes.
+
+**What it is not, yet:** it does not notice the car leaving. That is geofencing, which needs
+background location and belongs to the native shell (step 4 below); a region exit cannot tell
+driving away from walking away, so it wants Core Motion's activity type before it can confirm
+anything on its own.
+
 ## Shipping on iOS
 
 Nothing is started. Scoped 2026-09-04 by reading the push path end to end, which corrected two
@@ -927,7 +983,8 @@ are defects in the web app's assumptions rather than shell scaffolding.
    bridge gains keychain storage for the session token and starts sending the header. Bundle
    `public/denver-west-routes.json` as an app resource while doing this and the 12 MB cold fetch
    disappears entirely.
-4. Geofencing and the widget — the 4.2 answer.
+4. Geofencing and the widget — the 4.2 answer. The pin geofencing would watch landed on
+   2026-09-15 (see **The parking pin**); what is left is noticing the car leave it.
 5. The APNs dispatcher.
 
 ### The iOS project
