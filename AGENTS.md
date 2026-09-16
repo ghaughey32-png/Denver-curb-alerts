@@ -1093,7 +1093,8 @@ also the fallback when the card was never started - Live Activities switched off
 **TestFlight is live.** The app record for `co.curbalerts.app` exists (Apple ID 6812789158) with an
 internal group, *Friends*, and an external group, *Friend Test 1*. Build 1 was uploaded 2026-09-16
 and went to Beta App Review for the external group; build 2 followed the same day to carry the new
-app icon. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+app icon, and was never added to the external group. Build 3, the same day, carries the test card and
+went out in its place. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
