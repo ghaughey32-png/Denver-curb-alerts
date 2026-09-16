@@ -173,15 +173,16 @@ If the server keys are configured correctly, the app will save the device subscr
 ## Accounts
 
 Signing in is optional and the map never asks you to. Everything — searching an address, tapping a
-curb, saving a set, scheduling reminders — works exactly as it always has without one, and saved
-curb sets are still kept in the browser either way.
+curb, turning its reminder on, scheduling reminders — works exactly as it always has without one,
+and saved curb sets are still kept in the browser either way.
 
 What an account adds is that those saved sets are also kept on the server, so they come back on a
 new phone, in a different browser, or after clearing your site data. The panel lives under
 **My alerts → Your account**.
 
 - **Signing in merges, it never replaces.** Curbs saved on this device while signed out are kept,
-  and anything on the account that this device does not have is added alongside them.
+  and anything on the account that this device does not have is added alongside them. A set both
+  hold, such as **My curbs**, keeps every curb from either side.
 - **Signing out leaves your saved curbs on the device.** It is not a request to stop the reminders
   already running here.
 - **Changing your password signs out your other devices**, which is the point of changing it.

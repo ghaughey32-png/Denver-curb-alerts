@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260916-account-blue-b" />
+    <link rel="stylesheet" href="./styles.css?v=20260916-remind-on-tap" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -187,41 +187,29 @@
               Your location is used to center the map and, when you tap Park here, to remember where you parked on
               this device. We don't sell your data.
             </p>
-
-            <div class="map-secondary-actions">
-              <button id="clear-map-selection" class="ghost-button" type="button">Clear all selections</button>
-            </div>
           </details>
         </section>
 
         <aside class="panel-card">
           <section id="current-selection-section" class="panel-section panel-step-section is-empty">
             <div class="mini-head">
-              <h3>Current selection</h3>
-              <span class="mini-count" id="live-selection-count">0 selected</span>
+              <h3>Your reminders</h3>
+              <span class="mini-count" id="live-selection-count">0 on</span>
             </div>
 
             <div id="empty-selection" class="empty-state">
-              <p>No curb sides selected yet.</p>
-              <p class="empty-subtext">Tap any colored curb on the map to see when it gets swept.</p>
+              <p>No reminders on yet.</p>
+              <p class="empty-subtext">Tap any colored curb on the map to see when it gets swept, then turn its reminder on.</p>
             </div>
 
             <div id="selection-list" class="selection-list"></div>
           </section>
 
+          <!-- There used to be a "Save these curbs" card here: a set name and a save button, without
+               which nothing reminded. Turning a curb's reminder on from its sheet is now the whole
+               commitment, so all that is left of this section is the push ask that follows it. -->
           <section class="panel-section panel-step-section save-section">
-            <div class="mini-head">
-              <h3>Save these curbs</h3>
-            </div>
-
-            <div class="save-set-card">
-              <label class="input-label" for="set-name-input">Set name (optional)</label>
-              <input id="set-name-input" class="text-input" type="text" placeholder="Example: weekday parking near home" />
-              <button id="save-set-button" class="primary-button" type="button">Save current selection</button>
-              <div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div>
-            </div>
-
-            <!-- The soft ask. It appears only after a set is saved, because the native permission
+            <!-- The soft ask. It appears only once a curb's reminder is on, because the native permission
                  prompt is one-shot on iOS and spending it before the user has anything to be
                  reminded about is the most expensive mistake in this flow. "Not now" keeps the
                  native prompt unspent so it can be offered again later. -->
@@ -261,15 +249,15 @@
           <section class="panel-section panel-step-section readiness-section">
             <div class="mini-head">
               <h3>Reminder readiness</h3>
-              <span class="mini-count" id="readiness-count">0 of 4 ready</span>
+              <span class="mini-count" id="readiness-count">0 of 3 ready</span>
             </div>
 
             <div class="readiness-card" aria-live="polite">
               <div id="readiness-curb" class="readiness-item">
                 <span class="readiness-icon" aria-hidden="true"></span>
                 <div class="readiness-copy">
-                  <strong>Choose a curb</strong>
-                  <span class="readiness-detail">Tap a colored curb side on the map.</span>
+                  <strong>Turn on a curb's reminder</strong>
+                  <span class="readiness-detail">Tap a colored curb on the map and turn its reminder on.</span>
                 </div>
               </div>
               <div id="readiness-push" class="readiness-item">
@@ -277,13 +265,6 @@
                 <div class="readiness-copy">
                   <strong>Connect this device</strong>
                   <span class="readiness-detail">Turn on push notifications for this phone.</span>
-                </div>
-              </div>
-              <div id="readiness-set" class="readiness-item">
-                <span class="readiness-icon" aria-hidden="true"></span>
-                <div class="readiness-copy">
-                  <strong>Save a reminder set</strong>
-                  <span class="readiness-detail">Name it and save the curbs you want alerts for.</span>
                 </div>
               </div>
               <div id="readiness-jobs" class="readiness-item">
@@ -336,7 +317,7 @@
 
             <div id="empty-sets" class="empty-state compact-empty">
               <p>No saved curbs yet.</p>
-              <p class="empty-subtext">Tap the curb where you park, then save it to start getting reminders.</p>
+              <p class="empty-subtext">Tap the curb where you park and choose Remind me about this curb.</p>
               <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
             </div>
 
@@ -355,7 +336,7 @@
 
             <div id="empty-jobs" class="empty-state compact-empty">
               <p>Nothing queued yet.</p>
-              <p class="empty-subtext">Once you save a curb, its next sweep shows up here with the reminders that will go out for it.</p>
+              <p class="empty-subtext">Once a curb's reminder is on, its next sweep shows up here with the reminders that will go out for it.</p>
               <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
             </div>
 
@@ -675,7 +656,7 @@
 
               <h2>Information the app may use</h2>
               <ul>
-                <li>Your selected curb sides and reminder times, so the app can build your alert schedule.</li>
+                <li>The curb sides you turn reminders on for, and reminder times, so the app can build your alert schedule.</li>
                 <li>Your browser push subscription, so reminders can be delivered to the device you connected.</li>
                 <li>
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
@@ -723,7 +704,7 @@
 
               <h2>Your choices</h2>
               <p>
-                You can decline location access, decline notifications, clear selections, delete saved sets, delete your
+                You can decline location access, decline notifications, turn off curb reminders, delete saved sets, delete your
                 account, or remove the app from your device.
               </p>
 
@@ -852,6 +833,10 @@
           <p id="curb-sheet-rule" class="curb-sheet-rule"></p>
           <p id="curb-sheet-notice" class="curb-sheet-notice" hidden></p>
           <button id="curb-sheet-action" class="primary-button curb-sheet-action" type="button">Remind me about this curb</button>
+          <p id="curb-sheet-status" class="curb-sheet-status" role="status" aria-live="polite" hidden>
+            <span id="curb-sheet-status-text"></span>
+            <button id="curb-sheet-undo" class="inline-link" type="button">Undo</button>
+          </p>
           <button id="curb-sheet-park" class="ghost-button curb-sheet-park" type="button">I parked here</button>
         </div>
       </div>
@@ -941,7 +926,7 @@
       <article class="selection-item">
         <div class="selection-item-head">
           <span class="selection-pill"></span>
-          <button class="remove-button" type="button">Remove</button>
+          <button class="remove-button" type="button">Turn off</button>
         </div>
         <h3 class="selection-title"></h3>
         <p class="selection-meta"></p>
@@ -1071,7 +1056,7 @@
           </label>
         </div>
         <div class="saved-set-actions">
-          <button class="ghost-button apply-set-button" type="button">Load set</button>
+          <button class="ghost-button apply-set-button" type="button">Show on map</button>
           <button class="remove-button delete-set-button" type="button">Delete</button>
         </div>
       </article>
@@ -1098,6 +1083,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260916-account-switch-c"></script>
+    <script src="./app.js?v=20260916-remind-on-tap-b"></script>
   </body>
 </html>

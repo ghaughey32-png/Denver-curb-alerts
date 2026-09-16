@@ -1540,8 +1540,15 @@ const EMBEDDED_SCHEDULES = {
   }
 };
 
+// Read once, to carry curbs picked under the old select-then-save flow into the default set, and then
+// removed. Nothing writes it any more; see migrateLegacyCurrentSelection.
 const CURRENT_SELECTION_KEY = "sloans-lake-current-selection";
 const SAVED_SETS_KEY = "sloans-lake-notification-sets";
+// Turning a curb's reminder on adds it here. The id is fixed rather than timestamped so that two
+// devices signed in to one account each grow the same set instead of each minting a "My curbs" of
+// their own, and mergeAccountLibrary can union them by id.
+const DEFAULT_SET_ID = "set-my-curbs";
+const DEFAULT_SET_NAME = "My curbs";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
@@ -1626,7 +1633,6 @@ const contextMarkers = [
 ];
 
 const state = {
-  currentSelectionIds: [],
   savedSets: [],
   notificationJobs: [],
   deliveredJobIds: [],
@@ -1681,7 +1687,6 @@ const state = {
   searchedLocation: null,
   mapNoteText:
     "Click a colored curb line to select it for notifications. Click it again, or remove it from the list on the right, to deselect it.",
-  pendingApplySetId: "",
   map: null,
   boundaryLayerGroup: null,
   baseLayerGroup: null,
@@ -1705,10 +1710,6 @@ const emptyJobs = document.querySelector("#empty-jobs");
 const liveSelectionCount = document.querySelector("#live-selection-count");
 const savedSetCount = document.querySelector("#saved-set-count");
 const jobCount = document.querySelector("#job-count");
-const clearButton = document.querySelector("#clear-map-selection");
-const saveSetButton = document.querySelector("#save-set-button");
-const saveConfirmation = document.querySelector("#save-confirmation");
-const setNameInput = document.querySelector("#set-name-input");
 const selectionTemplate = document.querySelector("#selection-item-template");
 const savedSetTemplate = document.querySelector("#saved-set-template");
 const jobList = document.querySelector("#job-list");
@@ -1729,6 +1730,9 @@ const curbSheetNotice = document.querySelector("#curb-sheet-notice");
 const curbSheetAction = document.querySelector("#curb-sheet-action");
 const curbSheetClose = document.querySelector("#curb-sheet-close");
 const curbSheetPark = document.querySelector("#curb-sheet-park");
+const curbSheetStatus = document.querySelector("#curb-sheet-status");
+const curbSheetStatusText = document.querySelector("#curb-sheet-status-text");
+const curbSheetUndo = document.querySelector("#curb-sheet-undo");
 const parkHereButton = document.querySelector("#park-here-button");
 const parkSheet = document.querySelector("#park-sheet");
 const parkSheetSide = document.querySelector("#park-sheet-side");
@@ -1813,7 +1817,6 @@ const closeIssueReportButton = document.querySelector("#close-issue-report-butto
 const readinessItems = {
   curb: document.querySelector("#readiness-curb"),
   push: document.querySelector("#readiness-push"),
-  set: document.querySelector("#readiness-set"),
   jobs: document.querySelector("#readiness-jobs")
 };
 const lookupAddressInput = document.querySelector("#lookup-address-input");
@@ -2204,6 +2207,17 @@ function saveJson(key, value) {
   }
 }
 
+function removeJson(key) {
+  memoryStore.delete(key);
+  try {
+    if (hasBrowserStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Best effort, like saveJson.
+  }
+}
+
 function renderOnboarding() {
   if (!onboardingCard) {
     return;
@@ -2454,8 +2468,8 @@ function serializeSegment(segment) {
   };
 }
 
-function getSelectedSegments() {
-  return state.currentSelectionIds.map(getSegmentById).filter(Boolean);
+function getRemindedSegments() {
+  return [...getRemindedSegmentIds()].map(getSegmentById).filter(Boolean);
 }
 
 function buildSegmentSideDefinitions(orientation) {
@@ -2564,7 +2578,13 @@ function hydrateSavedSet(set, validIds) {
         .filter(Boolean)
         .map(serializeSegment)
     : [];
-  const segments = Array.isArray(set.segments) && set.segments.length ? set.segments : fallbackSegments;
+  // Ids with no serialized curb beside them are what an account merge adds to a set this browser
+  // already had, so they are appended rather than ignored whenever the inventory can resolve them.
+  const storedSegments = Array.isArray(set.segments) ? set.segments : [];
+  const storedIds = new Set(storedSegments.map((segment) => segment.id));
+  const segments = storedSegments.length
+    ? [...storedSegments, ...fallbackSegments.filter((segment) => !storedIds.has(segment.id))]
+    : fallbackSegments;
   const nextSegmentIds = Array.isArray(set.segmentIds)
     ? set.segmentIds.filter((id) => validIds.has(id))
     : segments.map((segment) => segment.id).filter((id) => validIds.has(id));
@@ -2593,9 +2613,41 @@ function getSegmentsForSavedSet(set) {
 
 function loadSavedState() {
   const validIds = new Set(state.curbSegments.map((segment) => segment.id));
-  state.currentSelectionIds = loadJson(CURRENT_SELECTION_KEY, []).filter((id) => validIds.has(id));
   state.savedSets = loadJson(SAVED_SETS_KEY, []).map((set) => hydrateSavedSet(set, validIds)).filter(Boolean);
   state.parkedCar = loadParkedCar();
+  migrateLegacyCurrentSelection();
+}
+
+// Before 2026-09-16 the curb sheet's button only added a curb to a "current selection", and nothing
+// reminded about it until the selection was named and saved on the other half of the panel. The
+// button said "Reminder on" all the same, so anyone holding an unsaved selection believes those
+// curbs are covered. Honouring that belief is the migration: they join the default set.
+// An id is only let go once it resolves. Boot draws a small built-in dataset before the full
+// inventory arrives, so clearing the key on the first pass threw away every curb outside it.
+function migrateLegacyCurrentSelection() {
+  const legacyIds = loadJson(CURRENT_SELECTION_KEY, null);
+  if (!Array.isArray(legacyIds) || !state.curbSegments.length) {
+    return;
+  }
+
+  const reminded = getRemindedSegmentIds();
+  const resolved = legacyIds.map(getSegmentById).filter(Boolean);
+  const segments = resolved.filter(
+    (segment) => segment.schedule?.remindersAllowed !== false && !reminded.has(segment.id)
+  );
+
+  if (segments.length) {
+    addSegmentsToDefaultSet(segments);
+    persistSavedSets();
+  }
+
+  const resolvedIds = new Set(resolved.map((segment) => segment.id));
+  const remaining = legacyIds.filter((segmentId) => !resolvedIds.has(segmentId));
+  if (remaining.length) {
+    saveJson(CURRENT_SELECTION_KEY, remaining);
+  } else {
+    removeJson(CURRENT_SELECTION_KEY);
+  }
 }
 
 // The pin carries its own serialized curb, like a saved set does, so it does not wait for the
@@ -3933,7 +3985,7 @@ function refreshMapViewport() {
   // The map is the landing surface now, and a whole-city fit has no tappable curb in it. A
   // returning user has already told us which block they care about, so open there instead of
   // making them find it again. A first-time user still gets the city view and the locate button.
-  const selectedGeometry = getSelectedSegments().flatMap((segment) => segment.geometry || []);
+  const selectedGeometry = getRemindedSegments().flatMap((segment) => segment.geometry || []);
   if (selectedGeometry.length) {
     state.map.fitBounds(L.latLngBounds(selectedGeometry), { padding: [40, 40], maxZoom: 17 });
     return;
@@ -4537,18 +4589,8 @@ async function loadDenverLookup(address, sourceLabel = "Live Denver lookup", opt
       lookupAddress: cleanedAddress,
       context,
       mapNoteText:
-        "These curb lines came from Denver's live sweeping lookup for the address you loaded. Save any side you want reminders for, then the hosted reminder system will treat it just like the pilot blocks."
+        "These curb lines came from Denver's live sweeping lookup for the address you loaded. Turn on reminders for any side, and the hosted reminder system will treat it just like the pilot blocks."
     });
-
-    const applySetId = options.applySetId || state.pendingApplySetId;
-    if (applySetId) {
-      const savedSet = state.savedSets.find((set) => set.id === applySetId);
-      const availableIds = new Set(state.curbSegments.map((segment) => segment.id));
-      const matchingIds = savedSet ? getSegmentsForSavedSet(savedSet).map((segment) => segment.id).filter((id) => availableIds.has(id)) : [];
-      state.currentSelectionIds = matchingIds;
-      saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
-      state.pendingApplySetId = "";
-    }
 
     refreshMapViewport();
     renderAll();
@@ -5261,8 +5303,22 @@ function renderStreetBases() {
   });
 }
 
-function isSelected(segmentId) {
-  return state.currentSelectionIds.includes(segmentId);
+// Every curb with a reminder on, across all saved sets. The map asks this once per curb per render,
+// tens of thousands of times, so it is memoized on the savedSets array itself: every change to the
+// sets replaces that array rather than mutating it, which is what makes identity a safe key.
+let remindedSegmentIdsSource = null;
+let remindedSegmentIds = new Set();
+
+function getRemindedSegmentIds() {
+  if (remindedSegmentIdsSource !== state.savedSets) {
+    remindedSegmentIdsSource = state.savedSets;
+    remindedSegmentIds = new Set(state.savedSets.flatMap((set) => getSegmentsForSavedSet(set).map((segment) => segment.id)));
+  }
+  return remindedSegmentIds;
+}
+
+function isCurbReminded(segmentId) {
+  return getRemindedSegmentIds().has(segmentId);
 }
 
 function getSegmentById(segmentId) {
@@ -5319,7 +5375,7 @@ function getSelectedDisplayGeometry(segment, selectedStyle) {
 }
 
 function getSegmentRenderGeometry(segment, selectedStyle) {
-  return isSelected(segment.id) ? getSelectedDisplayGeometry(segment, selectedStyle) : segment.geometry;
+  return isCurbReminded(segment.id) ? getSelectedDisplayGeometry(segment, selectedStyle) : segment.geometry;
 }
 
 function supportsHoverPointer() {
@@ -5337,9 +5393,9 @@ function renderSegments() {
   const selectedStyle = getSelectedCurbStyle();
   // The selection is drawn wherever it is, in view or not, so a saved curb never silently vanishes
   // from the map while the user pans away from it. It is at most a handful of segments.
-  const selectedSegments = state.curbSegments.filter((segment) => isSelected(segment.id));
+  const selectedSegments = state.curbSegments.filter((segment) => isCurbReminded(segment.id));
   const unselectedSegments = getVisibleRecords(state.curbSegments, viewport).filter(
-    (segment) => !isSelected(segment.id)
+    (segment) => !isCurbReminded(segment.id)
   );
   // What the pointer can hit. Selected curbs are included so their own tooltip still answers.
   state.visibleSegments = [...unselectedSegments, ...selectedSegments];
@@ -5440,7 +5496,7 @@ function getSegmentHoverLabel(segment) {
         ? " | No car relocation required — tap for schedule details"
         : "";
 
-  if (isSelected(segment.id)) {
+  if (isCurbReminded(segment.id)) {
     return `Selected: ${segment.street} - ${segment.sideLabel}`;
   }
 
@@ -5627,14 +5683,17 @@ let activeCurbSheetLatLng = null;
 
 function openCurbSheet(segmentId) {
   if (!curbSheet) {
-    // Without the sheet markup, fall back to the original select-on-tap behavior.
-    toggleSegment(segmentId);
+    // Without the sheet markup there is nowhere to show a schedule, so tapping turns the reminder on.
+    toggleCurbReminder(segmentId);
     return;
   }
 
   // One sheet at a time; both sit in the same corner of the screen.
   if (state.parkSheetOpen) {
     closeParkSheet();
+  }
+  if (activeCurbSheetSegmentId !== segmentId) {
+    lastCurbReminderChange = null;
   }
   activeCurbSheetSegmentId = segmentId;
   renderCurbSheet();
@@ -5643,6 +5702,7 @@ function openCurbSheet(segmentId) {
 function closeCurbSheet() {
   activeCurbSheetSegmentId = null;
   activeCurbSheetLatLng = null;
+  lastCurbReminderChange = null;
   if (curbSheet) {
     curbSheet.hidden = true;
     curbSheet.classList.remove("is-open");
@@ -5716,7 +5776,7 @@ function renderCurbSheet() {
   }
 
   const copy = buildCurbSheetCopy(segment);
-  const selected = isSelected(segment.id);
+  const selected = isCurbReminded(segment.id);
 
   curbSheetSide.textContent = segment.sideLabel;
   curbSheetSide.style.background = segment.color;
@@ -5736,6 +5796,7 @@ function renderCurbSheet() {
       ? "Reminder on — tap to remove"
       : "Remind me about this curb";
   curbSheetAction.classList.toggle("is-on", copy.canRemind && selected);
+  renderCurbSheetStatus(segment, selected);
 
   if (curbSheetPark) {
     const parkedHere = getSegmentsForSavedSet(state.parkedCar || { segments: [] }).some((parked) => parked.id === segment.id);
@@ -5750,40 +5811,132 @@ function renderCurbSheet() {
   document.body.classList.add("curb-sheet-open");
 }
 
-function toggleSegment(segmentId) {
-  if (isSelected(segmentId)) {
-    state.currentSelectionIds = state.currentSelectionIds.filter((id) => id !== segmentId);
-  } else {
-    state.currentSelectionIds = [...state.currentSelectionIds, segmentId];
+// There is no save step. The sheet's button used to add a curb to a selection that reminded nobody
+// until it was named and saved on the other half of the panel, while the button already read
+// "Reminder on" -- so a driver could turn a reminder on, close the app, and get the ticket. Now the
+// button is the commitment: on adds the curb to the default set, off takes it out of every set, and
+// both happen then and there. The undo on the sheet restores the sets exactly as they were.
+let lastCurbReminderChange = null;
+
+// The line under the button after a tap: what just happened, in the driver's terms, and a way back.
+// It only ever describes this curb's own last change, so opening another curb clears it.
+function renderCurbSheetStatus(segment, reminded) {
+  if (!curbSheetStatus) {
+    return;
   }
 
-  saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
+  const change = lastCurbReminderChange;
+  if (!change || change.segmentId !== segment.id) {
+    curbSheetStatus.hidden = true;
+    return;
+  }
+
+  if (change.turnedOn && reminded) {
+    curbSheetStatusText.textContent = "Reminders on. Change the times in My alerts.";
+  } else if (!change.turnedOn && !reminded) {
+    curbSheetStatusText.textContent = "Reminders off for this curb.";
+  } else {
+    curbSheetStatus.hidden = true;
+    return;
+  }
+
+  curbSheetStatus.hidden = false;
+}
+
+function toggleCurbReminder(segmentId) {
+  const segment = getSegmentById(segmentId);
+  if (!segment) {
+    return;
+  }
+
+  const previousSets = state.savedSets;
+  const turningOn = !isCurbReminded(segmentId);
+
+  if (turningOn) {
+    if (segment.schedule?.remindersAllowed === false) {
+      lookupStatus.textContent = "Streets not maintained by Denver have no Denver sweeping schedule and cannot be saved for sweeping reminders.";
+      return;
+    }
+    addSegmentsToDefaultSet([segment]);
+    // A new curb is a fresh reason to offer push, even to someone who said "not now" last time.
+    saveJson(PUSH_PRIMER_DISMISSED_KEY, false);
+  } else {
+    removeSegmentFromSavedSets(segmentId);
+  }
+
+  lastCurbReminderChange = { segmentId, turnedOn: turningOn, previousSets };
+  persistSavedSets();
   renderAll();
   renderCurbSheet();
 }
 
-function clearCurrentSelection() {
-  state.currentSelectionIds = [];
-  saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
-  closeCurbSheet();
+function undoCurbReminderChange() {
+  if (!lastCurbReminderChange) {
+    return;
+  }
+
+  state.savedSets = lastCurbReminderChange.previousSets;
+  lastCurbReminderChange = null;
+  persistSavedSets();
   renderAll();
+  renderCurbSheet();
 }
 
-function renderCurrentSelection() {
-  const selectedSegments = state.currentSelectionIds
-    .map(getSegmentById)
-    .filter(Boolean)
+function addSegmentsToDefaultSet(segments) {
+  const existing = state.savedSets.find((set) => set.id === DEFAULT_SET_ID);
+  const current = existing ? getSegmentsForSavedSet(existing) : [];
+  const currentIds = new Set(current.map((segment) => segment.id));
+  const added = segments.filter((segment) => !currentIds.has(segment.id)).map(serializeSegment);
+  const nextSegments = [...current, ...added];
+
+  const nextSet = {
+    ...(existing || {
+      id: DEFAULT_SET_ID,
+      name: DEFAULT_SET_NAME,
+      sourceLabel: state.activeSourceLabel,
+      lookupAddress: state.activeLookupAddress,
+      createdAt: new Date().toISOString(),
+      reminders: buildDefaultReminders()
+    }),
+    segmentIds: nextSegments.map((segment) => segment.id),
+    segments: nextSegments
+  };
+
+  state.savedSets = existing
+    ? state.savedSets.map((set) => (set.id === DEFAULT_SET_ID ? nextSet : set))
+    : [nextSet, ...state.savedSets];
+}
+
+// Off means off: a curb that stayed in some older named set would keep reminding, and the button
+// would still read "Reminder on". A set left with no curbs is dropped rather than kept empty, since
+// an empty set cannot remind about anything and hydrateSavedSet would discard it on the next load.
+function removeSegmentFromSavedSets(segmentId) {
+  state.savedSets = state.savedSets
+    .map((set) => {
+      const segments = getSegmentsForSavedSet(set);
+      if (!segments.some((segment) => segment.id === segmentId)) {
+        return set;
+      }
+      const nextSegments = segments.filter((segment) => segment.id !== segmentId);
+      return {
+        ...set,
+        segmentIds: nextSegments.map((segment) => segment.id),
+        segments: nextSegments
+      };
+    })
+    .filter((set) => getSegmentsForSavedSet(set).length > 0);
+}
+
+// The curbs with reminders on, listed under the map. It used to list a pending selection waiting to
+// be saved; with no save step, what is listed here is exactly what reminds.
+function renderRemindedCurbs() {
+  const selectedSegments = getRemindedSegments()
     .sort((a, b) => a.street.localeCompare(b.street) || a.sideLabel.localeCompare(b.sideLabel));
 
   selectionList.innerHTML = "";
   emptySelection.style.display = selectedSegments.length ? "none" : "block";
   currentSelectionSection.classList.toggle("is-empty", selectedSegments.length === 0);
-  liveSelectionCount.textContent = `${selectedSegments.length} selected`;
-  const includesNonReminderCurb = selectedSegments.some((segment) => segment.schedule?.remindersAllowed === false);
-  saveSetButton.disabled = includesNonReminderCurb;
-  saveSetButton.title = includesNonReminderCurb
-    ? "Remove streets not maintained by Denver before saving sweeping reminders."
-    : "";
+  liveSelectionCount.textContent = `${selectedSegments.length} on`;
 
   selectedSegments.forEach((segment) => {
     const item = selectionTemplate.content.firstElementChild.cloneNode(true);
@@ -5799,7 +5952,7 @@ function renderCurrentSelection() {
     if (unavailableNotice && (!segment.schedule || segment.schedule.sweepType === "Unavailable")) {
       unavailableNotice.hidden = false;
     }
-    item.querySelector(".remove-button").addEventListener("click", () => toggleSegment(segment.id));
+    item.querySelector(".remove-button").addEventListener("click", () => toggleCurbReminder(segment.id));
     selectionList.appendChild(item);
   });
 }
@@ -5830,54 +5983,9 @@ function buildSelectionMeta(segment) {
   return `${segment.sideLabel} of ${segment.street} | Next sweep: ${nextSweepText} | ${segment.schedule.rule}`;
 }
 
-function saveCurrentAsSet() {
-  const cleanedName = setNameInput.value.trim();
-  const selectedSegments = getSelectedSegments();
-
-  if (!selectedSegments.length) {
-    setNameInput.focus();
-    return;
-  }
-
-  if (selectedSegments.some((segment) => segment.schedule?.remindersAllowed === false)) {
-    lookupStatus.textContent = "Streets not maintained by Denver have no Denver sweeping schedule and cannot be saved for sweeping reminders.";
-    return;
-  }
-
-  const name = cleanedName || buildDefaultSetName(selectedSegments, state.savedSets.length + 1);
-  const nextSet = {
-    id: `set-${Date.now()}`,
-    name,
-    segmentIds: [...state.currentSelectionIds],
-    segments: selectedSegments.map(serializeSegment),
-    sourceLabel: state.activeSourceLabel,
-    lookupAddress: state.activeLookupAddress,
-    createdAt: new Date().toISOString(),
-    reminders: buildDefaultReminders()
-  };
-
-  state.savedSets = [nextSet, ...state.savedSets];
-  persistSavedSets();
-  saveJson(PUSH_PRIMER_DISMISSED_KEY, false);
-  setNameInput.value = "";
-  renderAll();
-  showSaveConfirmation(nextSet, selectedSegments);
-}
-
-function showSaveConfirmation(savedSet, selectedSegments) {
-  if (!saveConfirmation) {
-    return;
-  }
-
-  const nextSweep = summarizeSetSchedule(savedSet, selectedSegments);
-  const reminders = summarizeReminders(buildDefaultReminders(savedSet.reminders)).replace(/^Scheduled /, "");
-  saveConfirmation.hidden = false;
-  saveConfirmation.innerHTML = `
-    <strong>You're all set for ${escapeHtml(savedSet.name)}.</strong>
-    <span>Next sweep: ${escapeHtml(nextSweep)}. Reminders: ${escapeHtml(reminders)}</span>
-  `;
-}
-
+// "Show on map" for a saved set. Every reminded curb is already drawn highlighted, so this only has
+// to take the driver there. A set from a live address lookup whose curbs are not in the loaded
+// inventory reloads that lookup first.
 function applySavedSet(setId) {
   if (state.parkedCar?.id === setId) {
     setActiveView("setup");
@@ -5891,18 +5999,19 @@ function applySavedSet(setId) {
     return;
   }
 
-  const availableIds = new Set(state.curbSegments.map((segment) => segment.id));
-  const matchingIds = getSegmentsForSavedSet(savedSet).map((segment) => segment.id).filter((id) => availableIds.has(id));
+  const matchingSegments = getSegmentsForSavedSet(savedSet).map((segment) => getSegmentById(segment.id)).filter(Boolean);
 
-  if (!matchingIds.length && savedSet.lookupAddress) {
-    state.pendingApplySetId = setId;
-    loadDenverLookup(savedSet.lookupAddress, savedSet.sourceLabel || savedSet.name, { applySetId: setId });
+  if (!matchingSegments.length && savedSet.lookupAddress) {
+    setActiveView("setup");
+    loadDenverLookup(savedSet.lookupAddress, savedSet.sourceLabel || savedSet.name);
     return;
   }
 
-  state.currentSelectionIds = matchingIds;
-  saveJson(CURRENT_SELECTION_KEY, state.currentSelectionIds);
-  renderAll();
+  setActiveView("setup");
+  const geometry = matchingSegments.flatMap((segment) => segment.geometry || []);
+  if (state.map && geometry.length) {
+    state.map.fitBounds(L.latLngBounds(geometry), { padding: [40, 40], maxZoom: 17 });
+  }
 }
 
 function deleteSavedSet(setId) {
@@ -6098,7 +6207,7 @@ function buildDefaultSetName(segments, fallbackNumber) {
 
 function summarizeSavedSetMeta(segments) {
   const count = segments.filter(Boolean).length;
-  return `${count} ${count === 1 ? "curb side" : "curb sides"} selected`;
+  return `${count} ${count === 1 ? "curb side" : "curb sides"}`;
 }
 
 function buildSavedSetDetails(set, segments, reminders) {
@@ -6187,7 +6296,7 @@ function toggleIssueReportPanel() {
 }
 
 function buildIssueReportPayload() {
-  const selectedSegments = getSelectedSegments().map((segment) => {
+  const selectedSegments = getRemindedSegments().map((segment) => {
     const nextSweepDate = getNextSweepDate(segment);
 
     return {
@@ -7662,43 +7771,36 @@ function renderReminderReadiness() {
     return;
   }
 
-  const selectedSegments = getSelectedSegments();
-  const savedSegments = getReminderSets().flatMap(getSegmentsForSavedSet);
-  const hasCurb = selectedSegments.length > 0 || savedSegments.length > 0;
-  const hasSavedSet = getReminderSets().length > 0;
-  const savedSetText = !state.parkedCar
-    ? `${state.savedSets.length} reminder set${state.savedSets.length === 1 ? "" : "s"} saved.`
-    : state.savedSets.length
-      ? `${state.savedSets.length} reminder set${state.savedSets.length === 1 ? "" : "s"} saved, plus where you parked.`
+  const remindedCount = getRemindedSegmentIds().size;
+  const hasCurb = remindedCount > 0 || Boolean(state.parkedCar);
+  const remindedText = `${remindedCount} curb side${remindedCount === 1 ? " has" : "s have"} reminders on`;
+  const curbText = !state.parkedCar
+    ? `${remindedText}.`
+    : remindedCount
+      ? `${remindedText}, plus where you parked.`
       : "Reminders are following where you parked.";
   // A native shell never has a push subscription - it schedules on the device - so checking web push
   // alone left this item unticked forever inside the app, even with notifications allowed.
   const hasNativeReminders = canUseNativeReminders() && getNativeReminderPermission() === "granted";
   const hasPush = hasRemotePushReady() || hasNativeReminders;
   const hasJobs = state.notificationJobs.length > 0;
-  const readyTotal = [hasCurb, hasPush, hasSavedSet, hasJobs].filter(Boolean).length;
+  // There were four steps until 2026-09-16. "Save a reminder set" went when turning a curb's
+  // reminder on stopped needing a save.
+  const readyTotal = [hasCurb, hasPush, hasJobs].filter(Boolean).length;
 
-  readinessCount.textContent = `${readyTotal} of 4 ready`;
+  readinessCount.textContent = `${readyTotal} of 3 ready`;
 
   setReadinessItem(
     readinessItems.curb,
     hasCurb,
-    selectedSegments.length
-      ? `${selectedSegments.length} curb side${selectedSegments.length === 1 ? "" : "s"} selected.`
-      : "Saved curb sides are ready.",
-    "Tap a colored curb side on the map."
+    curbText,
+    "Tap a colored curb on the map and turn its reminder on."
   );
   setReadinessItem(
     readinessItems.push,
     hasPush,
     hasNativeReminders ? "Notifications are allowed on this phone." : "This device is connected for push alerts.",
     "Turn on push notifications for this phone."
-  );
-  setReadinessItem(
-    readinessItems.set,
-    hasSavedSet,
-    savedSetText,
-    "Name it and save the curbs you want alerts for."
   );
   setReadinessItem(
     readinessItems.jobs,
@@ -8267,8 +8369,27 @@ async function mergeAccountLibrary() {
   const localIds = new Set(localSets.map((set) => set.id));
   const adopted = remoteSets.filter((set) => set.id && !localIds.has(set.id));
 
-  if (adopted.length) {
-    saveJson(SAVED_SETS_KEY, [...loadJson(SAVED_SETS_KEY, []), ...adopted]);
+  // A set both sides hold -- above all the default set, which every device creates under the same
+  // id -- is unioned curb by curb, so a curb turned on from another phone is not lost to this one's
+  // upload. The cost is the one AGENTS.md already names for whole sets: with no tombstones, a curb
+  // turned off on one device comes back from another that still has it.
+  const remoteById = new Map(remoteSets.filter((set) => set.id).map((set) => [String(set.id), set]));
+  let unioned = 0;
+  const localRaw = loadJson(SAVED_SETS_KEY, []).map((set) => {
+    const remote = remoteById.get(String(set.id || ""));
+    const localSegmentIds = Array.isArray(set.segmentIds) ? set.segmentIds.map(String) : [];
+    const missing = remote && Array.isArray(remote.segmentIds)
+      ? remote.segmentIds.map(String).filter((segmentId) => !localSegmentIds.includes(segmentId))
+      : [];
+    if (!missing.length) {
+      return set;
+    }
+    unioned += 1;
+    return { ...set, segmentIds: [...localSegmentIds, ...missing] };
+  });
+
+  if (adopted.length || unioned) {
+    saveJson(SAVED_SETS_KEY, [...localRaw, ...adopted]);
     loadSavedState();
     renderAll();
   }
@@ -8645,7 +8766,7 @@ function renderAll() {
   renderStreetBases();
   renderSegments();
   renderContext();
-  renderCurrentSelection();
+  renderRemindedCurbs();
   renderSavedSets();
   renderNotificationJobs();
   renderNotificationStatus();
@@ -8764,7 +8885,6 @@ function applyTimeToDate(baseDate, timeValue) {
 }
 
 function registerEvents() {
-  clearButton.addEventListener("click", clearCurrentSelection);
   registerAccountEvents();
   useMyLocationButton?.addEventListener("click", requestUserLocation);
   curbSheetClose?.addEventListener("click", closeCurbSheet);
@@ -8797,7 +8917,7 @@ function registerEvents() {
   installSheetDone?.addEventListener("click", closeInstallSheet);
   curbSheetAction?.addEventListener("click", () => {
     if (activeCurbSheetSegmentId) {
-      toggleSegment(activeCurbSheetSegmentId);
+      toggleCurbReminder(activeCurbSheetSegmentId);
     }
   });
   document.addEventListener("keydown", (event) => {
@@ -8817,7 +8937,7 @@ function registerEvents() {
     }
   });
   onboardingDismissButton?.addEventListener("click", dismissOnboarding);
-  saveSetButton.addEventListener("click", saveCurrentAsSet);
+  curbSheetUndo?.addEventListener("click", undoCurbReminderChange);
   enableNotificationsButton.addEventListener("click", requestBrowserNotifications);
   sendTestButton.addEventListener("click", sendImmediateTestNotification);
   scheduleTestButton.addEventListener("click", scheduleHostedTestNotification);
@@ -8842,12 +8962,6 @@ function registerEvents() {
       const label = button.dataset.label || "Live Denver lookup";
       loadDenverLookup(address, label);
     });
-  });
-  setNameInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      saveCurrentAsSet();
-    }
   });
   if (!lookupForm) {
     lookupAddressButton?.addEventListener("click", () => {

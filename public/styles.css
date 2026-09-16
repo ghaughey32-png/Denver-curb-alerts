@@ -1435,32 +1435,6 @@ a.ghost-button {
   padding: 18px 16px;
 }
 
-.save-confirmation {
-  display: grid;
-  gap: 6px;
-  margin-top: 14px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: #e4f2df;
-  border: 1px solid rgba(77, 160, 83, 0.28);
-  color: #21382c;
-  box-shadow: 0 10px 24px rgba(43, 99, 56, 0.08);
-}
-
-.save-confirmation[hidden] {
-  display: none;
-}
-
-.save-confirmation strong {
-  font-size: 1rem;
-}
-
-.save-confirmation span {
-  color: #52665c;
-  font-size: 0.92rem;
-  line-height: 1.45;
-}
-
 .setup-next-card {
   display: grid;
   gap: 14px;
@@ -2401,10 +2375,6 @@ a.ghost-button {
   margin-top: 12px;
 }
 
-.map-secondary-actions {
-  margin-top: 12px;
-}
-
 /* The curb sheet. Desktop anchors it to the bottom-left of the viewport so it
    never covers the map's centre; mobile gets a full-width bottom sheet. */
 .curb-sheet {
@@ -2501,6 +2471,23 @@ a.ghost-button {
   border: 1px solid rgba(47, 158, 68, 0.34);
   color: #1c5c2c;
   box-shadow: none;
+}
+
+/* What the reminder button just did, with Undo. The [hidden] guard matters: display: flex beats
+   the UA's [hidden] rule, and this line would otherwise sit under every curb opened. */
+.curb-sheet-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 10px 0 0;
+  color: #1c5c2c;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.curb-sheet-status[hidden] {
+  display: none;
 }
 
 .curb-sheet-action:disabled {

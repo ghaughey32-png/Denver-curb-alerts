@@ -671,6 +671,11 @@ The remaining limitation is honest last-write-wins across simultaneously-open de
 each holding different sets will not learn about each other until one of them reloads. Fixing that
 means per-set timestamps and tombstones, which is not worth it before there are customers.
 
+**A set both sides hold is unioned curb by curb** (2026-09-16), because every device now creates
+the default set under the same id — see **Turning a reminder on is the save**. The cost is the
+missing tombstone: a curb turned off on one device comes back from another that still holds it.
+Losing a curb someone turned on is the worse failure for this app, so the union stands.
+
 **`npm test` now spawns real servers.** `test/accounts.test.js` stands `server.js` up against a temp
 `DATA_DIR` for six of its cases, because password handling is exactly the code where unit tests of
 the pieces pass while the wiring leaks. It costs about a second — scrypt is slow on purpose. Do not
@@ -776,6 +781,38 @@ it receiving mail: confirm the forwarding or mailbox exists before any store lis
 purchase for a digital subscription sold inside an iOS app, so a purchase path there is StoreKit
 filling the same `provider*` fields. But there is no iOS app yet, and what stands in front of one is
 reminders and native capability rather than billing. See **Shipping on iOS** below.
+
+## Turning a reminder on is the save
+
+Changed 2026-09-16. There is no "Save these curbs" step any more. **Remind me about this curb** on
+the curb sheet adds the curb to one default set (`DEFAULT_SET_ID`, `set-my-curbs`, named *My
+curbs*) and persists it then and there; tapping it again takes the curb out of **every** set.
+
+**The old flow was a trap, not just a slow path.** The button only added a curb to
+`currentSelectionIds`, and nothing reminded until the selection was named and saved on the other
+half of the panel — but the button already read *Reminder on — tap to remove*. A driver could turn
+a reminder on, close the app, and get the ticket. `migrateLegacyCurrentSelection` moves any unsaved
+selection into the default set, because those drivers believe those curbs are covered. It lets an
+id go only once it resolves: boot draws a small built-in dataset before the full inventory, and the
+first version of the migration cleared the key against that and lost every curb outside it.
+
+**Opening a curb does not turn it on; the button does.** People tap curbs to read the schedule, and
+subscribing on a look would pile up reminders they never asked for.
+
+**One default set, not a set per curb.** Jobs are built per set, so two curbs swept the same day in
+one set send one reminder rather than two, and iOS keeps only 64 pending notifications — at 40 jobs
+per set with the defaults, a set per curb reaches the cap at the second curb.
+
+**Off means off everywhere.** A curb left in some older named set would keep reminding while the
+button said it had stopped. A set that loses its last curb is dropped. Undo on the sheet restores
+the sets array exactly as it was, and is cleared when the sheet closes or another curb opens.
+
+**The map highlights what reminds.** `isCurbReminded` is the union of every saved set's curbs,
+memoized on the `state.savedSets` array identity — every change replaces that array rather than
+mutating it, and that is what keeps the per-curb lookup cheap across 40,000 curbs. Keep it that way.
+The list under the map is those curbs, each with **Turn off**; **Show on map** on a saved set just
+takes the driver there. Existing named sets still work, and nothing creates new ones.
+`test/remind-on-tap.test.js` covers all of this.
 
 ## Reminders keep going until the car is moved
 
