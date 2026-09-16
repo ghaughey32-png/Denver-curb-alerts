@@ -3095,24 +3095,15 @@ a.ghost-button {
   border-color: var(--line);
 }
 
-/* Blue rather than the accent orange: the switch, the submit button and the links all sat on this one
-   card, and a screen of nothing but orange buttons reads as noise rather than a choice. */
 .account-mode-button.is-active {
-  background: var(--blue);
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 6px 16px rgba(47, 111, 237, 0.28);
+  box-shadow: 0 6px 16px rgba(180, 93, 42, 0.28);
 }
 
+/* The submit button is blue so it does not blur into the orange switch directly above it. */
 .account-view .primary-button {
   background: var(--blue);
-}
-
-.account-view .inline-link {
-  color: var(--blue);
-}
-
-.account-view .inline-link:hover {
-  color: var(--ink);
 }
 
 .account-mode-hint[hidden] {
