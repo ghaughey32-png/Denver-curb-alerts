@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v187",
+    "cacheName": "curb-alerts-shell-v188",
     "files": {
-      "index.html": "3e1b99fc1459d11c6195ca4484a6c39787b64a1fdf177bee2c7bf5c58908e996",
-      "sw.js": "2b922ff3a7c4d4b28a1a9d9236bb32004c423db072aab3a912151f9f7b6e0d7a"
+      "index.html": "1d6130c26a8e8498a23010767f48f471b69c48761d00c835e1c35ad4d6991fdf",
+      "sw.js": "d11c63ad866de07ec2a8f57451ea0eca2e3583fb8a7ddc384347a77f65f1f50e"
     }
   },
   "assets": {
@@ -37,8 +37,8 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260916-account-switch-b",
-      "sha256": "99c0b908f55a2c0b8eb35ff01daa27444c40a3b4e5c9b5202bc8ea2159a7db71"
+      "version": "20260916-account-blue",
+      "sha256": "508af973661a2e500dfeb981255a6537ba201d9c99d1566c332faa28033521a5"
     }
   }
 }
