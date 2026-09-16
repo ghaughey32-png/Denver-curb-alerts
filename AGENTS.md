@@ -1094,12 +1094,21 @@ configurations and commit it, or the next archive from a clean checkout reuses a
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
 change reaches testers only in a new build, because the app ships its own copy of `public/`.
 
+**`ios/CurbAlerts/PrivacyInfo.xcprivacy` has to stay true to the Privacy page**, added 2026-09-16.
+It declares one required-reason API, `UserDefaults` (`CA92.1`, read back only by this app), which
+`ReminderScheduler` uses to keep the job list and confirmed sweeps. A new `UserDefaults` call, a file
+timestamp read, or an uptime read anywhere in either target needs its reason added here in the same
+commit; the widget has no manifest because it touches none of them, and needs one the day it does.
+The data it declares as collected, none of it for tracking, is what leaves the phone and is kept:
+the account's email and its synced curb library (linked), and issue reports with their device context
+(not linked). Coordinates sent to `/api/denver/sweeping` are not declared, because the proxy answers
+and keeps nothing, and the parking pin never leaves the device. If the server ever starts storing a
+lookup, or a new payload leaves the phone, this file and the App Store privacy answers change with it.
+
 **Not done yet, in the order they matter:**
 
 - **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
 - Geofencing, the home-screen widget and APNs (steps 4 and 5).
-- No `PrivacyInfo.xcprivacy`. `ReminderScheduler` reads and writes `UserDefaults`, a required-reason
-  API, so App Store review will want one declaring it. TestFlight uploads have gone through without.
 
 **Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost
 of the move". It is not the largest piece: the client's browser assumptions and the session change
