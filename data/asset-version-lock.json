@@ -1,16 +1,20 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v177",
+    "cacheName": "curb-alerts-shell-v179",
     "files": {
-      "index.html": "bd28b58cede976a60dfa9938138508bfe1e6e03b4ca767b2437a4cf77631f5b8",
-      "sw.js": "c372b29887b00c9322dde16678f426c48e49f49268058acd8fc1d214704ad469"
+      "index.html": "a6cc013d77a67d6b6fa47aff095658beaa598e461783b3e5fae6ea9e44778793",
+      "sw.js": "55814d06b9a1d112060966f99447a3bf8a8964c039a267aed91a62b0234e4cc5"
     }
   },
   "assets": {
     "app.js": {
       "version": "20260915-park-here-b",
       "sha256": "fbca2b38412abf85131bf7006f8a76e32bdb23647815769b0fd90ae2b8d94ed8"
+    },
+    "apple-touch-icon.png": {
+      "version": "20260916-two-sides",
+      "sha256": "c91650dc433935215c41dd1f99481df859ebbf0134def27b98c799f1a78f640b"
     },
     "curb-geometry.js": {
       "version": "20260813b",
@@ -25,8 +29,8 @@
       "sha256": "aabb83e59ff79b90d638c9fe293226b715fd14310f2b9b0f67c1d621b00c5d65"
     },
     "icon.svg": {
-      "version": "20260808d",
-      "sha256": "489be48a97115d6b3ac99caf523f6d3a49a92c21812d039aa80999fb3164689f"
+      "version": "20260916-two-sides",
+      "sha256": "327becbf9e27b72f97b55f462689991820a83f39545f6df93becb0bc5abcd0b5"
     },
     "manifest.webmanifest": {
       "version": "20260808d",

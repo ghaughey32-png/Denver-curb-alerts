@@ -1,4 +1,4 @@
-const CACHE_NAME = "curb-alerts-shell-v177";
+const CACHE_NAME = "curb-alerts-shell-v179";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,7 +8,8 @@ const APP_SHELL = [
   "/app.js?v=20260915-park-here-b",
   "/denver-west-routes.json?v=96",
   "/manifest.webmanifest?v=20260808d",
-  "/icon.svg?v=20260808d"
+  "/icon.svg?v=20260916-two-sides",
+  "/apple-touch-icon.png?v=20260916-two-sides"
 ];
 
 self.addEventListener("install", (event) => {
