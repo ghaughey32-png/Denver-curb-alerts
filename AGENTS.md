@@ -1085,13 +1085,21 @@ on purpose.** Decided 2026-09-15 by the app's author, for the reason the follow-
 reminder that is easy to ignore is how the ticket happened. Do not dedupe them. The notification is
 also the fallback when the card was never started - Live Activities switched off, or iOS below 26.
 
+**TestFlight is live.** The app record for `co.curbalerts.app` exists (Apple ID 6812789158) with an
+internal group, *Friends*, and an external group, *Friend Test 1*. Build 1 was uploaded 2026-09-16
+and went to Beta App Review for the external group; build 2 followed the same day to carry the new
+app icon. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+extension must carry the same one** or the upload is refused. Raise it in all four build
+configurations and commit it, or the next archive from a clean checkout reuses a spent number.
+`MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
+change reaches testers only in a new build, because the app ships its own copy of `public/`.
+
 **Not done yet, in the order they matter:**
 
 - **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
 - Geofencing, the home-screen widget and APNs (steps 4 and 5).
-- Nothing has been uploaded to App Store Connect yet. `DEVELOPMENT_TEAM` is set (`XLGGMG362T`), and
-  the app installs on a phone from Xcode; TestFlight needs an app record for `co.curbalerts.app`
-  and a first archive.
+- No `PrivacyInfo.xcprivacy`. `ReminderScheduler` reads and writes `UserDefaults`, a required-reason
+  API, so App Store review will want one declaring it. TestFlight uploads have gone through without.
 
 **Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost
 of the move". It is not the largest piece: the client's browser assumptions and the session change
