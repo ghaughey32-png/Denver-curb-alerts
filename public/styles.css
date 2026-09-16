@@ -351,7 +351,7 @@ button {
 
 .hero {
   display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
+  grid-template-columns: 1fr;
   gap: clamp(20px, 4vw, 42px);
   padding: clamp(28px, 5vw, 54px);
   overflow: hidden;
@@ -441,75 +441,11 @@ button {
   font-weight: 700;
 }
 
-.hero-quick-proof {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.hero-quick-proof span {
-  padding: 12px 13px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.72);
-  line-height: 1.35;
-  font-size: 0.9rem;
-}
-
-.hero-quick-proof strong {
-  display: block;
-  color: #fff;
-  font-size: 0.96rem;
-}
-
-.hero-summary {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-}
-
-.summary-card,
 .note-card,
 .selection-item {
   background: rgba(255, 255, 255, 0.76);
   border: 1px solid rgba(31, 47, 55, 0.08);
   border-radius: 22px;
-}
-
-.summary-card {
-  padding: 16px 18px;
-  display: grid;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.summary-card strong {
-  font-size: 1.8rem;
-}
-
-.summary-card-featured {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 246, 235, 0.86)),
-    radial-gradient(circle at top right, rgba(180, 93, 42, 0.18), transparent 42%);
-}
-
-.summary-card-featured strong {
-  font-size: 1.35rem;
-  line-height: 1.1;
-}
-
-.summary-card-featured p {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.summary-label {
-  color: var(--muted);
-  font-size: 0.88rem;
 }
 
 .journey-card {
@@ -2113,17 +2049,6 @@ a.ghost-button {
   .hero h1 {
     max-width: 18ch;
   }
-
-  .hero-summary {
-    grid-template-columns: minmax(260px, 1.6fr) repeat(3, minmax(130px, 1fr));
-    gap: 10px;
-  }
-
-  .summary-card {
-    align-content: center;
-    min-height: 112px;
-    padding: 12px 14px;
-  }
 }
 
 @media (max-width: 1100px) {
@@ -2139,7 +2064,6 @@ a.ghost-button {
     justify-content: flex-start;
   }
 
-  .hero-quick-proof,
   .journey-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2205,7 +2129,6 @@ a.ghost-button {
     width: 100%;
   }
 
-  .hero-quick-proof,
   .journey-steps {
     grid-template-columns: 1fr;
   }
@@ -2258,20 +2181,6 @@ a.ghost-button {
     gap: 22px;
     padding: 28px 20px 22px;
     border-radius: 30px;
-  }
-
-  .hero-summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .summary-card-featured {
-    grid-column: 1 / -1;
-  }
-
-  .summary-card {
-    min-height: 96px;
-    padding: 11px 13px;
-    border-radius: 18px;
   }
 
   .hero h1 {

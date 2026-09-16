@@ -1702,9 +1702,6 @@ const savedSetsList = document.querySelector("#saved-sets-list");
 const emptySelection = document.querySelector("#empty-selection");
 const emptySets = document.querySelector("#empty-sets");
 const emptyJobs = document.querySelector("#empty-jobs");
-const selectedCount = document.querySelector("#selected-count");
-const streetCount = document.querySelector("#street-count");
-const segmentCount = document.querySelector("#segment-count");
 const liveSelectionCount = document.querySelector("#live-selection-count");
 const savedSetCount = document.querySelector("#saved-set-count");
 const jobCount = document.querySelector("#job-count");
@@ -5779,7 +5776,6 @@ function renderCurrentSelection() {
   selectionList.innerHTML = "";
   emptySelection.style.display = selectedSegments.length ? "none" : "block";
   currentSelectionSection.classList.toggle("is-empty", selectedSegments.length === 0);
-  selectedCount.textContent = String(selectedSegments.length);
   liveSelectionCount.textContent = `${selectedSegments.length} selected`;
   const includesNonReminderCurb = selectedSegments.some((segment) => segment.schedule?.remindersAllowed === false);
   saveSetButton.disabled = includesNonReminderCurb;
@@ -7800,12 +7796,6 @@ function renderActiveAreaDetails() {
   }
 }
 
-function renderStats() {
-  const uniqueStreets = new Set(state.streetWays.map((way) => way.name));
-  streetCount.textContent = String(uniqueStreets.size);
-  segmentCount.textContent = String(state.curbSegments.length);
-}
-
 // Accounts.
 //
 // The app is anonymous by default and stays that way: every function below is a no-op when nobody
@@ -8621,7 +8611,6 @@ function renderAll() {
   renderParkSheet();
   renderReminderReadiness();
   renderAccount();
-  renderStats();
   queueReminderPlanSync();
   queueNativeReminderSync();
 }
