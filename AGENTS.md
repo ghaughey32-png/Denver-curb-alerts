@@ -1132,7 +1132,11 @@ also the fallback when the card was never started - Live Activities switched off
 internal group, *Friends*, and an external group, *Friend Test 1*. Build 1 was uploaded 2026-09-16
 and went to Beta App Review for the external group; build 2 followed the same day to carry the new
 app icon, and was never added to the external group. Build 3, the same day, carries the test card and
-went out in its place. Archive with the **CurbAlerts** scheme selected; build 3 was archived from
+went out in its place. Build 4, uploaded 2026-09-16, carries the one-tap curb reminders; it was
+archived and uploaded entirely from the command line — `xcodebuild archive` with
+`-allowProvisioningUpdates`, then `xcodebuild -exportArchive` with an options plist of `method`
+`app-store-connect`, `destination` `upload` and team `XLGGMG362T` — so Xcode's Organizer is not
+required. Archive with the **CurbAlerts** scheme selected; build 3 was archived from
 `CurbAlertsWidgets` by mistake and happened to produce the whole app anyway, but do not rely on that. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
