@@ -314,7 +314,7 @@
                 <span class="readiness-icon" aria-hidden="true"></span>
                 <div class="readiness-copy">
                   <strong>Queue reminders</strong>
-                  <span class="readiness-detail">Day-before and day-of reminders will appear below.</span>
+                  <span class="readiness-detail">Your next sweep and its reminders will appear below.</span>
                 </div>
               </div>
             </div>
@@ -369,17 +369,17 @@
 
           <section class="panel-section panel-step-section">
             <div class="mini-head">
-              <h3>Upcoming reminders</h3>
-              <span class="mini-count" id="job-count">0 queued</span>
+              <h3>Next sweeps</h3>
+              <span class="mini-count" id="job-count">0 sweeps coming up</span>
             </div>
 
             <div class="queue-note">
-              These are the reminders currently scheduled for saved curb sets on this device.
+              The next sweep for each saved curb set, and when you will be reminded about it. Later sweeps are scheduled too.
             </div>
 
             <div id="empty-jobs" class="empty-state compact-empty">
               <p>Nothing queued yet.</p>
-              <p class="empty-subtext">Once you save a curb, its reminders show up here so you can see exactly what will send.</p>
+              <p class="empty-subtext">Once you save a curb, its next sweep shows up here with the reminders that will go out for it.</p>
               <button class="primary-button empty-state-action" type="button" data-view-target="setup">Open the map</button>
             </div>
 
@@ -1105,9 +1105,6 @@
         </div>
         <p class="job-message"></p>
         <p class="job-segments"></p>
-        <div class="job-actions">
-          <button class="ghost-button test-job-button" type="button">Send this now</button>
-        </div>
       </article>
     </template>
 
@@ -1118,6 +1115,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260916-show-password"></script>
+    <script src="./app.js?v=20260916-next-sweep-b"></script>
   </body>
 </html>

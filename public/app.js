@@ -5871,12 +5871,12 @@ function showSaveConfirmation(savedSet, selectedSegments) {
     return;
   }
 
-  const nextSweep = summarizeSetSchedule(selectedSegments);
+  const nextSweep = summarizeSetSchedule(savedSet, selectedSegments);
   const reminders = summarizeReminders(buildDefaultReminders(savedSet.reminders)).replace(/^Scheduled /, "");
   saveConfirmation.hidden = false;
   saveConfirmation.innerHTML = `
     <strong>You're all set for ${escapeHtml(savedSet.name)}.</strong>
-    <span>${escapeHtml(nextSweep)}. Reminders: ${escapeHtml(reminders)}</span>
+    <span>Next sweep: ${escapeHtml(nextSweep)}. Reminders: ${escapeHtml(reminders)}</span>
   `;
 }
 
@@ -6105,7 +6105,7 @@ function summarizeSavedSetMeta(segments) {
 
 function buildSavedSetDetails(set, segments, reminders) {
   const detailRows = [
-    ["Next sweep", summarizeSetSchedule(segments)],
+    ["Next sweep", summarizeSetSchedule(set, segments)],
     ["Curbs", summarizeCurbList(segments)],
     ["Reminders", summarizeReminders(reminders).replace(/^Scheduled /, "")],
     ["Area", set.sourceLabel || "Saved curb set"],
@@ -7567,34 +7567,82 @@ function formatTriggerSummary(job) {
   return `Same-day reminders ${reminderNumbers.join(", ")}`;
 }
 
-function renderNotificationJobs() {
-  jobList.innerHTML = "";
-  jobCount.textContent = `${state.notificationJobs.length} queued`;
-  emptyJobs.style.display = state.notificationJobs.length ? "none" : "block";
+// The alerts page shows each saved set's next sweep and nothing after it. The job list itself still
+// carries every future reminder, because the server, the iOS scheduler and the plan sync all read it,
+// and cutting it to one sweep would stop reminders after that sweep until the app was reopened. So
+// this narrows what is drawn, never what is scheduled. It listed every job until 2026-09-16, which
+// with the follow-ups on came to about forty cards per saved curb.
+function groupJobsByNextSweep(jobs) {
+  const sweepsBySet = new Map();
 
-  state.notificationJobs.forEach((job) => {
-    const item = jobItemTemplate.content.firstElementChild.cloneNode(true);
-    item.querySelector(".job-title").textContent = formatJobHeading(job);
-    item.querySelector(".job-meta").textContent = `${job.setName} | ${formatTriggerSummary(job)} | ${job.segmentIds.length} curb side${job.segmentIds.length === 1 ? "" : "s"}`;
-    item.querySelector(".job-message").textContent = job.body;
-    item.querySelector(".job-segments").textContent = `Included curb side${job.segmentLabels.length === 1 ? "" : "s"}: ${job.segmentLabels.join("; ")}`;
-    item.querySelector(".job-status").textContent = hasRemotePushReady()
-      ? "Subscribed device ready"
+  jobs.forEach((job) => {
+    (job.sweepKeys || []).forEach((sweepKey) => {
+      const sweepDate = parseSweepKeyDate(sweepKey);
+      if (!sweepDate) {
+        return;
+      }
+
+      const current = sweepsBySet.get(job.setId);
+      if (!current || sweepDate.getTime() < current.sweepDate.getTime()) {
+        sweepsBySet.set(job.setId, { setId: job.setId, setName: job.setName, parked: job.parked, sweepKey, sweepDate });
+      }
+    });
+  });
+
+  return Array.from(sweepsBySet.values())
+    .map((sweep) => ({
+      ...sweep,
+      jobs: jobs
+        .filter((job) => job.setId === sweep.setId && (job.sweepKeys || []).includes(sweep.sweepKey))
+        .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
+    }))
+    .sort((a, b) => a.sweepDate.getTime() - b.sweepDate.getTime() || (b.parked ? 1 : 0) - (a.parked ? 1 : 0));
+}
+
+function formatSweepReminderTimes(jobs) {
+  const timesByDay = new Map();
+
+  jobs.forEach((job) => {
+    const scheduledDate = new Date(job.scheduledAt);
+    const day = scheduledDate.toLocaleDateString("en-US", { weekday: "short" });
+    const time = scheduledDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    if (!timesByDay.has(day)) {
+      timesByDay.set(day, []);
+    }
+    timesByDay.get(day).push(time);
+  });
+
+  return Array.from(timesByDay.entries())
+    .map(([day, times]) => `${day} ${times.join(", ")}`)
+    .join(" · ");
+}
+
+function renderNotificationJobs() {
+  const sweeps = groupJobsByNextSweep(state.notificationJobs);
+  jobList.innerHTML = "";
+  jobCount.textContent = `${sweeps.length} sweep${sweeps.length === 1 ? "" : "s"} coming up`;
+  emptyJobs.style.display = sweeps.length ? "none" : "block";
+
+  const statusText = hasRemotePushReady()
+    ? "Subscribed device ready"
+    : canUseNativeReminders() && getNativeReminderPermission() === "granted"
+      ? "Scheduled on this phone"
       : canUseBrowserNotifications() && window.Notification.permission === "granted"
         ? "Local preview ready"
         : "Push-ready";
-    item.querySelector(".test-job-button").addEventListener("click", async () => {
-      if (!canUseBrowserNotifications()) {
-        return;
-      }
 
-      if (window.Notification.permission !== "granted") {
-        await requestBrowserNotifications();
-        return;
-      }
-
-      await sendImmediateTestNotification(job);
+  sweeps.forEach((sweep) => {
+    const item = jobItemTemplate.content.firstElementChild.cloneNode(true);
+    const segmentLabels = Array.from(new Set(sweep.jobs.flatMap((job) => job.segmentLabels)));
+    item.querySelector(".job-title").textContent = sweep.sweepDate.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric"
     });
+    item.querySelector(".job-meta").textContent = `${sweep.setName} | ${segmentLabels.length} curb side${segmentLabels.length === 1 ? "" : "s"}`;
+    item.querySelector(".job-message").textContent = `Reminds you ${formatSweepReminderTimes(sweep.jobs)}`;
+    item.querySelector(".job-segments").textContent = segmentLabels.join("; ");
+    item.querySelector(".job-status").textContent = statusText;
     jobList.appendChild(item);
   });
 }
@@ -7657,8 +7705,8 @@ function renderReminderReadiness() {
   setReadinessItem(
     readinessItems.jobs,
     hasJobs,
-    `${state.notificationJobs.length} upcoming reminder job${state.notificationJobs.length === 1 ? "" : "s"} queued.`,
-    "Day-before and day-of reminders will appear below."
+    `Reminders are set for ${groupJobsByNextSweep(state.notificationJobs).length === 1 ? "your next sweep" : "each set's next sweep"}.`,
+    "Your next sweep and its reminders will appear below."
   );
 }
 
@@ -7673,17 +7721,25 @@ function formatJobHeading(job) {
   });
 }
 
-function summarizeSetSchedule(segments) {
+// Skips sweeps the driver already confirmed moving for, the same way buildNotificationJobs does, or
+// this row names a date the "Next sweeps" list below it has already moved past.
+function summarizeSetSchedule(set, segments) {
   const dates = segments
     .filter(Boolean)
-    .flatMap((segment) => getUpcomingSweepDates(segment))
+    .flatMap((segment) =>
+      getUpcomingSweepDates(segment).filter(
+        (sweepDate) =>
+          !state.movedSweepKeys.includes(buildSweepKey(set.id, sweepDate)) &&
+          (set.kind === "parked" || !state.movedSweepKeys.includes(buildMovedCurbKey(segment.id, formatLocalDateKey(sweepDate))))
+      )
+    )
     .sort((a, b) => a.getTime() - b.getTime());
 
   if (!dates.length) {
     return "No dated sweep found";
   }
 
-  return `Earliest: ${formatDateObject(dates[0])}`;
+  return formatDateObject(dates[0]);
 }
 
 function summarizeReminders(reminders) {
