@@ -7937,8 +7937,8 @@ async function accountRequest(pathname, options = {}) {
   return payload;
 }
 
-function setAccountStatus(message, tone = "") {
-  state.accountStatus = { message, tone };
+function setAccountStatus(message, tone = "", action = null) {
+  state.accountStatus = { message, tone, action };
   renderAccountStatus();
 }
 
@@ -7947,9 +7947,22 @@ function renderAccountStatus() {
     return;
   }
 
-  const { message, tone } = state.accountStatus;
+  const { message, tone, action } = state.accountStatus;
   accountStatusBox.hidden = !message;
   accountStatusBox.textContent = message;
+  // The line under the submit button makes the same offer, and two identical links stacked on top
+  // of each other read as a glitch.
+  if (accountModeHintText?.parentElement) {
+    accountModeHintText.parentElement.hidden = Boolean(message && action);
+  }
+  if (message && action) {
+    const actionButton = document.createElement("button");
+    actionButton.type = "button";
+    actionButton.className = "inline-link";
+    actionButton.textContent = action.label;
+    actionButton.addEventListener("click", action.onClick);
+    accountStatusBox.append(" ", actionButton);
+  }
   accountStatusBox.classList.toggle("is-error", tone === "error");
   accountStatusBox.classList.toggle("is-working", tone === "working");
 }
@@ -8189,7 +8202,24 @@ async function submitAccountForm(event) {
     const adopted = await mergeAccountLibrary();
     setAccountStatus(buildSignInMessage(signingUp, adopted), "");
   } catch (error) {
-    setAccountStatus(error.message, "error");
+    // A 401 here is most often someone who never made an account typing into Sign in, so the error
+    // offers the other form with the address still filled in. The server words this 401 the same
+    // for a wrong password and a missing account, on purpose, and the offer must not undo that:
+    // it appears on every 401, so it says nothing about whether the address exists.
+    const offerSignUp = !signingUp && error.status === 401;
+    setAccountStatus(
+      offerSignUp ? `${error.message} New to Curb Alerts?` : error.message,
+      "error",
+      offerSignUp
+        ? {
+            label: "Create an account",
+            onClick: () => {
+              setAccountMode("signup");
+              accountPasswordInput?.focus();
+            }
+          }
+        : null
+    );
   } finally {
     state.accountPending = false;
     renderAccount();

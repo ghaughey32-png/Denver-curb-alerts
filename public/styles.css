@@ -3101,6 +3101,10 @@ a.ghost-button {
   box-shadow: 0 6px 16px rgba(180, 93, 42, 0.28);
 }
 
+.account-mode-hint[hidden] {
+  display: none;
+}
+
 .account-mode-hint {
   margin: 0;
   text-align: center;
