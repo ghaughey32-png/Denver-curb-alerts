@@ -1084,6 +1084,7 @@ keeping the real card's wording, so a tester sees what a sweep morning will look
 for a sweep. It stays out of the App Store because a card that sits on the lock screen until
 tomorrow is too much for a test button. TestFlight is detected by its sandbox receipt
 (`canStartTestCard`); `AppTransaction` was avoided because it can raise an App Store sign-in sheet.
+Verified from a TestFlight install of build 3 on 2026-09-16: the test card appeared and its button worked.
 
 **At the first morning alert the driver gets both the card's alert and the ordinary notification,
 on purpose.** Decided 2026-09-15 by the app's author, for the reason the follow-ups exist at all: a
@@ -1094,7 +1095,8 @@ also the fallback when the card was never started - Live Activities switched off
 internal group, *Friends*, and an external group, *Friend Test 1*. Build 1 was uploaded 2026-09-16
 and went to Beta App Review for the external group; build 2 followed the same day to carry the new
 app icon, and was never added to the external group. Build 3, the same day, carries the test card and
-went out in its place. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+went out in its place. Archive with the **CurbAlerts** scheme selected; build 3 was archived from
+`CurbAlertsWidgets` by mistake and happened to produce the whole app anyway, but do not rely on that. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
