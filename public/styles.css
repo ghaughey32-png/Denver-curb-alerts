@@ -3066,29 +3066,46 @@ a.ghost-button {
   line-height: 1.5;
 }
 
+/* Two equal halves across the full card, the chosen one filled in the accent. The old switch was a
+   small grey pill on a grey track, and people missed it entirely - signing in with an address that
+   had no account yet, or hunting for where to create one. */
 .account-mode-switch {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: rgba(31, 47, 55, 0.06);
-  justify-self: start;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 18px;
+  background: rgba(31, 47, 55, 0.07);
+  border: 1px solid var(--line);
 }
 
 .account-mode-button {
-  border: 0;
-  border-radius: 999px;
-  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 13px 12px;
   background: transparent;
-  color: var(--muted);
-  font-size: 0.9rem;
-  font-weight: 700;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.account-mode-button:not(.is-active):hover {
+  background: var(--paper);
+  border-color: var(--line);
 }
 
 .account-mode-button.is-active {
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: 0 4px 12px rgba(31, 47, 55, 0.08);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(180, 93, 42, 0.28);
+}
+
+.account-mode-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .account-form {

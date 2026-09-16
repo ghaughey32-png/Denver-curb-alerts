@@ -1756,6 +1756,8 @@ const accountPasswordInput = document.querySelector("#account-password-input");
 const accountPasswordHint = document.querySelector("#account-password-hint");
 const accountSubmitButton = document.querySelector("#account-submit-button");
 const accountModeButtons = Array.from(document.querySelectorAll("[data-account-mode]"));
+const accountModeHintText = document.querySelector("#account-mode-hint-text");
+const accountModeHintLink = document.querySelector("#account-mode-hint-link");
 const accountEmailLabel = document.querySelector("#account-email-label");
 const accountPlanLabel = document.querySelector("#account-plan-label");
 const accountSignOutButton = document.querySelector("#account-sign-out-button");
@@ -8066,8 +8068,15 @@ function renderAccount() {
 
   const signingUp = state.accountMode === "signup";
   accountModeButtons.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.accountMode === state.accountMode);
+    const active = button.dataset.accountMode === state.accountMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
+
+  if (accountModeHintText && accountModeHintLink) {
+    accountModeHintText.textContent = signingUp ? "Already have an account?" : "New to Curb Alerts?";
+    accountModeHintLink.textContent = signingUp ? "Sign in instead" : "Create an account";
+  }
 
   if (accountSubmitButton) {
     accountSubmitButton.textContent = signingUp ? "Create account" : "Sign in";
@@ -8580,6 +8589,10 @@ function registerAccountEvents() {
   accountForm?.addEventListener("submit", submitAccountForm);
   accountModeButtons.forEach((button) => {
     button.addEventListener("click", () => setAccountMode(button.dataset.accountMode));
+  });
+  accountModeHintLink?.addEventListener("click", () => {
+    setAccountMode(state.accountMode === "signup" ? "signin" : "signup");
+    accountEmailInput?.focus();
   });
   accountSignOutButton?.addEventListener("click", signOutAccount);
   accountPasswordToggle?.addEventListener("click", () => toggleAccountSubform(accountPasswordForm));

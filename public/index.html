@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260916-hero-trim-b" />
+    <link rel="stylesheet" href="./styles.css?v=20260916-account-switch" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -396,10 +396,10 @@
               </p>
 
               <div class="account-mode-switch" role="group" aria-label="Sign in or create an account">
-                <button id="account-mode-signin" class="account-mode-button is-active" type="button" data-account-mode="signin">
+                <button id="account-mode-signin" class="account-mode-button is-active" type="button" data-account-mode="signin" aria-pressed="true">
                   Sign in
                 </button>
-                <button id="account-mode-signup" class="account-mode-button" type="button" data-account-mode="signup">
+                <button id="account-mode-signup" class="account-mode-button" type="button" data-account-mode="signup" aria-pressed="false">
                   Create account
                 </button>
               </div>
@@ -437,6 +437,13 @@
                 </div>
 
                 <button id="account-submit-button" class="primary-button" type="submit">Sign in</button>
+
+                <!-- People were typing a brand-new address into Sign in and never noticing the switch
+                     above, so the other mode is offered again right under the button they just pressed. -->
+                <p class="account-mode-hint">
+                  <span id="account-mode-hint-text">New to Curb Alerts?</span>
+                  <button id="account-mode-hint-link" class="inline-link" type="button">Create an account</button>
+                </p>
               </form>
 
               <!-- Hidden unless the server has an email provider. Offering a reset link that cannot
@@ -1091,6 +1098,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260916-hero-trim"></script>
+    <script src="./app.js?v=20260916-account-switch"></script>
   </body>
 </html>
