@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260915-park-here" />
+    <link rel="stylesheet" href="./styles.css?v=20260916-show-password" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -446,14 +446,17 @@
 
                 <div class="account-field">
                   <label class="input-label" for="account-password-input">Password</label>
-                  <input
-                    id="account-password-input"
-                    class="text-input"
-                    type="password"
-                    name="password"
-                    autocomplete="current-password"
-                    required
-                  />
+                  <div class="password-input-wrap">
+                    <input
+                      id="account-password-input"
+                      class="text-input"
+                      type="password"
+                      name="password"
+                      autocomplete="current-password"
+                      required
+                    />
+                    <button class="password-reveal-button" type="button" data-password-reveal="account-password-input" aria-controls="account-password-input" aria-pressed="false">Show</button>
+                  </div>
                   <p class="account-hint" id="account-password-hint" hidden>Use at least 10 characters.</p>
                 </div>
 
@@ -492,13 +495,16 @@
               <form id="account-reset-form" class="account-form">
                 <div class="account-field">
                   <label class="input-label" for="account-reset-password-input">New password</label>
-                  <input
-                    id="account-reset-password-input"
-                    class="text-input"
-                    type="password"
-                    autocomplete="new-password"
-                    required
-                  />
+                  <div class="password-input-wrap">
+                    <input
+                      id="account-reset-password-input"
+                      class="text-input"
+                      type="password"
+                      autocomplete="new-password"
+                      required
+                    />
+                    <button class="password-reveal-button" type="button" data-password-reveal="account-reset-password-input" aria-controls="account-reset-password-input" aria-pressed="false">Show</button>
+                  </div>
                   <p class="account-hint">At least 10 characters. This signs you out on every device.</p>
                 </div>
                 <div class="account-action-row">
@@ -536,23 +542,29 @@
               <form id="account-password-form" class="account-form account-subform" hidden>
                 <div class="account-field">
                   <label class="input-label" for="account-current-password-input">Current password</label>
-                  <input
-                    id="account-current-password-input"
-                    class="text-input"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                  />
+                  <div class="password-input-wrap">
+                    <input
+                      id="account-current-password-input"
+                      class="text-input"
+                      type="password"
+                      autocomplete="current-password"
+                      required
+                    />
+                    <button class="password-reveal-button" type="button" data-password-reveal="account-current-password-input" aria-controls="account-current-password-input" aria-pressed="false">Show</button>
+                  </div>
                 </div>
                 <div class="account-field">
                   <label class="input-label" for="account-new-password-input">New password</label>
-                  <input
-                    id="account-new-password-input"
-                    class="text-input"
-                    type="password"
-                    autocomplete="new-password"
-                    required
-                  />
+                  <div class="password-input-wrap">
+                    <input
+                      id="account-new-password-input"
+                      class="text-input"
+                      type="password"
+                      autocomplete="new-password"
+                      required
+                    />
+                    <button class="password-reveal-button" type="button" data-password-reveal="account-new-password-input" aria-controls="account-new-password-input" aria-pressed="false">Show</button>
+                  </div>
                   <p class="account-hint">At least 10 characters. This signs out your other devices.</p>
                 </div>
                 <button class="primary-button" type="submit">Save new password</button>
@@ -565,13 +577,16 @@
                 </p>
                 <div class="account-field">
                   <label class="input-label" for="account-delete-password-input">Confirm with your password</label>
-                  <input
-                    id="account-delete-password-input"
-                    class="text-input"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                  />
+                  <div class="password-input-wrap">
+                    <input
+                      id="account-delete-password-input"
+                      class="text-input"
+                      type="password"
+                      autocomplete="current-password"
+                      required
+                    />
+                    <button class="password-reveal-button" type="button" data-password-reveal="account-delete-password-input" aria-controls="account-delete-password-input" aria-pressed="false">Show</button>
+                  </div>
                 </div>
                 <button class="primary-button account-danger-button" type="submit">Delete my account</button>
               </form>
@@ -1103,6 +1118,6 @@
     ></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./app.js?v=20260915-park-here-b"></script>
+    <script src="./app.js?v=20260916-show-password"></script>
   </body>
 </html>

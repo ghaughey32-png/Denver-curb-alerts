@@ -3192,6 +3192,38 @@ a.ghost-button {
   gap: 6px;
 }
 
+/* The reveal button sits inside the input's right edge, so the input keeps room for it. */
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap .text-input {
+  padding-right: 76px;
+}
+
+.password-reveal-button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  min-width: 60px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.password-reveal-button:hover,
+.password-reveal-button:focus-visible {
+  background: rgba(31, 47, 55, 0.06);
+  color: var(--ink);
+}
+
 .account-hint {
   margin: 0;
   color: var(--muted);

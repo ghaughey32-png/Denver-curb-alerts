@@ -8499,7 +8499,38 @@ async function resendVerificationEmail() {
   }
 }
 
+// A password typed blind on a phone keyboard is easy to get wrong, so every password field can be
+// shown. It goes back to hidden when its form submits: a password left on screen
+// outlives the moment it was wanted, and password managers only offer to save a type="password" field.
+function setPasswordRevealed(button, revealed) {
+  const input = document.getElementById(button.dataset.passwordReveal);
+  if (!input) {
+    return;
+  }
+
+  input.type = revealed ? "text" : "password";
+  button.textContent = revealed ? "Hide" : "Show";
+  button.setAttribute("aria-pressed", revealed ? "true" : "false");
+  button.setAttribute("aria-label", revealed ? "Hide password" : "Show password");
+}
+
+function registerPasswordRevealButtons() {
+  document.querySelectorAll("[data-password-reveal]").forEach((button) => {
+    // Shown as plain text, the field would otherwise be autocapitalized and autocorrected.
+    const input = document.getElementById(button.dataset.passwordReveal);
+    input?.setAttribute("autocapitalize", "none");
+    input?.setAttribute("autocorrect", "off");
+    input?.setAttribute("spellcheck", "false");
+    setPasswordRevealed(button, false);
+    button.addEventListener("click", () => {
+      setPasswordRevealed(button, button.getAttribute("aria-pressed") !== "true");
+    });
+    button.closest("form")?.addEventListener("submit", () => setPasswordRevealed(button, false));
+  });
+}
+
 function registerAccountEvents() {
+  registerPasswordRevealButtons();
   accountForm?.addEventListener("submit", submitAccountForm);
   accountModeButtons.forEach((button) => {
     button.addEventListener("click", () => setAccountMode(button.dataset.accountMode));
