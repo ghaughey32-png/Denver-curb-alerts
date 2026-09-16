@@ -13,4 +13,12 @@ struct SweepActivityAttributes: ActivityAttributes {
     var sweepKey: String
     var setName: String
     var curbSummary: String
+
+    /// Test cards come from "Send test now" and name no saved set, so confirming one silences
+    /// nothing real. The widget reads this to label the card as a test.
+    static let testCardPrefix = "test-card|"
+
+    var isTestCard: Bool {
+        sweepKey.hasPrefix(Self.testCardPrefix)
+    }
 }

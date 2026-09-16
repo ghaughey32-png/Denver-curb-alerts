@@ -1077,8 +1077,13 @@ ended every card missing from that pass's plan, which killed cards the plan had 
 and on a device ended the preview card the instant Face ID brought the app to the foreground.
 Keep the narrower rule.
 
-Debug builds start a preview card from "Send test now", keyed `debug-preview|<date>` so it names no
-saved set. The preview never ships.
+**"Send test now" starts a test card in Debug and TestFlight builds, and not in App Store builds.**
+Keyed `test-card|<date>` so it names no saved set, and labelled as a test on the card itself while
+keeping the real card's wording, so a tester sees what a sweep morning will look like. Until
+2026-09-16 it was Debug only, which left TestFlight testers no way to see the card short of waiting
+for a sweep. It stays out of the App Store because a card that sits on the lock screen until
+tomorrow is too much for a test button. TestFlight is detected by its sandbox receipt
+(`canStartTestCard`); `AppTransaction` was avoided because it can raise an App Store sign-in sheet.
 
 **At the first morning alert the driver gets both the card's alert and the ordinary notification,
 on purpose.** Decided 2026-09-15 by the app's author, for the reason the follow-ups exist at all: a

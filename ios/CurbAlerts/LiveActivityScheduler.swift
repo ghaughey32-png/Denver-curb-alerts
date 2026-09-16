@@ -34,11 +34,11 @@ enum LiveActivityScheduler {
         // End a card only when its sweep is confirmed or no longer has any reminders - the set was
         // deleted, or Keep reminding me and the morning alerts were all switched off. Ending every
         // card that is merely absent from this pass's plan was tried first and was wrong: it ended
-        // cards the plan had simply capped out, and on a device it killed the preview card the
+        // cards the plan had simply capped out, and on a device it killed the test card the
         // instant Face ID brought the app back to the foreground.
         for activity in Activity<SweepActivityAttributes>.activities where isLive(activity) {
             let sweepKey = activity.attributes.sweepKey
-            guard !isPreview(sweepKey) else { continue }
+            guard !activity.attributes.isTestCard else { continue }
             if moved.contains(sweepKey) || !knownSweeps.contains(sweepKey) {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
@@ -132,12 +132,12 @@ enum LiveActivityScheduler {
         }
     }
 
-    #if DEBUG
-    /// Debug builds only: starts a card now for a made-up sweep, so the card and its button can be
-    /// tried on a device without waiting for a real sweep morning. Its key names no saved set, so
-    /// confirming it silences nothing real. Wired to the page's "Send test now".
-    static func startPreview() {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+    /// Starts a test card now, so the card and its button can be tried without waiting for a real
+    /// sweep morning. Wired to the page's "Send test now". Debug and TestFlight builds only: a
+    /// card on the lock screen until tomorrow is too heavy a response to a test button for
+    /// App Store users, but it is exactly what a tester needs to see.
+    static func startTestCard() {
+        guard canStartTestCard, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         guard let end = calendar.date(byAdding: .day, value: 1, to: today) else { return }
@@ -147,21 +147,25 @@ enum LiveActivityScheduler {
         formatter.dateFormat = "yyyy-MM-dd"
         start(
             Plan(
-                sweepKey: previewPrefix + formatter.string(from: today),
-                setName: "Preview",
-                curbSummary: "Preview curb - LAWRENCE ST, West side",
+                sweepKey: SweepActivityAttributes.testCardPrefix + formatter.string(from: today),
+                setName: "Test card",
+                curbSummary: "Test card - your street and side go here",
                 start: Date(),
                 end: end
             ),
             now: Date()
         )
     }
-    #endif
 
-    private static let previewPrefix = "debug-preview|"
-
-    private static func isPreview(_ sweepKey: String) -> Bool {
-        sweepKey.hasPrefix(previewPrefix)
+    private static var canStartTestCard: Bool {
+        #if DEBUG
+        return true
+        #else
+        // A TestFlight install carries a sandbox receipt; an App Store install does not.
+        // appStoreReceiptURL is deprecated from iOS 18, but its replacement, AppTransaction, can
+        // put up an App Store sign-in sheet, which is no answer to a test button.
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #endif
     }
 
     private static func isLive(_ activity: Activity<SweepActivityAttributes>) -> Bool {

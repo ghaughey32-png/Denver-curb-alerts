@@ -27,7 +27,7 @@ struct SweepLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: 2) {
-                        Text(context.state.moved ? "Car moved" : "Move your car today")
+                        Text(context.state.moved ? "Car moved" : context.attributes.isTestCard ? "Test: Move your car today" : "Move your car today")
                             .font(.headline)
                         Text(context.attributes.curbSummary)
                             .font(.caption)
@@ -67,7 +67,7 @@ private struct SweepLockScreenView: View {
                     .foregroundStyle(state.moved ? Palette.green : Palette.accent)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(state.moved ? "NICE WORK" : "STREET SWEEPING TODAY")
+                    Text(state.moved ? "NICE WORK" : attributes.isTestCard ? "TEST CARD - STREET SWEEPING TODAY" : "STREET SWEEPING TODAY")
                         .font(.caption2.weight(.heavy))
                         .foregroundStyle(state.moved ? Palette.green : Palette.accent)
                     Text(state.moved ? "Car moved. That's it for this sweep." : "Move your car")
