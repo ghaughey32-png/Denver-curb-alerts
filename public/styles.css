@@ -639,6 +639,12 @@ button {
   border-color: rgba(245, 197, 66, 0.72);
 }
 
+.note-alert {
+  margin-left: 2px;
+  color: var(--red);
+  font-weight: 800;
+}
+
 .page-intro {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
