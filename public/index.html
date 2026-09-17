@@ -18,7 +18,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=20260916-remind-on-tap" />
+    <link rel="stylesheet" href="./styles.css?v=20260917-legend-toggle-b" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -168,7 +168,13 @@
           </div>
 
           <details class="map-details">
-            <summary>What the colors mean</summary>
+            <summary>
+              <span class="map-details-swatches" aria-hidden="true">
+                <span class="legend-dot green"></span><span class="legend-dot orange"></span><span class="legend-dot red"></span><span class="legend-dot blue"></span><span class="legend-dot plum"></span><span class="legend-dot pink"></span><span class="legend-dot gray"></span>
+              </span>
+              <span class="map-details-label">What do the colors mean?</span>
+              <span class="map-details-toggle" aria-hidden="true"></span>
+            </summary>
             <div class="legend">
               <span class="legend-item"><span class="legend-dot green"></span> North curb of east-west streets</span>
               <span class="legend-item"><span class="legend-dot orange"></span> South curb of east-west streets</span>

@@ -2362,13 +2362,91 @@ a.ghost-button {
   border-radius: 18px;
 }
 
+/* The summary used to be muted text with its disclosure marker hidden by
+   display: flex, which read as a heading nobody had answered rather than a
+   control. It now looks tappable: the real curb colours, an ink label, and an
+   explicit Show/Hide pill with a chevron. */
 .map-details > summary {
   cursor: pointer;
   font-weight: 800;
-  color: var(--muted);
-  min-height: 32px;
+  color: var(--ink);
+  min-height: 44px;
   display: flex;
   align-items: center;
+  gap: 10px;
+  list-style: none;
+  border-radius: 12px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.map-details > summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+
+.map-details-swatches {
+  display: inline-flex;
+  flex: none;
+}
+
+.map-details-swatches .legend-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-left: -3px;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+.map-details-swatches .legend-dot:first-child {
+  margin-left: 0;
+}
+
+.map-details-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-details-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.map-details-toggle::before {
+  content: "Show";
+}
+
+.map-details-toggle::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.map-details[open] .map-details-toggle::before {
+  content: "Hide";
+}
+
+.map-details[open] .map-details-toggle::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.map-details > summary:hover .map-details-toggle {
+  background: var(--blue);
 }
 
 .map-details .legend {
