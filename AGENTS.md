@@ -1444,10 +1444,22 @@ Do not take a payment before the blueprint is actually applied.
   between two streets' geometries, which picks the quadrant on its own.
 
   Denver numbers east-west avenues off the *named* north-south grid (1234 E 17th Ave sits at the
-  1200-block street, not at 12th), and nothing in the inventory maps those names to numbers, so
-  those addresses resolve to the street rather than the block. That is deliberate: the matcher
-  reports `kind: "street"`, the map opens wider, and the status line says it only matched the
-  street. Do not paper over it by dropping a block-zoom pin the data does not support.
+  1200-block street, Downing, not at 12th), and south streets off the named avenues below
+  Ellsworth. **Since 2026-09-18 `SEARCH_NAMED_STREET_HUNDREDS` in `public/app.js` maps those
+  names to numbers**, derived from about 210,000 OpenStreetMap addresses and kept only where it
+  placed them back accurately: over 5,600 addresses inside the city line, a search lands a
+  median 40 m from the door, against 1.1 km before. Three things about it are load bearing.
+  West of Broadway the grid changes across the Platte (Kalamath is 1000 W south of the river,
+  1200 W north of it), which is what `wNorth` overrides. Only a street counting north from
+  Ellsworth may use a numbered crossing — offered to an avenue, "37" found W 37th Ave itself and
+  E 11th Ave, 130 m away, passed as a corner of E 12th. And a typed quadrant the map lacks
+  (N Florence Way) gets the street answer, not a number placed on the other half of the city.
+  Where the table cannot place an address — no quadrant typed on an avenue that has both, or a
+  street it does not list — the matcher still reports `kind: "street"`, the map opens wider,
+  and the status line says it only matched the street. Do not paper over that with a
+  block-zoom pin the data does not support. If you change the table, re-measure placement
+  against real addresses rather than trusting vote counts; tuning on thin margins once put
+  Utica east of Tennyson.
   `test/address-search.test.js` covers all of this and, like `test/curb-geometry.test.js`, reads
   `public/app.js` as source text — renaming those functions breaks it by design.
 - **Re-importing an already-published area against a fresh Overpass extract drifts.** Verified on
