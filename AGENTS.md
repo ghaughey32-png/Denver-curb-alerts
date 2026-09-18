@@ -1137,7 +1137,11 @@ archived and uploaded entirely from the command line — `xcodebuild archive` wi
 `-allowProvisioningUpdates`, then `xcodebuild -exportArchive` with an options plist of `method`
 `app-store-connect`, `destination` `upload` and team `XLGGMG362T` — so Xcode's Organizer is not
 required. Archive with the **CurbAlerts** scheme selected; build 3 was archived from
-`CurbAlertsWidgets` by mistake and happened to produce the whole app anyway, but do not rely on that. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+`CurbAlertsWidgets` by mistake and happened to produce the whole app anyway, but do not rely on that.
+Build 5, uploaded 2026-09-18, carries the named-street address search and went to internal testers
+only, at the author's request. It was exported with `testFlightInternalTestingOnly` set in the
+options plist, which App Store Connect enforces: such a build can never be added to an external
+group. Leave the key out for a build that should reach *Friend Test 1*. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
