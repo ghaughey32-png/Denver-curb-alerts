@@ -4308,14 +4308,176 @@ function findNearestSearchApproach(streetGroup, crossGroup) {
   return nearest && nearest.distance <= SEARCH_CROSS_STREET_TOLERANCE_METRES ? nearest : null;
 }
 
-function findSearchHundredBlockCrossing(streetGroup, hundredBlock, groupsByKey) {
-  const crossGroup = groupsByKey.get(String(hundredBlock));
-  if (!crossGroup) {
-    return null;
+// Denver numbers most of the city off named streets, not numbered ones: an
+// east-west avenue counts its hundreds by the north-south streets it crosses
+// (3509 W 23rd Ave sits between King, the 3500 block, and Lowell), and a south
+// street counts them by the named avenues below Ellsworth. The inventory has no
+// house numbers, so without this table those addresses could only match the
+// street, and the map centered on the middle of W 23rd Ave — about four blocks
+// from 3509.
+//
+// Derived 2026-09-18 from about 210,000 OpenStreetMap addresses in and around
+// Denver. Each address voted for the crossing just before it, toward lower
+// numbers; where the votes split, the value kept is the one that placed nearby
+// addresses closest to where OpenStreetMap has them, and an entry that placed
+// them no better than leaving it out was dropped. Keys are
+// normalizeSearchStreetText keys, values the hundred block the street opens on
+// that side of the grid. Every "w" and "e" key runs north-south and every "s"
+// and "n" key east-west: a stretch of Colorado Blvd once voted its way into "s"
+// as if it were an avenue, and dragged S Harrison addresses 2 km north.
+// Measured over 5,600 addresses inside the city line, a searched address lands
+// a median 40 m from its door, against 1.1 km before.
+const SEARCH_NAMED_STREET_HUNDREDS = {
+  w: {
+    "broadway": 0, "acoma": 1, "bannock": 1, "cherokee": 3, "delaware": 4, "elati": 5, "fox": 6,
+    "galapago": 7, "inca": 8, "santa fe": 9, "kalamath": 10, "lipan": 11, "mariposa": 12, "navajo": 13,
+    "pecos": 14, "raritan": 15, "quieto": 17, "quivas": 17, "shoshone": 18, "umatilla": 19, "tejon": 21,
+    "vallejo": 22, "wyandot": 23, "yuma": 23, "zuni": 24, "alcott": 25, "bryant": 26, "clay": 27, "dale": 27,
+    "decatur": 28, "eliot": 29, "federal": 30, "grove": 31, "hazel": 31, "hooker": 32, "irving": 33,
+    "julian": 34, "julian way": 34, "knox": 34, "king": 35, "king way": 35, "linley": 36, "lowell": 36,
+    "meade": 37, "newton": 38, "osceola": 39, "patton": 40, "perry": 40, "quitman": 41, "raleigh": 42,
+    "stuart": 43, "tennyson": 44, "tennyson way": 44, "utica": 45, "vrain": 46, "winona": 47, "wolcott": 48,
+    "wolff": 48, "xavier": 49, "yates": 50, "zenobia": 51, "zurich": 51, "sheridan": 52
+  },
+  wNorth: {
+    "inca": 9, "jason": 11, "kalamath": 12, "lipan": 12, "mariposa": 14, "navajo": 15, "osage": 16,
+    "pecos": 17, "quivas": 18, "shoshone": 19, "tejon": 20, "umatilla": 21, "fife": 25, "elm": 28, "java": 33,
+    "stuart": 44, "sheridan": 53
+  },
+  e: {
+    "broadway": 0, "lincoln": 1, "sherman": 2, "grant": 3, "logan": 4, "pennsylvania": 5, "pearl": 6,
+    "washington": 7, "clarkson": 8, "emerson": 9, "ogden": 10, "corona": 11, "downing": 12, "lafayette": 13,
+    "humboldt": 15, "franklin": 16, "gilpin": 17, "williams": 18, "high": 19, "race": 20, "vine": 21,
+    "gaylord": 22, "university": 23, "york": 23, "josephine": 24, "columbine": 25, "elizabeth": 26,
+    "clayton": 27, "detroit": 28, "fillmore": 29, "milwaukee": 30, "saint paul": 31, "steele": 32,
+    "adams": 33, "biscayne": 33, "cook": 34, "madison": 35, "monroe": 36, "garfield": 37, "jackson": 38,
+    "harrison": 39, "colorado": 40, "albion": 41, "ash": 42, "bellaire": 43, "birch": 44, "clermont": 45,
+    "brook": 46, "cherry": 46, "dexter": 47, "dexter way": 47, "dahlia": 48, "elm": 50, "eudora": 51,
+    "fairfax": 51, "forest": 52, "glencoe": 53, "grape": 54, "hudson": 55, "holly": 56, "ivanhoe": 57,
+    "ivy": 58, "jersey": 59, "kearney": 60, "jasmine": 61, "jasmine way": 61, "krameria": 62, "leyden": 63,
+    "locust": 64, "monaco pkwy": 65, "magnolia": 66, "niagara": 67, "newport": 68, "oneida": 69,
+    "oneida way": 70, "pontiac": 71, "olive": 72, "poplar": 73, "poplar way": 73, "quince": 74, "quebec": 75,
+    "rosemary": 76, "roslyn": 76, "reading way": 77, "sebring": 77, "syracuse": 77, "7550 hampden": 78,
+    "spruce": 78, "spruce way": 79, "trenton": 79, "tamarac": 80, "ulster": 81, "uinta": 82,
+    "tamarac pkwy": 83, "valentia": 83, "central park": 84, "vincennes": 84, "verbena": 85, "wabash": 85,
+    "wilding": 86, "willow": 86, "xanthia": 87, "xenia": 88, "akron": 90, "yosemite": 90, "alton": 91,
+    "beeler": 92, "boston": 92, "clinton": 96, "dayton way": 97, "dayton": 98, "emporia": 99, "elmira": 100,
+    "florence": 100, "fulton": 101, "havana": 106, "kenton": 111
+  },
+  s: {
+    "archer": 0, "ellsworth": 0, "bayaud": 1, "maple": 1, "byers": 2, "cedar": 2, "alameda": 3, "nevada": 3,
+    "alaska": 4, "dakota": 4, "custer": 5, "virginia": 5, "center": 6, "gill": 6, "new york": 6,
+    "exposition": 7, "walsh": 7, "ada": 8, "ohio": 8, "ohio way": 8, "kentucky": 9, "ford": 10,
+    "tennessee": 10, "mississippi": 11, "alabama": 12, "arizona": 12, "missouri": 12, "mosier": 12,
+    "louisiana": 13, "wyoming": 13, "arkansas": 14, "florida": 15, "gunnison": 16, "iowa": 16, "oregon": 16,
+    "mexico": 17, "bails": 18, "montana": 18, "utah": 18, "atlantic": 19, "buchtel": 19, "jewell": 19,
+    "asbury": 20, "evans": 21, "evans service": 21, "warren": 22, "iliff": 23, "dickenson": 24, "wesley": 24,
+    "harvard": 25, "lasalle": 25, "lakeridge": 26, "vassar": 26, "linvale": 27, "yale": 27, "amherst": 28,
+    "brown": 28, "yale way": 28, "bates": 29, "campus": 29, "columbia": 30, "cornell": 30, "plum": 30,
+    "dartmouth": 31, "doane": 31, "eastman": 32, "eldorado": 32, "flora": 32, "floyd": 33, "floyd cir": 33,
+    "girard": 34, "greenwood": 34, "hampden": 35, "ithaca": 36, "jarvis": 36, "jefferson": 36,
+    "forest way": 37, "kenyon": 37, "lehigh": 38, "mansfield": 39, "napa": 40, "nassau": 40, "oxford": 41,
+    "princeton": 42, "quincy": 43, "union": 47, "saratoga": 48, "chenango": 49, "monmouth": 50,
+    "belleview": 52
+  },
+  n: {
+    "bayaud": 0, "ellsworth": 0, "kearney lane": 0, "southmoor": 0, "colfax": 15, "montview": 20,
+    "26 pkwy": 26, "martin luther king jr": 30, "martin luther king": 32, "bruce randolph": 34, "thrill": 34,
+    "sandown": 41
+  }
+};
+
+// West of Broadway the grid does not survive the Platte. South of the river
+// Kalamath opens the 1000 block and Inca the 800; north of it, on the same
+// streets, they open the 1200 and the 1000. Nothing is addressed on these
+// streets between 39.741 and 39.759 — downtown, the rail yards and the river —
+// so the line is drawn there. "wNorth" overrides "w" for a crossing north of it.
+const SEARCH_WEST_GRID_NORTH_LATITUDE = 39.75;
+
+let searchNamedStreetIndex = null;
+
+function getSearchNamedStreetKeys(table, hundredBlock) {
+  if (!searchNamedStreetIndex) {
+    searchNamedStreetIndex = new Map();
+    Object.entries(SEARCH_NAMED_STREET_HUNDREDS).forEach(([tableName, streets]) => {
+      Object.entries(streets).forEach(([key, hundred]) => {
+        const indexKey = `${tableName}|${hundred}`;
+        searchNamedStreetIndex.set(indexKey, [...(searchNamedStreetIndex.get(indexKey) || []), key]);
+      });
+    });
   }
 
-  return findNearestSearchApproach(streetGroup, crossGroup);
+  return searchNamedStreetIndex.get(`${table}|${hundredBlock}`) || [];
 }
+
+// The hundred a street opens where it actually meets the one being searched,
+// which only differs from the side's plain table on the west side north of
+// the Platte.
+function getSearchNamedStreetHundred(side, key, point) {
+  const northOverrides = SEARCH_NAMED_STREET_HUNDREDS.wNorth || {};
+  if (side === "w" && Number(point[0]) >= SEARCH_WEST_GRID_NORTH_LATITUDE && key in northOverrides) {
+    return northOverrides[key];
+  }
+
+  return (SEARCH_NAMED_STREET_HUNDREDS[side] || {})[key];
+}
+
+// Which half of the named grid a street counts from. W 23rd Ave counts west,
+// S Pearl counts south. A group spanning both halves — "23rd ave" typed with no
+// quadrant, which is W 23rd and E 23rd at once — has no one answer, so it gets
+// none rather than a guess that could land two miles away.
+function getSearchNamedGridSides(streetGroup) {
+  const directions = new Set(streetGroup.blocks.flatMap((block) => Array.from(block.directions)));
+  return [
+    ["w", "e"],
+    ["n", "s"]
+  ].flatMap((pair) => {
+    const present = pair.filter((direction) => directions.has(direction));
+    return present.length === 1 ? present : [];
+  });
+}
+
+// Only a street that counts north from Ellsworth — Larimer, N Pearl — is
+// numbered by the numbered avenues. Offering them to anything else was wrong
+// twice over: W 37th Ave found its own "37" as the 3700 crossing, and E 12th
+// Ave took E 11th Ave, 130 m away and inside the crossing tolerance, as the
+// 1100 corner of a street it never meets.
+function countsBySearchNumberedCrossings(streetGroup) {
+  const directions = new Set(streetGroup.blocks.flatMap((block) => Array.from(block.directions)));
+  return !directions.has("w") && !directions.has("e") && !(directions.has("s") && !directions.has("n"));
+}
+
+function findSearchHundredBlockCrossing(streetGroup, hundredBlock, groupsByKey) {
+  const candidates = [];
+  if (countsBySearchNumberedCrossings(streetGroup)) {
+    candidates.push({ key: String(hundredBlock) });
+  }
+  getSearchNamedGridSides(streetGroup).forEach((side) => {
+    const tables = side === "w" ? ["w", "wNorth"] : [side];
+    tables.forEach((table) => {
+      getSearchNamedStreetKeys(table, hundredBlock).forEach((key) => candidates.push({ key, side }));
+    });
+  });
+
+  let nearest = null;
+  candidates.forEach(({ key, side }) => {
+    const crossGroup = key === streetGroup.key ? null : groupsByKey.get(key);
+    const approach = crossGroup ? findNearestSearchApproach(streetGroup, crossGroup) : null;
+    if (!approach || (side && getSearchNamedStreetHundred(side, key, approach.point) !== hundredBlock)) {
+      return;
+    }
+    if (!nearest || approach.distance < nearest.distance) {
+      nearest = approach;
+    }
+  });
+
+  return nearest;
+}
+
+// The named-street table does not have a street for every hundred — nothing is
+// listed for 4900 E, between Dahlia and Elm — so the far end of a block is the
+// next crossing it knows, not strictly the next hundred.
+const SEARCH_MAX_HUNDRED_BLOCK_GAP = 3;
 
 // Denver numbers a block by the cross street that opens it: 3235 Larimer sits
 // between the 32nd and 33rd crossings, roughly 35% of the way along. Where only
@@ -4327,7 +4489,13 @@ function placeHouseNumberOnStreet(streetGroup, houseNumber, groupsByKey) {
     return null;
   }
 
-  const blockEnd = findSearchHundredBlockCrossing(streetGroup, hundredBlock + 1, groupsByKey);
+  let blockEnd = null;
+  let endHundred = hundredBlock;
+  while (!blockEnd && endHundred < hundredBlock + SEARCH_MAX_HUNDRED_BLOCK_GAP) {
+    endHundred += 1;
+    blockEnd = findSearchHundredBlockCrossing(streetGroup, endHundred, groupsByKey);
+  }
+
   if (!blockEnd) {
     return {
       lat: Number(blockStart.point[0]),
@@ -4336,7 +4504,7 @@ function placeHouseNumberOnStreet(streetGroup, houseNumber, groupsByKey) {
     };
   }
 
-  const alongBlock = (houseNumber % 100) / 100;
+  const alongBlock = (houseNumber - hundredBlock * 100) / ((endHundred - hundredBlock) * 100);
   return {
     lat: Number(blockStart.point[0]) + (Number(blockEnd.point[0]) - Number(blockStart.point[0])) * alongBlock,
     lon: Number(blockStart.point[1]) + (Number(blockEnd.point[1]) - Number(blockStart.point[1])) * alongBlock,
@@ -4378,6 +4546,21 @@ function findBestSearchCrossing(matches, normalizedQuery) {
   return best;
 }
 
+// narrowSearchGroupToDirections keeps the whole group when none of it lies in
+// the quadrant typed, which is right for finding the street at all. It is wrong
+// for placing a number on it: the map has no N Florence Way, so "3469 N
+// Florence Way" fell through to S Florence and was placed 12 km south, and
+// "8963 W Union Ave" landed on E Union. Those are the street's other half, not
+// the address, so they get the street-only answer.
+function contradictsSearchQuadrant(streetGroup, directions) {
+  const groupDirections = new Set(streetGroup.blocks.flatMap((block) => Array.from(block.directions)));
+  return (
+    directions.size > 0 &&
+    groupDirections.size > 0 &&
+    !Array.from(directions).some((direction) => groupDirections.has(direction))
+  );
+}
+
 function getPathCenterFromGroup(group) {
   return getPathCenter(group.geometry);
 }
@@ -4399,7 +4582,7 @@ function findLocalSearchMatch(query) {
   }
 
   const houseNumber = parseSearchHouseNumber(query);
-  if (houseNumber) {
+  if (houseNumber && !contradictsSearchQuadrant(matches[0], directions)) {
     const placed = placeHouseNumberOnStreet(matches[0], houseNumber, groupsByKey);
     if (placed) {
       return {

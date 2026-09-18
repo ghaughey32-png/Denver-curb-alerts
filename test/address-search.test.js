@@ -157,12 +157,68 @@ test("a typed quadrant picks the right side of the grid", () => {
   assert.ok(north.lat > south.lat, "N Bellaire should sit north of S Bellaire");
 });
 
+test("a house number is placed on the named grid, not the middle of the avenue", () => {
+  // Denver numbers east-west avenues off the named north-south streets, and
+  // south streets off the named avenues below Ellsworth. Before the matcher
+  // had a table of them, "3509 w 23rd ave" could only match the street and
+  // centered on the middle of W 23rd Ave, about four blocks from the door.
+  // Each expected point is where OpenStreetMap has that address.
+  const cases = [
+    ["3509 w 23rd ave", [39.7513804, -105.0333452], "N KING ST"],
+    ["2720 e 8th ave", [39.7288932, -104.9549906], "N CLAYTON ST"],
+    ["1520 s pearl st", [39.68898, -104.9803918], "E FLORIDA AVE"],
+    ["1777 s harrison st", [39.6842921, -104.9420584], "E MEXICO AVE"]
+  ];
+
+  for (const [query, expected, crossStreet] of cases) {
+    const match = search.findLocalSearchMatch(query);
+    assert.ok(match, `${query} should match`);
+    assert.strictEqual(match.kind, "address", `${query} should resolve to an address`);
+    assert.strictEqual(match.crossStreet, crossStreet);
+    assert.ok(
+      metresApart(match, expected) < 80,
+      `${query} landed at ${match.lat},${match.lon}, ${metresApart(match, expected).toFixed(0)}m away`
+    );
+  }
+});
+
+test("west of Broadway the grid changes across the Platte", () => {
+  // Kalamath opens the 1000 block south of the river and the 1200 block north
+  // of it. One number for both put every Globeville or Lincoln Park address on
+  // the wrong block.
+  const south = search.findLocalSearchMatch("1011 w 10th ave");
+  const north = search.findLocalSearchMatch("1225 w 35th ave");
+
+  assert.strictEqual(south.crossStreet, "N KALAMATH ST");
+  assert.strictEqual(north.crossStreet, "N KALAMATH ST");
+  assert.ok(metresApart(south, [39.7323303, -105.0005942]) < 80, "1011 W 10th Ave should sit at Kalamath");
+  assert.ok(metresApart(north, [39.7657699, -105.0014896]) < 80, "1225 W 35th Ave should sit at Kalamath");
+});
+
+test("an avenue is never its own cross street, nor its neighbour's", () => {
+  // Numbered crossings belong to streets that count from Ellsworth. Offered to
+  // W 37th Ave, "37" found W 37th itself as the 3700 corner.
+  const match = search.findLocalSearchMatch("3733 w 37th ave");
+  assert.strictEqual(match.kind, "address");
+  assert.strictEqual(match.crossStreet, "N MEADE ST");
+
+  // E 11th Ave runs 130 m from E 12th, inside the crossing tolerance, and was
+  // taken as the 1100 corner of a street it never meets: 1131 E 12th Ave landed
+  // 2.7 km east of its door.
+  const twelfth = search.findLocalSearchMatch("1131 e 12th ave");
+  assert.strictEqual(twelfth.crossStreet, "N CORONA ST");
+  assert.ok(metresApart(twelfth, [39.7353394, -104.973436]) < 80, "1131 E 12th Ave should sit at Corona");
+});
+
 test("a street with no placeable number is reported as a street match, not an address", () => {
-  // Denver numbers east-west avenues off the named north-south grid, which the
-  // inventory cannot resolve. Saying so is the point: the caller widens the map
-  // and tells the user it only matched the street.
-  const match = search.findLocalSearchMatch("1234 e 17th ave");
-  assert.strictEqual(match.kind, "street");
+  // "23rd ave" with no quadrant is W 23rd and E 23rd at once, and 3509 exists
+  // on both. Guessing one could land two miles from the other, so the caller
+  // widens the map and tells the user it only matched the street.
+  assert.strictEqual(search.findLocalSearchMatch("3509 23rd ave").kind, "street");
+
+  // The map has no N Florence Way, only S Florence. Placing the number on the
+  // south half anyway put this address 12 km from where it is.
+  assert.strictEqual(search.findLocalSearchMatch("3469 n florence way").kind, "street");
 });
 
 test("an unknown street matches nothing", () => {
