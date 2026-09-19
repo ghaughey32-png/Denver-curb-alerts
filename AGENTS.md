@@ -1142,7 +1142,9 @@ required. Archive with the **CurbAlerts** scheme selected; build 3 was archived 
 Build 5, uploaded 2026-09-18, carries the named-street address search and went to internal testers
 only, at the author's request. It was exported with `testFlightInternalTestingOnly` set in the
 options plist, which App Store Connect enforces: such a build can never be added to an external
-group. Leave the key out for a build that should reach *Friend Test 1*. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+group. Leave the key out for a build that should reach *Friend Test 1*. Build 6, raised
+2026-09-19 and not yet uploaded, carries the widget and the bundled Leaflet, and is meant as the
+App Store submission, so it must be exported **without** that key. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
@@ -1163,7 +1165,6 @@ lookup, or a new payload leaves the phone, this file and the App Store privacy a
 
 **Not done yet, in the order they matter:**
 
-- **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
 - Geofencing and APNs (steps 4 and 5).
 
 ### The home-screen widget
@@ -1561,8 +1562,14 @@ Do not take a payment before the blueprint is actually applied.
   `caches.match(event.request)` without `ignoreSearch`, so a precached `styles.css?v=A` will never
   satisfy a page request for `styles.css?v=B` — a version mismatch quietly removes that asset from the
   offline fallback. This is why the version test exists.
-- **First load is not truly offline.** Leaflet 1.9.4 comes from unpkg; `public/vendor/leaflet/` is an
-  empty leftover directory.
+- **Leaflet is vendored**, since 2026-09-19, in `public/vendor/leaflet/` — 1.9.4 from the npm
+  tarball, byte-identical to the unpkg files the page used to load, which is how it was checked: both
+  match the SRI hashes the old tags carried. It ships in the iOS bundle too (the "Bundle web app"
+  phase used to exclude `vendor/`), so the app draws its map controls with no connection. The base
+  map tiles still come from `tile.openstreetmap.org` and still need one. Upgrade it as a unit — new
+  files and a new `?v=` in both `index.html` and `sw.js` — and do not leave it to a CDN again. The
+  asset lock and the version test read `?v=` paths with subdirectories for this; they used to see
+  only the basename, which would have let a changed `vendor/` file slip past the freshness check.
 - **Names are historical.** `denver-west-routes.*` and every `sloans-lake-*` localStorage key now hold
   city-wide and east-Denver data. Don't infer scope from the names.
 - `data/` is ~360 MB, and `data/inventory-expected-blocks.json` alone is 36 MB across 97,827 blocks.

@@ -18,7 +18,7 @@ function readPublicFile(name) {
 // "./styles.css?v=x" in href/src attributes; sw.js writes them as "/styles.css?v=x" inside APP_SHELL.
 function collectVersionedAssets(source) {
   const assets = new Map();
-  const pattern = /["'/.]([A-Za-z0-9._-]+\.[A-Za-z0-9]+)\?v=([^"']+)["']/g;
+  const pattern = /["'](?:\.?\/)?([A-Za-z0-9_-][A-Za-z0-9._/-]*\.[A-Za-z0-9]+)\?v=([^"']+)["']/g;
   let match = pattern.exec(source);
   while (match) {
     assets.set(match[1], match[2]);

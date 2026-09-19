@@ -242,7 +242,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The app serves the web client out of its own bundle, so public/ is copied in on every build.\n# What ships in the app is exactly what is in public/ at build time - there is no second copy\n# to keep in step. sw.js is left behind because a custom scheme cannot run a service worker.\nset -eu\nWEB_SOURCE=\"${SRCROOT}/../public\"\nWEB_DEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/web\"\nmkdir -p \"${WEB_DEST}\"\nrsync -a --delete --exclude sw.js --exclude vendor \"${WEB_SOURCE}/\" \"${WEB_DEST}/\"\n";
+			shellScript = "# The app serves the web client out of its own bundle, so public/ is copied in on every build.\n# What ships in the app is exactly what is in public/ at build time - there is no second copy\n# to keep in step. sw.js is left behind because a custom scheme cannot run a service worker. vendor/ ships, because\n# Leaflet comes from there and a first launch with no connection still has to draw the map.\nset -eu\nWEB_SOURCE=\"${SRCROOT}/../public\"\nWEB_DEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/web\"\nmkdir -p \"${WEB_DEST}\"\nrsync -a --delete --exclude sw.js \"${WEB_SOURCE}/\" \"${WEB_DEST}/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -324,7 +324,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CurbAlerts/CurbAlerts.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = XLGGMG362T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CurbAlerts/Info.plist;
@@ -358,7 +358,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CurbAlerts/CurbAlerts.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = XLGGMG362T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CurbAlerts/Info.plist;
@@ -392,7 +392,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CurbAlertsWidgets/CurbAlertsWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = XLGGMG362T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CurbAlertsWidgets/Info.plist;
@@ -420,7 +420,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CurbAlertsWidgets/CurbAlertsWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = XLGGMG362T;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CurbAlertsWidgets/Info.plist;

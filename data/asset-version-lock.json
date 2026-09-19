@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v196",
+    "cacheName": "curb-alerts-shell-v197",
     "files": {
-      "index.html": "7a67edf09e885d7b2dcd1b096a544c4958f54b3fcca7efea5c701bf9d0d65518",
-      "sw.js": "c7edda7044d110af44efcd4770fa0c1eebb5b030d8e454a2bfba0495b5c7b623"
+      "index.html": "d3fe315bf0628c9f8e48096b83dc0ce9e3c5cec195d16caf5b9aef7bb66ab957",
+      "sw.js": "2b3f38c5286f31f289150f9a425fee59870bd3e19ddfa02feb1351c33b28222f"
     }
   },
   "assets": {
@@ -39,6 +39,14 @@
     "styles.css": {
       "version": "20260917-note-alert",
       "sha256": "19a4f84ac4751ad7f8fe250ea6284babecd1c3a0051213249aa89741c1b363ad"
+    },
+    "vendor/leaflet/leaflet.css": {
+      "version": "1.9.4",
+      "sha256": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6"
+    },
+    "vendor/leaflet/leaflet.js": {
+      "version": "1.9.4",
+      "sha256": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a"
     }
   }
 }

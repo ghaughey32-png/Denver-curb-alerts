@@ -33,7 +33,7 @@ function readCurrentVersions() {
 // a disagreement is reported by that test with a far better message than this one could give.
 function collectVersionedReferences(source) {
   const references = new Map();
-  const pattern = /["'/.]([A-Za-z0-9._-]+\.[A-Za-z0-9]+)\?v=([^"']+)["']/g;
+  const pattern = /["'](?:\.?\/)?([A-Za-z0-9_-][A-Za-z0-9._/-]*\.[A-Za-z0-9]+)\?v=([^"']+)["']/g;
   for (const match of source.matchAll(pattern)) references.set(match[1], match[2]);
   return references;
 }
@@ -123,7 +123,7 @@ function bumpAssetVersions(assetTag) {
   // in public/ keeps the tag it already carries, so an edit sitting in one of those files would
   // ride out under a version installed clients have cached. Catch it before writing anything.
   const untouched = findUnbumpedAssets(readAssetVersionLock()).filter((offense) => {
-    const file = offense.match(/^public\/([A-Za-z0-9._-]+)/)?.[1];
+    const file = offense.match(/^public\/([A-Za-z0-9._/-]+)/)?.[1];
     return !["app.js", "styles.css", "index.html", "sw.js", "denver-west-routes.json"].includes(file);
   });
   if (untouched.length) {
