@@ -15,6 +15,9 @@ const vm = require("node:vm");
 
 const APP_PATH = path.join(__dirname, "..", "public", "app.js");
 const SCHEDULER_PATH = path.join(__dirname, "..", "ios", "CurbAlerts", "ReminderScheduler.swift");
+// The release rule lives in the store both the app and the widget read, so neither shows a pin the
+// car has left.
+const STORE_PATH = path.join(__dirname, "..", "ios", "Shared", "ReminderStore.swift");
 const APP_LINES = fs.readFileSync(APP_PATH, "utf8").split("\n");
 
 function extractFunctionBlock(name) {
@@ -242,6 +245,7 @@ test("the pin stays on the device, and every way a confirmation arrives ends it"
 
   // And the device stops reminding about a pin the car has left before the page ever opens.
   const scheduler = fs.readFileSync(SCHEDULER_PATH, "utf8");
-  assert.ok(scheduler.includes('key.hasPrefix("parked-")'), "the scheduler no longer releases a moved pin");
-  assert.ok(scheduler.includes("let moved = effectiveMovedSweepKeys()"), "the scheduler no longer uses the released pins");
+  const store = fs.readFileSync(STORE_PATH, "utf8");
+  assert.ok(store.includes('key.hasPrefix("parked-")'), "the store no longer releases a moved pin");
+  assert.ok(scheduler.includes("let moved = store.effectiveMovedSweepKeys()"), "the scheduler no longer uses the released pins");
 });
