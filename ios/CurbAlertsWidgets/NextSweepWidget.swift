@@ -1,5 +1,6 @@
 import AppIntents
 import SwiftUI
+import UIKit
 import WidgetKit
 
 /// The next sweep for the driver's curbs, on the home screen and the lock screen.
@@ -13,12 +14,32 @@ struct NextSweepWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: NextSweepProvider()) { entry in
             NextSweepWidgetView(entry: entry)
-                .containerBackground(Palette.cream, for: .widget)
+                .containerBackground(WidgetPalette.background, for: .widget)
                 .widgetURL(SweepWidgetLink.url(forPagePath: entry.link))
         }
         .configurationDisplayName("Next sweep")
         .description("When you next need to move your car, and for which curb.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline, .accessoryCircular])
+    }
+}
+
+/// The card follows the phone's appearance, unlike the app itself, which is light only: a widget
+/// sits on the home screen among the system's own, and a cream tile on a dark screen reads as a
+/// stuck notification rather than part of the phone. The light halves are `Palette`'s, so the two
+/// appearances are the same product. Only the home-screen sizes use this - the lock-screen ones are
+/// drawn in the system's tint and carry no colour of their own.
+private enum WidgetPalette {
+    static let accent = adaptive(light: Palette.accent, dark: Color(red: 0.898, green: 0.553, blue: 0.318))
+    static let ink = adaptive(light: Palette.ink, dark: Color(red: 0.937, green: 0.925, blue: 0.902))
+    static let muted = adaptive(light: Palette.muted, dark: Color(red: 0.639, green: 0.690, blue: 0.718))
+    static let background = adaptive(light: Palette.cream, dark: Color(red: 0.086, green: 0.125, blue: 0.149))
+    /// The button's label. Dark mode needs a lighter orange to sit on a dark card, and white text on
+    /// that is too faint to read at a glance - which is the only way a widget is ever read.
+    static let onAccent = adaptive(light: .white, dark: Color(red: 0.086, green: 0.125, blue: 0.149))
+    static let green = adaptive(light: Palette.green, dark: Color(red: 0.400, green: 0.769, blue: 0.482))
+
+    private static func adaptive(light: Color, dark: Color) -> Color {
+        Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light) })
     }
 }
 
@@ -190,23 +211,23 @@ private struct HomeScreenView: View {
                 Text(days <= 0 ? "SWEEPING TODAY" : urgent ? "SWEEPING TOMORROW" : "NEXT SWEEP")
             }
             .font(.caption2.weight(.heavy))
-            .foregroundStyle(urgent ? Palette.accent : Palette.muted)
+            .foregroundStyle(urgent ? WidgetPalette.accent : WidgetPalette.muted)
 
             Text(urgent ? "Move your car" : SweepWording.when(sweep, from: entry.date))
                 .font(isMedium ? .title3.weight(.bold) : .headline)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(WidgetPalette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             Text(SweepWording.curb(sweep))
                 .font(.caption)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(WidgetPalette.ink)
                 .lineLimit(isMedium ? 1 : 2)
 
             if let detail = detailLine(sweep, days: days, urgent: urgent) {
                 Text(detail)
                     .font(.caption2)
-                    .foregroundStyle(Palette.muted)
+                    .foregroundStyle(WidgetPalette.muted)
                     .lineLimit(1)
             }
 
@@ -218,10 +239,11 @@ private struct HomeScreenView: View {
                 Button(intent: MovedCarIntent(sweepKey: sweep.sweepKey)) {
                     Text(isMedium ? "I moved my car" : "I moved it")
                         .font(.caption.weight(.bold))
+                        .foregroundStyle(WidgetPalette.onAccent)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Palette.accent)
+                .tint(WidgetPalette.accent)
             } else if isMedium, let following = entry.following {
                 followingLine(following)
             }
@@ -243,17 +265,17 @@ private struct HomeScreenView: View {
                 Text("CAR MOVED")
             }
             .font(.caption2.weight(.heavy))
-            .foregroundStyle(Palette.green)
+            .foregroundStyle(WidgetPalette.green)
 
             Text(SweepWording.when(sweep, from: entry.date) + "'s sweep")
                 .font(isMedium ? .title3.weight(.bold) : .headline)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(WidgetPalette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
             Text(SweepWording.curb(sweep))
                 .font(.caption)
-                .foregroundStyle(Palette.muted)
+                .foregroundStyle(WidgetPalette.muted)
                 .lineLimit(isMedium ? 1 : 2)
 
             Spacer(minLength: 0)
@@ -263,7 +285,7 @@ private struct HomeScreenView: View {
             } else {
                 Text("Nothing else coming up")
                     .font(.caption2)
-                    .foregroundStyle(Palette.muted)
+                    .foregroundStyle(WidgetPalette.muted)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -272,7 +294,7 @@ private struct HomeScreenView: View {
     private func followingLine(_ sweep: UpcomingSweep) -> some View {
         Text("Then \(SweepWording.when(sweep, from: entry.date)) · \(SweepWording.street(sweep))")
             .font(.caption2.weight(.semibold))
-            .foregroundStyle(Palette.muted)
+            .foregroundStyle(WidgetPalette.muted)
             .lineLimit(1)
     }
 
@@ -283,17 +305,17 @@ private struct HomeScreenView: View {
                 Text("CURB ALERTS")
             }
             .font(.caption2.weight(.heavy))
-            .foregroundStyle(Palette.muted)
+            .foregroundStyle(WidgetPalette.muted)
 
             Text("No sweeps coming up")
                 .font(.headline)
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(WidgetPalette.ink)
 
             Spacer(minLength: 0)
 
             Text("Tap a curb on the map and turn on its reminder.")
                 .font(.caption2)
-                .foregroundStyle(Palette.muted)
+                .foregroundStyle(WidgetPalette.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

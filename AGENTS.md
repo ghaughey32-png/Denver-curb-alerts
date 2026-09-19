@@ -1178,6 +1178,14 @@ moved my car** button as the lock-screen card, and once it is pressed they say *
 next sweep. Verified in the simulator on 2026-09-19: the button recorded the sweep through the app
 and the widget redrew. Not yet watched on a device or across a real midnight.
 
+**The home-screen sizes follow the phone's appearance; the app does not.** `WidgetPalette` in
+`NextSweepWidget.swift` pairs each of `Palette`'s colours with a dark one, so the tile is dark on a
+dark home screen — the app itself is `UIUserInterfaceStyle = Light`, but a cream card sitting among
+the system's own widgets reads as a stuck notification rather than part of the phone. Dark mode
+needs a lighter orange to carry on a dark card, and white on that orange is too faint to read at a
+glance, so the button's label is dark there (`onAccent`). The lock-screen sizes take no colour from
+this: the system tints them. Both appearances checked in the simulator on 2026-09-19.
+
 **It reads the reminder jobs, and nothing else.** `ReminderStore` and `ReminderJob` moved to
 `ios/Shared` and into the App Group `group.co.curbalerts.app`, because a widget is its own process
 and cannot read the app's defaults. The app is the only writer. `migrateFromStandardDefaultsIfNeeded`
