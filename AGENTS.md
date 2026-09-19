@@ -1146,7 +1146,8 @@ group. Leave the key out for a build that should reach *Friend Test 1*. Build 6,
 2026-09-19, carries the widget and the bundled Leaflet and is meant as the App Store submission. It
 was exported **without** that key, so it can go to either group and to review. Its archive was the
 first to sign with the App Group, and `-allowProvisioningUpdates` registered
-`group.co.curbalerts.app` on both App IDs. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+`group.co.curbalerts.app` on both App IDs. Build 7, uploaded 2026-09-19, is build 6 plus the
+widget's dark appearance, and replaces it as the submission candidate. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
