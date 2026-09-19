@@ -1142,9 +1142,11 @@ required. Archive with the **CurbAlerts** scheme selected; build 3 was archived 
 Build 5, uploaded 2026-09-18, carries the named-street address search and went to internal testers
 only, at the author's request. It was exported with `testFlightInternalTestingOnly` set in the
 options plist, which App Store Connect enforces: such a build can never be added to an external
-group. Leave the key out for a build that should reach *Friend Test 1*. Build 6, raised
-2026-09-19 and not yet uploaded, carries the widget and the bundled Leaflet, and is meant as the
-App Store submission, so it must be exported **without** that key. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+group. Leave the key out for a build that should reach *Friend Test 1*. Build 6, uploaded
+2026-09-19, carries the widget and the bundled Leaflet and is meant as the App Store submission. It
+was exported **without** that key, so it can go to either group and to review. Its archive was the
+first to sign with the App Group, and `-allowProvisioningUpdates` registered
+`group.co.curbalerts.app` on both App IDs. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
