@@ -1,43 +1,7 @@
 import BackgroundTasks
 import Foundation
 import UserNotifications
-
-/// One reminder as the web client's `buildNotificationJobs` produces it. Times are absolute, which
-/// is the whole reason the device can schedule these itself with no server involved.
-struct ReminderJob: Codable, Equatable {
-    let id: String
-    let title: String
-    let body: String
-    let scheduledAt: String
-    var setName: String?
-    var url: String?
-    var sweepKeys: [String]?
-    var segmentLabels: [String]?
-}
-
-/// The full job list and the confirmed sweeps, kept outside the web view. The page is not running
-/// when a background refresh fires or when the lock-screen button is pressed, so anything the
-/// scheduler needs at those moments has to live here rather than in the page's localStorage.
-struct ReminderStore {
-    private static let jobsKey = "reminderJobs"
-    private static let movedKey = "movedSweepKeys"
-    private let defaults = UserDefaults.standard
-
-    var jobs: [ReminderJob] {
-        get {
-            guard let data = defaults.data(forKey: Self.jobsKey) else { return [] }
-            return (try? JSONDecoder().decode([ReminderJob].self, from: data)) ?? []
-        }
-        nonmutating set {
-            defaults.set(try? JSONEncoder().encode(newValue), forKey: Self.jobsKey)
-        }
-    }
-
-    var movedSweepKeys: [String] {
-        get { defaults.stringArray(forKey: Self.movedKey) ?? [] }
-        nonmutating set { defaults.set(newValue, forKey: Self.movedKey) }
-    }
-}
+import WidgetKit
 
 actor ReminderScheduler {
     static let shared = ReminderScheduler()
@@ -111,11 +75,15 @@ actor ReminderScheduler {
 
     func reschedule() async throws {
         let jobs = store.jobs
-        let moved = effectiveMovedSweepKeys()
+        let moved = store.effectiveMovedSweepKeys()
 
         // The lock-screen card has its own switch in Settings and does not need notification
         // permission, so it is kept in step before the permission check below can return early.
         await LiveActivityScheduler.sync(jobs: jobs, movedSweepKeys: moved)
+
+        // The widget draws from the same store and cannot tell when it changed. Every path that
+        // changes the schedule or confirms a sweep comes through here, so this is the one reload.
+        WidgetCenter.shared.reloadAllTimelines()
 
         let pending = await center.pendingNotificationRequests()
         center.removePendingNotificationRequests(
@@ -128,7 +96,7 @@ actor ReminderScheduler {
         let latest = now.addingTimeInterval(Self.horizon)
         let upcoming = jobs
             .compactMap { job -> (ReminderJob, Date)? in
-                guard let date = Self.parseDate(job.scheduledAt), date > now, date <= latest,
+                guard let date = SweepCalendar.parseDate(job.scheduledAt), date > now, date <= latest,
                       !Self.isSilenced(job.sweepKeys ?? [], moved: moved) else { return nil }
                 return (job, date)
             }
@@ -153,25 +121,8 @@ actor ReminderScheduler {
 
     // MARK: - Helpers
 
-    /// The confirmed sweeps, plus every sweep of a parking pin the car has left. A pin's set id starts
-    /// `parked-`, and confirming any one of its sweeps means the car is no longer at that spot, so its
-    /// later reminders are for a curb nobody is parked on. The page drops that pin the next time it
-    /// opens; this is what stops the device reminding about it in the meantime.
-    private func effectiveMovedSweepKeys() -> Set<String> {
-        let moved = Set(store.movedSweepKeys)
-        let releasedPins = Set(moved.compactMap { key -> Substring? in
-            key.hasPrefix("parked-") ? key.split(separator: "|").first : nil
-        })
-        guard !releasedPins.isEmpty else { return moved }
-
-        let pinSweeps = store.jobs
-            .flatMap { $0.sweepKeys ?? [] }
-            .filter { key in key.split(separator: "|").first.map(releasedPins.contains) ?? false }
-        return moved.union(pinSweeps)
-    }
-
     private func clearDeliveredForMovedSweeps() async {
-        let moved = effectiveMovedSweepKeys()
+        let moved = store.effectiveMovedSweepKeys()
         let delivered = await center.deliveredNotifications()
         let identifiers = delivered
             .filter { Self.isSilenced($0.request.content.userInfo["sweepKeys"] as? [String] ?? [], moved: moved) }
@@ -205,12 +156,6 @@ actor ReminderScheduler {
         return UNNotificationRequest(identifier: requestPrefix + job.id, content: content, trigger: trigger)
     }
 
-    static func parseDate(_ value: String) -> Date? {
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
-    }
-
     /// Sweep keys are `<set id>|<YYYY-MM-DD>` in local time, the same shape the page writes. Keys
     /// for sweeps already past are dropped so the list never grows without bound.
     private func pruned(_ keys: [String]) -> [String] {
@@ -219,21 +164,9 @@ actor ReminderScheduler {
 
         return Set(keys)
             .filter { key in
-                guard let date = Self.sweepDay(fromKey: key) else { return false }
+                guard let date = SweepCalendar.sweepDay(fromKey: key) else { return false }
                 return date >= yesterday
             }
             .sorted()
-    }
-
-    /// Local midnight of the day a sweep key names.
-    static func sweepDay(fromKey key: String) -> Date? {
-        guard let suffix = key.split(separator: "|").last else { return nil }
-
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: String(suffix))
     }
 }

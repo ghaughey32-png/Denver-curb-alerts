@@ -11,6 +11,12 @@ struct CurbAlertsApp: App {
             WebShellView()
                 .background(Color(red: 0.957, green: 0.937, blue: 0.902))
                 .task { await WebShell.shared.loadIfNeeded() }
+                // A tap on the home-screen widget. Like opening a reminder, this only focuses the
+                // sweep in the page's banner; the driver still says the car is moved.
+                .onOpenURL { url in
+                    guard url.scheme == SweepWidgetLink.scheme, url.host == SweepWidgetLink.host else { return }
+                    WebShell.shared.dispatch(["type": "open-url", "url": SweepWidgetLink.pagePath(from: url)])
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -45,6 +51,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // the app - including the "I moved my car" button - is delivered to nobody.
         UNUserNotificationCenter.current().delegate = NotificationCoordinator.shared
         ReminderScheduler.registerCategories()
+        ReminderStore.migrateFromStandardDefaultsIfNeeded()
         return true
     }
 }

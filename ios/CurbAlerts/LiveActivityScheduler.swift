@@ -68,13 +68,13 @@ enum LiveActivityScheduler {
         var bySweep: [String: Plan] = [:]
 
         for job in jobs {
-            guard let alertAt = ReminderScheduler.parseDate(job.scheduledAt) else { continue }
+            guard let alertAt = SweepCalendar.parseDate(job.scheduledAt) else { continue }
 
             for sweepKey in job.sweepKeys ?? [] where !moved.contains(sweepKey) {
                 // Only the sweep day's own alerts start a card. The evening-before reminders stay
                 // notifications - a card that appeared at 6pm would expire overnight, before the
                 // morning it is actually about.
-                guard let sweepDay = ReminderScheduler.sweepDay(fromKey: sweepKey),
+                guard let sweepDay = SweepCalendar.sweepDay(fromKey: sweepKey),
                       calendar.isDate(alertAt, inSameDayAs: sweepDay),
                       let end = calendar.date(byAdding: .day, value: 1, to: sweepDay),
                       end > now,

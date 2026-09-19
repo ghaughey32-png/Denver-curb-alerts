@@ -1021,7 +1021,8 @@ are defects in the web app's assumptions rather than shell scaffolding.
    `public/denver-west-routes.json` as an app resource while doing this and the 12 MB cold fetch
    disappears entirely.
 4. Geofencing and the widget — the 4.2 answer. The pin geofencing would watch landed on
-   2026-09-15 (see **The parking pin**); what is left is noticing the car leave it.
+   2026-09-15 (see **The parking pin**); what is left is noticing the car leave it. The widget
+   landed on 2026-09-19 (see **The home-screen widget**).
 5. The APNs dispatcher.
 
 ### The iOS project
@@ -1148,10 +1149,12 @@ configurations and commit it, or the next archive from a clean checkout reuses a
 change reaches testers only in a new build, because the app ships its own copy of `public/`.
 
 **`ios/CurbAlerts/PrivacyInfo.xcprivacy` has to stay true to the Privacy page**, added 2026-09-16.
-It declares one required-reason API, `UserDefaults` (`CA92.1`, read back only by this app), which
-`ReminderScheduler` uses to keep the job list and confirmed sweeps. A new `UserDefaults` call, a file
-timestamp read, or an uptime read anywhere in either target needs its reason added here in the same
-commit; the widget has no manifest because it touches none of them, and needs one the day it does.
+It declares one required-reason API, `UserDefaults`, with two reasons: `CA92.1` for the app's own
+defaults, which the one-time migration below still reads, and `1C8F.1` for the App Group that
+`ReminderStore` now keeps the job list and confirmed sweeps in. The widget reads that group, so since
+2026-09-19 it has a manifest of its own, `ios/CurbAlertsWidgets/PrivacyInfo.xcprivacy`, declaring
+`1C8F.1` and nothing collected. A new `UserDefaults` call, a file timestamp read, or an uptime read
+anywhere in either target needs its reason added to that target's manifest in the same commit.
 The data it declares as collected, none of it for tracking, is what leaves the phone and is kept:
 the account's email and its synced curb library (linked), and issue reports with their device context
 (not linked). Coordinates sent to `/api/denver/sweeping` are not declared, because the proxy answers
@@ -1161,7 +1164,47 @@ lookup, or a new payload leaves the phone, this file and the App Store privacy a
 **Not done yet, in the order they matter:**
 
 - **Leaflet still comes from unpkg**, so first launch with no connection shows no base map.
-- Geofencing, the home-screen widget and APNs (steps 4 and 5).
+- Geofencing and APNs (steps 4 and 5).
+
+### The home-screen widget
+
+Added 2026-09-19. `NextSweepWidget` in `ios/CurbAlertsWidgets` shows the soonest sweep the driver
+still has to move for — small and medium on the home screen, and rectangular, inline and circular
+on the lock screen. On a sweep's day and the day before, the home-screen sizes carry the same **I
+moved my car** button as the lock-screen card, and once it is pressed they say *Car moved* until the
+next sweep. Verified in the simulator on 2026-09-19: the button recorded the sweep through the app
+and the widget redrew. Not yet watched on a device or across a real midnight.
+
+**It reads the reminder jobs, and nothing else.** `ReminderStore` and `ReminderJob` moved to
+`ios/Shared` and into the App Group `group.co.curbalerts.app`, because a widget is its own process
+and cannot read the app's defaults. The app is the only writer. `migrateFromStandardDefaultsIfNeeded`
+copies build 5's data across at launch, so a tester keeps their reminders across the update without
+waiting for the page to hand the list over again. Sweep dates come from the sweep keys, which end in
+the date, so the widget needs no page, no network and no second copy of the inventory — and it is
+only as current as the app's last open, which is the same limit the notifications have.
+
+**Both targets carry the App Group entitlement, and the first archive has to register it.**
+Automatic signing with `-allowProvisioningUpdates` adds the group to both App IDs in the developer
+portal. Without it `ReminderStore` quietly falls back to the app's own defaults: the app keeps
+reminding, and the widget shows *No sweeps coming up* forever.
+
+**The button is the card's `MovedCarIntent`, and it only works because that is a
+`LiveActivityIntent`.** iOS runs it in the app's process even from a home-screen widget, which is how
+it reaches `ReminderScheduler`; an ordinary `AppIntent` would run in the widget extension and hit the
+empty stub `MovedCarIntentHandler` there. Do not change the intent's protocol. There is no Undo on
+the widget; the page's banner has one, as for the lock-screen button.
+
+**`ReminderScheduler.reschedule` is the one place that reloads the widget.** Every path that
+changes the schedule or confirms a sweep goes through it — the page's sync, both lock-screen
+buttons, the widget's own button, foreground and background refresh. Between those, the timeline
+carries an entry at each of the next seven midnights so *tomorrow* turns into *today* with the app
+closed. A sweep stays listed for its whole day, because Denver publishes no sweep time.
+
+**A tap on the widget opens `curbalerts://widget/open?path=...`**, which `onOpenURL` hands the page
+as an `open-url` event — the same thing a tapped reminder does, so it focuses that sweep without
+confirming it. The host is `widget`, not `app`, to keep it apart from the web view's own files, and
+`SweepWidgetLink.pagePath` passes on only a same-page path. The scheme is not registered in
+`CFBundleURLTypes`, and does not need to be: iOS delivers a widget's URL to its own app.
 
 **Two corrections to what this file used to say here.** It said the APNs rebuild was "the real cost
 of the move". It is not the largest piece: the client's browser assumptions and the session change

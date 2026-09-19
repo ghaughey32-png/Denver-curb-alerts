@@ -3,8 +3,9 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-/// The web app's palette, so the card reads as the same product as the banner it mirrors.
-private enum Palette {
+/// The web app's palette, so the card and the home-screen widget read as the same product as the
+/// banner they mirror.
+enum Palette {
     static let accent = Color(red: 0.706, green: 0.365, blue: 0.165)
     static let ink = Color(red: 0.122, green: 0.184, blue: 0.216)
     static let muted = Color(red: 0.384, green: 0.447, blue: 0.482)
