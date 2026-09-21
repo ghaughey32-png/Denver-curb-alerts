@@ -485,6 +485,31 @@ payloads, which silently produces a wrecked inventory (~859 scheduled instead of
 an error. Reach for the full crawl only when you actually want fresh data from Denver — schedule
 changes, new or retired routes, seasonal updates, or a pilot area that has never been crawled.
 
+**The published payload has a shelf life of about two months, and nothing in the app says so.**
+Denver returns a rolling window of upcoming dates rather than a rule you can evaluate forever, so
+the crawl captures roughly two months and then stops. Measured 2026-09-21: the payload generated
+2026-08-27 carries sweep dates from 2026-08 through **2026-09-25** and not one day further.
+
+The client does not go blind when they run out. `getUpcomingSweepDates` in
+[public/app.js](public/app.js) falls back to `getRuleBasedSweepDates`, which parses the rule text
+("The 4th Tuesday of the month") and projects eight months ahead. Across the 23,260 **posted** curb
+sides — the ones a driver actually has to move for — that covers **20,771, or 89.3%**. Of the rest,
+1,663 are `Night Sweeps`, which assert no move day in the first place and so lose nothing, and 775
+say "The 4th week of the month" with no weekday in it and cannot be projected at all. About **826
+sides, 3.5%, genuinely go dark**.
+
+So a stale payload degrades rather than breaking, which is exactly what makes it easy to miss: the
+map still shows dates and they are still mostly right. **Do not read "the map still shows dates" as
+"the data is fresh."** What you are looking at past the window is this app's own arithmetic, not
+Denver's word, and it is wrong precisely where a holiday shift, a re-routed week or an end-of-season
+change would move a sweep — the cases a driver most needs the warning for.
+
+Denver sweeps April through November. **Re-crawl when the season opens in April, and again before
+its last sweeps in November.** Neither is optional maintenance; each is the difference between
+warning people from the published city dates and warning them from a projection. Budget for the
+Larimer count under **Known issues** below, which a fresh crawl moves from 6 to 11 and which has to
+be corrected together with the crawl rather than before it.
+
 `rebuild:offline` is deliberately narrow: it reclassifies, and withdraws a pink fallback when its
 block now resolves to a real schedule. It never invents new pink coverage (reprocessing learns
 nothing new about a block, and several uncovered blocks are unpublished by deliberate product
