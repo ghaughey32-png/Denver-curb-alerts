@@ -1,10 +1,10 @@
-const CACHE_NAME = "curb-alerts-shell-v197";
+const CACHE_NAME = "curb-alerts-shell-v198";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/vendor/leaflet/leaflet.css?v=1.9.4",
   "/vendor/leaflet/leaflet.js?v=1.9.4",
-  "/styles.css?v=20260917-note-alert",
+  "/styles.css?v=20260921-password-reveal-target",
   "/curb-geometry.js?v=20260813b",
   "/denver-city-limits.js?v=20260825-enclave-pink-withdrawn",
   "/app.js?v=20260918-named-grid-address",

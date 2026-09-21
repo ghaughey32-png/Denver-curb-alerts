@@ -3207,13 +3207,22 @@ a.ghost-button {
   padding-right: 76px;
 }
 
+/* The button fills the field's height rather than floating in the middle of it. At 60x35 inside a
+   52px input it left a ~9px dead strip above and below, inside the input's own box: a tap landing
+   there focused the field and revealed nothing, so the button read as broken and then worked on the
+   second try, once the field was focused. Reported 2026-09-21 from a real password reset. Insetting
+   by 2px rather than setting a height keeps this true for any field height, and clears Apple's 44px
+   minimum tap target on every one of them. */
 .password-reveal-button {
   position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-  min-width: 60px;
-  padding: 8px 10px;
+  top: 2px;
+  bottom: 2px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  padding: 0 10px;
   border: 0;
   border-radius: 12px;
   background: transparent;

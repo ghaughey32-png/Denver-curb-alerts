@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v197",
+    "cacheName": "curb-alerts-shell-v198",
     "files": {
-      "index.html": "d3fe315bf0628c9f8e48096b83dc0ce9e3c5cec195d16caf5b9aef7bb66ab957",
-      "sw.js": "2b3f38c5286f31f289150f9a425fee59870bd3e19ddfa02feb1351c33b28222f"
+      "index.html": "a0ef0bf7bf7e9d34839fb623e00ed3fc6d33cd61fa2d859e4422897283b0b4ca",
+      "sw.js": "9e51b15b160d0ab918501acceb19d81fc7445ac36d0823c78efb08d90551c9ee"
     }
   },
   "assets": {
@@ -37,8 +37,8 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260917-note-alert",
-      "sha256": "19a4f84ac4751ad7f8fe250ea6284babecd1c3a0051213249aa89741c1b363ad"
+      "version": "20260921-password-reveal-target",
+      "sha256": "9308608fd45350195ed0f5d50e9b4e4b976765ffaaf7c9e94d84ab29bcbd0064"
     },
     "vendor/leaflet/leaflet.css": {
       "version": "1.9.4",
