@@ -1237,11 +1237,51 @@ providers is `deliverViaResend` and nothing else; it is deliberately not an adap
 the real cost of switching is the DNS records, not those thirty lines. SMTP is the option to avoid —
 it would mean nodemailer, the first dependency this project cannot lazily require.
 
-**There is still no sending domain, and that is what stands between this and shipping.** The live
-origin is a Render subdomain, so SPF and DKIM cannot be published for it, and every provider
-requires a verified domain before it will send to arbitrary addresses. The feature is therefore
-built and off: with no `RESEND_API_KEY` the routes answer 503 and the client hides the controls, the
-same way billing degrades. Do not treat a green test run as evidence that mail is deliverable.
+**Email went live on 2026-09-21.** `curbalerts.co` is verified at Resend, and `RESEND_API_KEY`,
+`EMAIL_FROM` (`Denver Curb Alerts <alerts@curbalerts.co>`) and `APP_ORIGIN` are set on Render.
+Verified end to end that day: a reset link reached Gmail's **inbox** rather than spam on the first
+ever send from the new domain, which is SPF, DKIM and DMARC all aligning on the first try.
+
+**Resend's records coexist with Cloudflare Email Routing only because none of them touch the root,
+and that is worth understanding before anyone adds to them.** Inbound mail for the domain —
+`support@curbalerts.co`, printed on the Terms and Privacy pages — is Cloudflare Email Routing, which
+owns the root `MX` (`route1/2/3.mx.cloudflare.net`) and the root SPF
+(`v=spf1 include:_spf.mx.cloudflare.net ~all`). A domain has one of each. Resend publishes its SPF as
+two CNAMEs instead — `send` and `rsend`, pointing at `send.forge.rmta.net` and `rsend.forge.rmta.net`,
+whose own targets carry the `MX` records that handle bounces — so the domain inherits Resend's
+envelope handling without a single record being added at the apex. DKIM is `resend._domainkey`, which
+does not collide with Email Routing's `cf2024-1._domainkey`.
+
+**So do not turn on Resend's "Enable Receiving" toggle.** It asks for `MX` records at the root, which
+is the one thing that cannot be shared, and taking them would break inbound mail to `support@`. This
+app sends; Cloudflare receives. Keep that split. Both CNAMEs are **DNS only** in Cloudflare for the
+reason recorded elsewhere in this file: a proxied CNAME resolves to Cloudflare's own addresses, and
+the mail path then breaks with nothing anywhere to explain why.
+
+**`APP_ORIGIN` was unset on Render until the same day, and that would have been the visible failure.**
+With nothing configured, `buildCredentialedOrigins` falls back to `BUILT_IN_CREDENTIALED_ORIGINS`,
+`www.curbalerts.co` is not among them, and `resolveReturnOrigin`'s last resort returns that set's
+first entry — the Render subdomain. Every reset link would have arrived pointing at
+`denver-curb-alerts-2.onrender.com`: working, and reading like phishing for a service called Curb
+Alerts. Sign-in was never affected, because the page and the API share an origin and CORS never comes
+into it, which is exactly why this would have shipped unnoticed.
+
+`_dmarc` is `v=DMARC1; p=none;` with no `rua=`, which satisfies Gmail's and Yahoo's requirement that a
+record exist while sending reports nowhere. Put an address there if visibility into who is sending as
+the domain is ever wanted.
+
+**The send and receive halves were confirmed against each other in one round trip**, also on
+2026-09-21: the reset went out from Resend as `alerts@curbalerts.co` and arrived at
+`garrett@curbalerts.co`, forwarded by Cloudflare Email Routing into Gmail's inbox. Same domain, out
+and in, neither path disturbing the other. It survived the forward because DKIM does — SPF does not,
+since the forwarding host is not in the sending domain's SPF record, so DKIM alignment is what
+carries DMARC across a forward. That is worth remembering before anyone weakens the DKIM record.
+
+**Replies still bounce.** `alerts@curbalerts.co` is a sending identity, not a mailbox, and Email
+Routing has no rule for it unless one was added. `garrett@curbalerts.co` is confirmed routed by the
+test above; `support@curbalerts.co` is not, and it is the address printed on the Terms and Privacy
+pages. The root MX records prove Email Routing is enabled, which is not the same as proving any
+particular address is routed.
 
 **`EMAIL_TRANSPORT=outbox` is what makes the flow reachable without a provider, and the naive
 version of this does not work.** Falling back to the outbox only when email is *disabled* is
