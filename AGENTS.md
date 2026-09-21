@@ -169,8 +169,11 @@ installed clients:
 - [public/index.html](public/index.html) — the `?v=` query on each `<link>` / `<script>`
 - [public/sw.js](public/sw.js) — the matching entry in `APP_SHELL`, plus `CACHE_NAME` on line 1
 
-One more versioned constant lives in [public/app.js](public/app.js):
-`STATIC_ROUTE_INVENTORY_URL`. There used to be a second, `SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY`,
+One more versioned constant lives in [public/cities.js](public/cities.js): `inventoryUrl` on the
+Denver record, which `public/app.js` reads as `STATIC_ROUTE_INVENTORY_URL`. It moved there on
+2026-09-21 with the rest of the city-shaped constants; `scripts/lib/asset-versions.js` rewrites it
+in that file now, and `test/static-cache-version.test.js` reads the same literal. There used to be
+a second constant here, `SLOANS_LAKE_FULL_INVENTORY_CACHE_KEY`,
 versioning the localStorage key the inventory was mirrored under; that mirror is gone (see below) and
 so is the constant. `test/static-cache-version.test.js` enforces all of this — if it fails, fix the
 versions, don't weaken the test.
@@ -508,6 +511,37 @@ grep the stylesheet for every class the toggled element carries rather than only
 `/notMaintained: "#7b8790"/`; `test/curb-geometry.test.js` reads `public/app.js` as a string. Renaming
 a variable or rewording UI copy will break them even when behavior is unchanged. That is expected —
 update the test alongside the code, don't dismiss it as flaky.
+
+**Denver is a record in `public/cities.js`, not constants scattered through the client.** Added
+2026-09-21 as the first step toward a second city. The record holds everything `public/app.js` used
+to hardcode: `bounds` (the rectangle the map is clamped to and the "do we cover this point" test),
+`minZoom`, `inventoryUrl`, `cityLimitsGlobal` (which boundary module draws the city line),
+`geocodeSuffix`, and the address grid — `addressGrid` plus `westGridNorthLatitude`. `app.js`
+resolves `ACTIVE_CITY` once at module scope and reads the rest off it, so **`cities.js` has to load
+before `app.js`** in `index.html`. It is a UMD module in the shape of `curb-geometry.js`, so the
+pipeline and the tests can require it.
+
+It is a registry of one and `ACTIVE_CITY` never moves today. That is the point: the seam exists, so
+the second city is an entry plus its own data rather than a search through 6,000 lines for the word
+"Denver". `getCityForPoint` is there for choosing from the phone's position later — the intended
+design is that the app picks the city from location and offers a switcher in the header, **not** a
+city-picker splash screen in front of every user, who is in the same city every day.
+
+**What deliberately did not move is the copy that names the sweeping authority.** Those strings are
+asserted as source text by `test/not-maintained-ui.test.js`, which exists to protect the meaning of
+the pink and gray curb states — "we found no schedule, use caution" and "not city-maintained" are
+safety claims, not chrome. Templating them is its own pass with that test updated deliberately.
+Also still Denver-named and still fine: the `/api/denver/sweeping` proxy route, the pipeline
+scripts, `getDenverMaskRings`, and the `sourceNote` prose on the hand-curated coverage patches,
+which describes specific Denver routes and is data rather than chrome.
+
+**The two things that actually gate a second city are not in this file.** The payload is 12 MB and
+the iOS "Bundle web app" phase copies all of `public/` into the app, so N cities is an N × 12 MB
+binary — multi-city forces the inventory to become per-city and fetched on demand, reversing the
+decision recorded under **The iOS project**. And every city is a fresh acquisition pipeline: route
+geometry here is parsed out of the Google `staticmap` URL Denver embeds, which no other city does.
+Confirm a candidate city's data exists in usable form before building anything multi-city-shaped
+against Denver alone.
 
 **Don't add dependencies, a bundler, a framework, or a linter without asking.** The zero-build setup
 is intentional.
@@ -1551,8 +1585,9 @@ Do not take a payment before the blueprint is actually applied.
 
   Denver numbers east-west avenues off the *named* north-south grid (1234 E 17th Ave sits at the
   1200-block street, Downing, not at 12th), and south streets off the named avenues below
-  Ellsworth. **Since 2026-09-18 `SEARCH_NAMED_STREET_HUNDREDS` in `public/app.js` maps those
-  names to numbers**, derived from about 210,000 OpenStreetMap addresses and kept only where it
+  Ellsworth. **Since 2026-09-18 the named-street grid maps those
+  names to numbers** — `addressGrid` on the Denver record in `public/cities.js` since
+  2026-09-21, aliased in `public/app.js` as `SEARCH_NAMED_STREET_HUNDREDS` — derived from about 210,000 OpenStreetMap addresses and kept only where it
   placed them back accurately: over 5,600 addresses inside the city line, a search lands a
   median 40 m from the door, against 1.1 km before. Three things about it are load bearing.
   West of Broadway the grid changes across the Platte (Kalamath is 1000 W south of the river,

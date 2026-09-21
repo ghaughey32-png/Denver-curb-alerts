@@ -7,6 +7,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const CurbGeometry = require("../public/curb-geometry.js");
+const CityRegistry = require("../public/cities.js");
 
 const APP_PATH = path.join(__dirname, "..", "public", "app.js");
 const INVENTORY_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
@@ -56,7 +57,13 @@ function loadAddressSearch() {
       orientation: CurbGeometry.getStreetOrientation(route.map.path)
     }));
 
-  const sandbox = { state: { streetWays }, buildEmbeddedDataset: () => ({ streetWays }) };
+    // The address grid moved onto the Denver record in public/cities.js; the lifted source still
+  // aliases it as SEARCH_NAMED_STREET_HUNDREDS, so the sandbox has to supply the record.
+  const sandbox = {
+    state: { streetWays },
+    buildEmbeddedDataset: () => ({ streetWays }),
+    ACTIVE_CITY: CityRegistry.getCity("denver")
+  };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox);
   return sandbox;

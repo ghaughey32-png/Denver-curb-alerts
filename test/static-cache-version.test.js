@@ -36,14 +36,16 @@ function appShellSource(serviceWorker) {
 }
 
 test("the page, app, and service worker request matching inventory assets", () => {
-  const app = readPublicFile("app.js");
+  const cities = readPublicFile("cities.js");
   const index = readPublicFile("index.html");
   const serviceWorker = readPublicFile("sw.js");
 
-  const inventoryVersion = app.match(/STATIC_ROUTE_INVENTORY_URL = "\.\/denver-west-routes\.json\?v=([^"]+)"/)?.[1];
+  // The inventory URL is a field on the Denver record now rather than a constant in app.js, so the
+  // version that has to agree with index.html and sw.js is read from there.
+  const inventoryVersion = cities.match(/inventoryUrl: "\.\/denver-west-routes\.json\?v=([^"]+)"/)?.[1];
   const appVersion = index.match(/app\.js\?v=([^"]+)/)?.[1];
 
-  assert.ok(inventoryVersion, "app.js should version the JSON inventory URL");
+  assert.ok(inventoryVersion, "the Denver city record should version the JSON inventory URL");
   assert.ok(appVersion, "index.html should version app.js");
   assert.match(serviceWorker, new RegExp(`denver-west-routes\\.json\\?v=${inventoryVersion}`));
   assert.match(serviceWorker, new RegExp(`app\\.js\\?v=${appVersion}`));

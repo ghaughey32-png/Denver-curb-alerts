@@ -6,23 +6,26 @@ const ROOT = path.join(__dirname, "..", "..");
 const PUBLIC_DIR = path.join(ROOT, "public");
 const INDEX_PATH = path.join(PUBLIC_DIR, "index.html");
 const SERVICE_WORKER_PATH = path.join(PUBLIC_DIR, "sw.js");
-const APP_PATH = path.join(PUBLIC_DIR, "app.js");
+const CITIES_PATH = path.join(PUBLIC_DIR, "cities.js");
 const LOCK_PATH = path.join(ROOT, "data", "asset-version-lock.json");
 
-// Four constants across three files have to move together or an installed client
+// Three constants across three files have to move together or an installed client
 // keeps serving a stale asset out of the service worker cache: the "?v=" tag on
-// app.js, the numeric inventory URL version, the localStorage cache key, and
-// CACHE_NAME. test/static-cache-version.test.js enforces the agreement; this
-// module is how the pipeline satisfies it without a human editing four places by
-// hand.
+// app.js, the numeric inventory URL version, and CACHE_NAME.
+// test/static-cache-version.test.js enforces the agreement; this module is how the
+// pipeline satisfies it without a human editing three places by hand.
+//
+// The inventory URL used to be a constant in app.js and now sits on the Denver record
+// in public/cities.js, which is where the client reads every other city-shaped value
+// from too. It is still one literal in one file, so the rewrite below just points there.
 function readCurrentVersions() {
-  const app = fs.readFileSync(APP_PATH, "utf8");
+  const cities = fs.readFileSync(CITIES_PATH, "utf8");
   const index = fs.readFileSync(INDEX_PATH, "utf8");
   const serviceWorker = fs.readFileSync(SERVICE_WORKER_PATH, "utf8");
 
   return {
     assetTag: index.match(/app\.js\?v=([^"']+)/)?.[1] || null,
-    inventoryVersion: Number(app.match(/denver-west-routes\.json\?v=(\d+)/)?.[1]),
+    inventoryVersion: Number(cities.match(/denver-west-routes\.json\?v=(\d+)/)?.[1]),
     shellVersion: Number(serviceWorker.match(/curb-alerts-shell-v(\d+)/)?.[1])
   };
 }
@@ -124,7 +127,7 @@ function bumpAssetVersions(assetTag) {
   // ride out under a version installed clients have cached. Catch it before writing anything.
   const untouched = findUnbumpedAssets(readAssetVersionLock()).filter((offense) => {
     const file = offense.match(/^public\/([A-Za-z0-9._/-]+)/)?.[1];
-    return !["app.js", "styles.css", "index.html", "sw.js", "denver-west-routes.json"].includes(file);
+    return !["app.js", "cities.js", "styles.css", "index.html", "sw.js", "denver-west-routes.json"].includes(file);
   });
   if (untouched.length) {
     throw new Error(`Bump these by hand first; this bump does not retag them:\n  ${untouched.join("\n  ")}`);
@@ -136,10 +139,11 @@ function bumpAssetVersions(assetTag) {
     shellVersion: current.shellVersion + 1
   };
 
-  // app.js used to carry a second versioned constant here, the localStorage key the inventory was
-  // mirrored under. That mirror is gone -- the service worker serves the payload from Cache
-  // Storage instead -- so there are three versioned constants to keep in step now, not four.
-  const app = fs.readFileSync(APP_PATH, "utf8")
+  // app.js used to carry two versioned constants: the localStorage key the inventory was mirrored
+  // under, and the inventory URL itself. The mirror is gone -- the service worker serves the
+  // payload from Cache Storage instead -- and the URL moved onto the Denver record in cities.js,
+  // so the file rewritten here is that one.
+  const cities = fs.readFileSync(CITIES_PATH, "utf8")
     .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
   // The inventory payload carries its own numeric version rather than the app tag, so it is
   // retagged by name in both files below. public/denver-west-routes.js used to need the same
@@ -151,7 +155,7 @@ function bumpAssetVersions(assetTag) {
     .replaceAll(`?v=${current.assetTag}`, `?v=${next.assetTag}`)
     .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next.inventoryVersion}`);
 
-  fs.writeFileSync(APP_PATH, app, "utf8");
+  fs.writeFileSync(CITIES_PATH, cities, "utf8");
   fs.writeFileSync(INDEX_PATH, index, "utf8");
   fs.writeFileSync(SERVICE_WORKER_PATH, serviceWorker, "utf8");
   writeAssetVersionLock();

@@ -1552,7 +1552,15 @@ const DEFAULT_SET_NAME = "My curbs";
 const NOTIFICATION_JOBS_KEY = "sloans-lake-notification-jobs";
 const DELIVERED_JOBS_KEY = "sloans-lake-delivered-notification-jobs";
 const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
-const STATIC_ROUTE_INVENTORY_URL = "./denver-west-routes.json?v=96";
+// Everything this client used to hardcode about Denver is one record in public/cities.js now:
+// the map rectangle, the published inventory URL, the boundary module that draws the city line,
+// and the address grid that turns a house number into a point. There is one city in the registry,
+// so ACTIVE_CITY never moves today -- the point is that the second one is an entry over there
+// rather than a search through this file for the word "Denver".
+const ACTIVE_CITY = window.CityRegistry.getActiveCity();
+const CITY_MAP_BOUNDS = ACTIVE_CITY.bounds;
+const CITY_NAME_PATTERN = new RegExp(`\\b${ACTIVE_CITY.name}\\b`, "i");
+const STATIC_ROUTE_INVENTORY_URL = ACTIVE_CITY.inventoryUrl;
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const MOVED_SWEEPS_KEY = "denver-curb-alerts-moved-sweeps";
@@ -1829,12 +1837,6 @@ const appViews = Array.from(document.querySelectorAll(".app-view"));
 const appViewButtons = Array.from(document.querySelectorAll("[data-view-target]"));
 const APP_VIEW_NAMES = new Set(["landing", "setup", "alerts", "account", "schedule", "terms", "privacy", "disclaimer"]);
 const HOSTED_APP_ORIGIN = "https://www.curbalerts.co";
-const DENVER_MAP_BOUNDS = {
-  north: 39.8275,
-  south: 39.6145,
-  west: -105.1095,
-  east: -104.5995
-};
 const SLOANS_LAKE_FULL_BOUNDS = {
   north: 39.7506,
   south: 39.7399,
@@ -2354,13 +2356,8 @@ function canUseGeolocation() {
   return typeof navigator !== "undefined" && "geolocation" in navigator;
 }
 
-function isWithinDenverBounds(lat, lon) {
-  return (
-    lat <= DENVER_MAP_BOUNDS.north &&
-    lat >= DENVER_MAP_BOUNDS.south &&
-    lon >= DENVER_MAP_BOUNDS.west &&
-    lon <= DENVER_MAP_BOUNDS.east
-  );
+function isWithinMappedCity(lat, lon) {
+  return window.CityRegistry.isWithinCityBounds(ACTIVE_CITY, lat, lon);
 }
 
 function isAppleMobileDevice() {
@@ -4030,17 +4027,17 @@ function focusMapOnUserLocation() {
   });
 }
 
-function normalizeDenverSearchQuery(query) {
+function normalizeCitySearchQuery(query) {
   const cleanedQuery = String(query || "").trim();
   if (!cleanedQuery) {
     return "";
   }
 
-  if (/\bdenver\b/i.test(cleanedQuery)) {
+  if (CITY_NAME_PATTERN.test(cleanedQuery)) {
     return cleanedQuery;
   }
 
-  return `${cleanedQuery}, Denver, CO`;
+  return `${cleanedQuery}, ${ACTIVE_CITY.geocodeSuffix}`;
 }
 
 function getLookupCenter(summary) {
@@ -4308,91 +4305,13 @@ function findNearestSearchApproach(streetGroup, crossGroup) {
   return nearest && nearest.distance <= SEARCH_CROSS_STREET_TOLERANCE_METRES ? nearest : null;
 }
 
-// Denver numbers most of the city off named streets, not numbered ones: an
-// east-west avenue counts its hundreds by the north-south streets it crosses
-// (3509 W 23rd Ave sits between King, the 3500 block, and Lowell), and a south
-// street counts them by the named avenues below Ellsworth. The inventory has no
-// house numbers, so without this table those addresses could only match the
-// street, and the map centered on the middle of W 23rd Ave — about four blocks
-// from 3509.
-//
-// Derived 2026-09-18 from about 210,000 OpenStreetMap addresses in and around
-// Denver. Each address voted for the crossing just before it, toward lower
-// numbers; where the votes split, the value kept is the one that placed nearby
-// addresses closest to where OpenStreetMap has them, and an entry that placed
-// them no better than leaving it out was dropped. Keys are
-// normalizeSearchStreetText keys, values the hundred block the street opens on
-// that side of the grid. Every "w" and "e" key runs north-south and every "s"
-// and "n" key east-west: a stretch of Colorado Blvd once voted its way into "s"
-// as if it were an avenue, and dragged S Harrison addresses 2 km north.
-// Measured over 5,600 addresses inside the city line, a searched address lands
-// a median 40 m from its door, against 1.1 km before.
-const SEARCH_NAMED_STREET_HUNDREDS = {
-  w: {
-    "broadway": 0, "acoma": 1, "bannock": 1, "cherokee": 3, "delaware": 4, "elati": 5, "fox": 6,
-    "galapago": 7, "inca": 8, "santa fe": 9, "kalamath": 10, "lipan": 11, "mariposa": 12, "navajo": 13,
-    "pecos": 14, "raritan": 15, "quieto": 17, "quivas": 17, "shoshone": 18, "umatilla": 19, "tejon": 21,
-    "vallejo": 22, "wyandot": 23, "yuma": 23, "zuni": 24, "alcott": 25, "bryant": 26, "clay": 27, "dale": 27,
-    "decatur": 28, "eliot": 29, "federal": 30, "grove": 31, "hazel": 31, "hooker": 32, "irving": 33,
-    "julian": 34, "julian way": 34, "knox": 34, "king": 35, "king way": 35, "linley": 36, "lowell": 36,
-    "meade": 37, "newton": 38, "osceola": 39, "patton": 40, "perry": 40, "quitman": 41, "raleigh": 42,
-    "stuart": 43, "tennyson": 44, "tennyson way": 44, "utica": 45, "vrain": 46, "winona": 47, "wolcott": 48,
-    "wolff": 48, "xavier": 49, "yates": 50, "zenobia": 51, "zurich": 51, "sheridan": 52
-  },
-  wNorth: {
-    "inca": 9, "jason": 11, "kalamath": 12, "lipan": 12, "mariposa": 14, "navajo": 15, "osage": 16,
-    "pecos": 17, "quivas": 18, "shoshone": 19, "tejon": 20, "umatilla": 21, "fife": 25, "elm": 28, "java": 33,
-    "stuart": 44, "sheridan": 53
-  },
-  e: {
-    "broadway": 0, "lincoln": 1, "sherman": 2, "grant": 3, "logan": 4, "pennsylvania": 5, "pearl": 6,
-    "washington": 7, "clarkson": 8, "emerson": 9, "ogden": 10, "corona": 11, "downing": 12, "lafayette": 13,
-    "humboldt": 15, "franklin": 16, "gilpin": 17, "williams": 18, "high": 19, "race": 20, "vine": 21,
-    "gaylord": 22, "university": 23, "york": 23, "josephine": 24, "columbine": 25, "elizabeth": 26,
-    "clayton": 27, "detroit": 28, "fillmore": 29, "milwaukee": 30, "saint paul": 31, "steele": 32,
-    "adams": 33, "biscayne": 33, "cook": 34, "madison": 35, "monroe": 36, "garfield": 37, "jackson": 38,
-    "harrison": 39, "colorado": 40, "albion": 41, "ash": 42, "bellaire": 43, "birch": 44, "clermont": 45,
-    "brook": 46, "cherry": 46, "dexter": 47, "dexter way": 47, "dahlia": 48, "elm": 50, "eudora": 51,
-    "fairfax": 51, "forest": 52, "glencoe": 53, "grape": 54, "hudson": 55, "holly": 56, "ivanhoe": 57,
-    "ivy": 58, "jersey": 59, "kearney": 60, "jasmine": 61, "jasmine way": 61, "krameria": 62, "leyden": 63,
-    "locust": 64, "monaco pkwy": 65, "magnolia": 66, "niagara": 67, "newport": 68, "oneida": 69,
-    "oneida way": 70, "pontiac": 71, "olive": 72, "poplar": 73, "poplar way": 73, "quince": 74, "quebec": 75,
-    "rosemary": 76, "roslyn": 76, "reading way": 77, "sebring": 77, "syracuse": 77, "7550 hampden": 78,
-    "spruce": 78, "spruce way": 79, "trenton": 79, "tamarac": 80, "ulster": 81, "uinta": 82,
-    "tamarac pkwy": 83, "valentia": 83, "central park": 84, "vincennes": 84, "verbena": 85, "wabash": 85,
-    "wilding": 86, "willow": 86, "xanthia": 87, "xenia": 88, "akron": 90, "yosemite": 90, "alton": 91,
-    "beeler": 92, "boston": 92, "clinton": 96, "dayton way": 97, "dayton": 98, "emporia": 99, "elmira": 100,
-    "florence": 100, "fulton": 101, "havana": 106, "kenton": 111
-  },
-  s: {
-    "archer": 0, "ellsworth": 0, "bayaud": 1, "maple": 1, "byers": 2, "cedar": 2, "alameda": 3, "nevada": 3,
-    "alaska": 4, "dakota": 4, "custer": 5, "virginia": 5, "center": 6, "gill": 6, "new york": 6,
-    "exposition": 7, "walsh": 7, "ada": 8, "ohio": 8, "ohio way": 8, "kentucky": 9, "ford": 10,
-    "tennessee": 10, "mississippi": 11, "alabama": 12, "arizona": 12, "missouri": 12, "mosier": 12,
-    "louisiana": 13, "wyoming": 13, "arkansas": 14, "florida": 15, "gunnison": 16, "iowa": 16, "oregon": 16,
-    "mexico": 17, "bails": 18, "montana": 18, "utah": 18, "atlantic": 19, "buchtel": 19, "jewell": 19,
-    "asbury": 20, "evans": 21, "evans service": 21, "warren": 22, "iliff": 23, "dickenson": 24, "wesley": 24,
-    "harvard": 25, "lasalle": 25, "lakeridge": 26, "vassar": 26, "linvale": 27, "yale": 27, "amherst": 28,
-    "brown": 28, "yale way": 28, "bates": 29, "campus": 29, "columbia": 30, "cornell": 30, "plum": 30,
-    "dartmouth": 31, "doane": 31, "eastman": 32, "eldorado": 32, "flora": 32, "floyd": 33, "floyd cir": 33,
-    "girard": 34, "greenwood": 34, "hampden": 35, "ithaca": 36, "jarvis": 36, "jefferson": 36,
-    "forest way": 37, "kenyon": 37, "lehigh": 38, "mansfield": 39, "napa": 40, "nassau": 40, "oxford": 41,
-    "princeton": 42, "quincy": 43, "union": 47, "saratoga": 48, "chenango": 49, "monmouth": 50,
-    "belleview": 52
-  },
-  n: {
-    "bayaud": 0, "ellsworth": 0, "kearney lane": 0, "southmoor": 0, "colfax": 15, "montview": 20,
-    "26 pkwy": 26, "martin luther king jr": 30, "martin luther king": 32, "bruce randolph": 34, "thrill": 34,
-    "sandown": 41
-  }
-};
-
-// West of Broadway the grid does not survive the Platte. South of the river
-// Kalamath opens the 1000 block and Inca the 800; north of it, on the same
-// streets, they open the 1200 and the 1000. Nothing is addressed on these
-// streets between 39.741 and 39.759 — downtown, the rail yards and the river —
-// so the line is drawn there. "wNorth" overrides "w" for a crossing north of it.
-const SEARCH_WEST_GRID_NORTH_LATITUDE = 39.75;
+// The address grid -- which hundred block each named street opens on, and where the west side
+// of it changes across the Platte -- is Denver data, so it lives on the city record in
+// public/cities.js with the prose explaining how it was derived. The names are kept here
+// because everything below reads them, and because test/address-search.test.js lifts this
+// section out of the file as source text.
+const SEARCH_NAMED_STREET_HUNDREDS = ACTIVE_CITY.addressGrid;
+const SEARCH_WEST_GRID_NORTH_LATITUDE = ACTIVE_CITY.westGridNorthLatitude;
 
 let searchNamedStreetIndex = null;
 
@@ -4679,13 +4598,13 @@ async function searchAddressAndCenter(address) {
 
   try {
     let denverLookupError = "";
-    const searchQuery = normalizeDenverSearchQuery(cleanedAddress);
+    const searchQuery = normalizeCitySearchQuery(cleanedAddress);
     const response = await fetch(buildAddressLookupUrl(searchQuery));
     if (response.ok) {
       const summary = await response.json();
       const center = getLookupCenter(summary);
 
-      if (center && isWithinDenverBounds(center.lat, center.lon)) {
+      if (center && isWithinMappedCity(center.lat, center.lon)) {
         state.searchedLocation = { ...center, label: cleanedAddress };
         renderContext();
         focusMapOnSearchedLocation();
@@ -4705,7 +4624,7 @@ async function searchAddressAndCenter(address) {
     }
 
     const localMatch = findLocalSearchMatch(cleanedAddress);
-    if (!localMatch || !isWithinDenverBounds(localMatch.lat, localMatch.lon)) {
+    if (!localMatch || !isWithinMappedCity(localMatch.lat, localMatch.lon)) {
       throw new Error(
         `${denverLookupError} Try a Denver street or cross street, like "23rd and King" or "Lowell and 17th".`
       );
@@ -4803,7 +4722,7 @@ function showUserLocation(latitude, longitude) {
     return;
   }
 
-  if (!isWithinDenverBounds(latitude, longitude)) {
+  if (!isWithinMappedCity(latitude, longitude)) {
     lookupStatus.textContent =
       "We found you, but you look outside the Denver map area right now. You can still pan around Denver and tap curb sides manually.";
     return;
@@ -4975,7 +4894,7 @@ function parkCarAt(lat, lon, options = {}) {
     return false;
   }
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !isWithinDenverBounds(lat, lon)) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !isWithinMappedCity(lat, lon)) {
     lookupStatus.textContent = "That spot looks outside the Denver map, so there is no Denver sweeping schedule for us to follow there.";
     renderContext();
     return false;
@@ -5140,8 +5059,8 @@ function initializeMap() {
     preferCanvas: true,
     minZoom: 11,
     maxBounds: L.latLngBounds(
-      [DENVER_MAP_BOUNDS.south, DENVER_MAP_BOUNDS.west],
-      [DENVER_MAP_BOUNDS.north, DENVER_MAP_BOUNDS.east]
+      [CITY_MAP_BOUNDS.south, CITY_MAP_BOUNDS.west],
+      [CITY_MAP_BOUNDS.north, CITY_MAP_BOUNDS.east]
     ),
     maxBoundsViscosity: 1
   });
@@ -5165,7 +5084,7 @@ function initializeMap() {
   state.contextLayerGroup = L.layerGroup().addTo(state.map);
   state.map.on("moveend zoomend", scheduleMapRender);
   attachCurbInteraction();
-  loadDenverBoundary();
+  loadCityBoundary();
   refreshMapViewport();
 }
 
@@ -5178,20 +5097,21 @@ function initializeMap() {
 // boundary streets Sheridan, Belleview, Yale, Mississippi and Yosemite. Red
 // says "the app has nothing here", so that read as a coverage hole on curb the
 // app covers. Sharing the module leaves nothing for the two to disagree about.
-function loadDenverBoundary() {
-  if (!state.map || !state.boundaryLayerGroup || !window.DenverCityLimits) {
+function loadCityBoundary() {
+  const cityLimits = window.CityRegistry.getCityLimits(ACTIVE_CITY);
+  if (!state.map || !state.boundaryLayerGroup || !cityLimits) {
     return;
   }
 
   // The mask is the city line pushed out by the same buffer the exclusion
   // allows, so no curb the pipeline published can fall under the wash. The
   // outline stays on the true line, which is the boundary worth showing.
-  const maskRings = window.DenverCityLimits.getDenverMaskRings();
+  const maskRings = cityLimits.getDenverMaskRings();
   const outsideRing = [
-    [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.west - 1],
-    [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.west - 1],
-    [DENVER_MAP_BOUNDS.north + 1, DENVER_MAP_BOUNDS.east + 1],
-    [DENVER_MAP_BOUNDS.south - 1, DENVER_MAP_BOUNDS.east + 1]
+    [CITY_MAP_BOUNDS.south - 1, CITY_MAP_BOUNDS.west - 1],
+    [CITY_MAP_BOUNDS.north + 1, CITY_MAP_BOUNDS.west - 1],
+    [CITY_MAP_BOUNDS.north + 1, CITY_MAP_BOUNDS.east + 1],
+    [CITY_MAP_BOUNDS.south - 1, CITY_MAP_BOUNDS.east + 1]
   ];
 
   state.boundaryLayerGroup.clearLayers();
@@ -5204,7 +5124,7 @@ function loadDenverBoundary() {
     interactive: false
   }).addTo(state.boundaryLayerGroup);
 
-  L.polygon(window.DenverCityLimits.DENVER_CITY_LIMITS, {
+  L.polygon(cityLimits.DENVER_CITY_LIMITS, {
     pane: "denverBoundaryOutline",
     interactive: false,
     color: "#9f1d2f",
