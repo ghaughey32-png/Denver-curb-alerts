@@ -480,10 +480,43 @@ unrelated jobs: crawling Denver's API for the whole city, and running the offlin
 came back. A change to the classifier (`scripts/lib/inventory-auditor.js`) needs no new data, because
 the routes already in `public/denver-west-routes.json` are the same routes a fresh crawl returns.
 `npm run rebuild:offline` reruns only the classification, in about a minute with zero API calls.
-Denver's API rate-limits the full crawl hard: sustained bulk runs start returning HTTP 200 with empty
-payloads, which silently produces a wrecked inventory (~859 scheduled instead of ~8,500) rather than
-an error. Reach for the full crawl only when you actually want fresh data from Denver — schedule
+Reach for the full crawl only when you actually want fresh data from Denver — schedule
 changes, new or retired routes, seasonal updates, or a pilot area that has never been crawled.
+
+Denver's API rate-limits the full crawl hard, and **it throttles rather than refusing**, which is
+what makes it dangerous: lookups come back without routes while a single well-behaved request from
+the same machine keeps answering normally. You cannot detect it by probing — only the aggregate
+shows it. Measured 2026-09-21 at the old `CONCURRENCY` of 8: the run finished in **four minutes
+instead of twenty** and published **3,168 scheduled routes against the 10,451 already on disk**,
+with `Unavailable` going from 2,039 to 20,919. The auditor had dutifully covered every orphaned
+block with pink and the build gate passed reporting **zero unexplained gaps**, because pink *is*
+its answer for a block with no schedule. About 84% of the map would have told drivers no Denver
+schedule was found, on curb Denver sweeps. It was caught by comparing against the previous payload
+and reverted; nothing shipped.
+
+Four guards in [scripts/build-static-inventory.js](scripts/build-static-inventory.js) now stand in
+the way, and `test/crawl-guards.test.js` covers all of them:
+
+- **`CONCURRENCY` is 3**, not 8. Slower, and not seen to trip the limit.
+- **Retries with jittered exponential backoff** on the answers that mean "not now" — a thrown
+  request, 408, 429, 5xx. A 400 is *not* retried: it is Denver answering definitively, which is
+  what its address endpoint has done for every address since before 2026-08-22.
+- **`fetchWithRetry` distinguishes an answer from a failure.** The old `runPool` collapsed both
+  into `null`, so a throttled lookup was indistinguishable from "the city sweeps nothing here" —
+  that single line is why four fifths of the city could go missing without one error surfacing.
+  A run that exceeds `MAX_FAILURE_RATE` after `FAILURE_SAMPLE_SIZE` lookups now **aborts before
+  writing anything**.
+- **`assertNoCoverageCollapse` is the last line**, and the one that would have caught this on its
+  own. It runs inside `writeInventoryArtifacts`, so `rebuild:offline` gets it too, and refuses to
+  publish when routes carrying a real schedule fall more than `MAX_COVERAGE_DROP` below what is
+  already on disk. It compares against the published payload rather than any absolute number,
+  because that number grows as the city is mapped. Denver does not retire a third of its routes
+  between two crawls. Set `ALLOW_COVERAGE_DROP=1` for a drop that is genuinely correct.
+
+`runPool` takes an options object overriding each limit, which is how the tests exercise the abort
+in milliseconds instead of minutes, and how a crawl can be slowed further without editing the file.
+
+**Being throttled once means waiting, not retrying.** Come back in hours, not minutes.
 
 **The published payload has a shelf life of about two months, and nothing in the app says so.**
 Denver returns a rolling window of upcoming dates rather than a rule you can evaluate forever, so

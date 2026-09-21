@@ -11,7 +11,28 @@ const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3000";
 const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
 const EXPECTED_BLOCKS_PATH = path.join(__dirname, "..", "data", "inventory-expected-blocks.json");
 const COVERAGE_REPORT_PATH = path.join(__dirname, "..", "data", "inventory-coverage-report.json");
-const CONCURRENCY = 8;
+// Denver throttles a sustained bulk crawl rather than refusing it, and that is what makes it
+// dangerous: lookups start coming back without routes while a single well-behaved request from
+// the same machine still answers normally, so nothing upstream looks wrong. Measured 2026-09-21
+// at CONCURRENCY 8 -- the run finished in four minutes instead of twenty and produced 3,168
+// scheduled routes against the 10,451 already on disk, with the shortfall papered over as pink
+// and the build gate passing, because pink is its answer for a missing schedule. Three is slower
+// and has not been seen to trip it.
+const CONCURRENCY = 3;
+// Retries are only for answers that mean "not now": a thrown request, a 429, a 5xx. Anything else
+// is Denver answering definitively, including the 400 its address endpoint has returned for every
+// address since before 2026-08-22, and retrying those just multiplies the load that got us
+// throttled.
+const MAX_ATTEMPTS = 4;
+const RETRY_BASE_DELAY_MS = 750;
+// Once this many lookups have finished, a failure rate above the threshold means the crawl is
+// being throttled rather than passing through a rough patch. Finishing would only build a payload
+// that has to be thrown away, so stop while the published one is still intact.
+const FAILURE_SAMPLE_SIZE = 150;
+const MAX_FAILURE_RATE = 0.2;
+// The last line of defence, checked against what is already published rather than against any
+// absolute number, because the absolute number changes as the city is mapped.
+const MAX_COVERAGE_DROP = 0.3;
 const REQUIRED_ROUTE_ANCHORS = [
   // S Irving Street Parkway inside the S Hooker/S Julian circle. Denver
   // models the divided roadway as two parallel routes; keep an anchor on
@@ -287,24 +308,102 @@ function sampleRegion(region) {
   return Array.from(points.values());
 }
 
-async function runPool(urls) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// "Not now" rather than "no": worth asking again after a pause. Everything else Denver returns is
+// its real answer and is recorded as such.
+function isRetryableStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+// Resolves { answered: true, data } when Denver gave an answer -- including a definitive non-OK
+// one, where data is null -- and { answered: false } when every attempt was refused or timed out.
+// The distinction is the whole point: the old version collapsed both into null, so a throttled
+// lookup was indistinguishable from "the city sweeps nothing here", and a crawl could lose four
+// fifths of the city without a single error surfacing.
+async function fetchWithRetry(url, stats, limits) {
+  for (let attempt = 1; attempt <= limits.maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      stats.byStatus.set(response.status, (stats.byStatus.get(response.status) || 0) + 1);
+
+      if (response.ok) {
+        return { answered: true, data: await response.json() };
+      }
+
+      if (!isRetryableStatus(response.status)) {
+        return { answered: true, data: null };
+      }
+    } catch (error) {
+      stats.threw += 1;
+    }
+
+    if (attempt < limits.maxAttempts) {
+      stats.retried += 1;
+      // Exponential, with jitter, so workers that back off together do not resynchronise and
+      // arrive as another burst at exactly the moment the limit would have cleared.
+      await sleep(limits.retryBaseDelayMs * 2 ** (attempt - 1) * (0.5 + Math.random()));
+    }
+  }
+
+  return { answered: false };
+}
+
+// Limits are injectable so the guards can be tested in milliseconds rather than through a
+// twenty-minute run against the live city API, and so a crawl can be slowed further without
+// editing this file.
+async function runPool(urls, options = {}) {
+  const limits = {
+    concurrency: options.concurrency ?? CONCURRENCY,
+    maxAttempts: options.maxAttempts ?? MAX_ATTEMPTS,
+    retryBaseDelayMs: options.retryBaseDelayMs ?? RETRY_BASE_DELAY_MS,
+    failureSampleSize: options.failureSampleSize ?? FAILURE_SAMPLE_SIZE,
+    maxFailureRate: options.maxFailureRate ?? MAX_FAILURE_RATE
+  };
   const results = new Array(urls.length).fill(null);
+  const stats = { completed: 0, withRoutes: 0, failed: 0, retried: 0, threw: 0, byStatus: new Map() };
   let nextIndex = 0;
+  let abortReason = null;
 
   async function worker() {
-    while (nextIndex < urls.length) {
+    while (nextIndex < urls.length && !abortReason) {
       const index = nextIndex;
       nextIndex += 1;
-      try {
-        const response = await fetch(urls[index]);
-        if (response.ok) results[index] = await response.json();
-      } catch {
-        results[index] = null;
+
+      const outcome = await fetchWithRetry(urls[index], stats, limits);
+      stats.completed += 1;
+
+      if (outcome.answered) {
+        results[index] = outcome.data;
+        if (outcome.data && Array.isArray(outcome.data.routes) && outcome.data.routes.length) {
+          stats.withRoutes += 1;
+        }
+      } else {
+        stats.failed += 1;
+      }
+
+      if (!abortReason && stats.completed >= limits.failureSampleSize && stats.failed / stats.completed > limits.maxFailureRate) {
+        abortReason = `${stats.failed} of ${stats.completed} lookups failed after ${limits.maxAttempts} attempts each`;
       }
     }
   }
 
-  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  await Promise.all(Array.from({ length: limits.concurrency }, () => worker()));
+
+  const statuses = [...stats.byStatus.entries()].sort((a, b) => a[0] - b[0]).map(([code, n]) => `${code}:${n}`).join(" ");
+  console.log(
+    `Lookups: ${stats.completed} of ${urls.length} completed, ${stats.withRoutes} returned routes, ` +
+    `${stats.failed} gave up, ${stats.retried} retried, ${stats.threw} threw. HTTP ${statuses || "none"}.`
+  );
+
+  if (abortReason) {
+    throw new Error(
+      `Inventory build aborted before writing anything: Denver appears to be throttling this crawl ` +
+      `(${abortReason}). The published payload is untouched. Wait for the limit to clear before ` +
+      `retrying, and consider lowering CONCURRENCY below ${limits.concurrency}.`
+    );
+  }
+
   return results;
 }
 
@@ -960,18 +1059,68 @@ async function auditAndPublish(routeMap, expectedBlockManifest) {
   await writeInventoryArtifacts(routeMap, coverageReport);
 }
 
+// The last guard, and the one that would have caught 2026-09-21 on its own. A throttled crawl does
+// not fail: the routes simply never arrive, the auditor covers every orphaned block with a pink
+// fallback, and the unexplained-gap gate passes because pink *is* its answer for a block with no
+// schedule. That run published 3,932 routes carrying a real Denver schedule against the 19,268
+// already on disk and turned 84% of the map pink while reporting zero gaps.
+//
+// So compare against what is currently published rather than against any absolute number, which
+// changes as more of the city is mapped. Denver does not retire a third of its sweeping routes
+// between two crawls; a drop that size is this machine being throttled, and overwriting a good
+// payload with it is the one outcome worth refusing outright.
+async function assertNoCoverageCollapse(routes, publishedPath = OUTPUT_PATH) {
+  let published = null;
+  try {
+    published = JSON.parse(await fs.readFile(publishedPath, "utf8"));
+  } catch {
+    return;
+  }
+
+  const withRealSchedule = (list) => list.filter((route) => route.sweepType !== "Unavailable").length;
+  const previous = withRealSchedule(published.routes || []);
+  const next = withRealSchedule(routes);
+  if (!previous) {
+    return;
+  }
+
+  const floor = Math.round(previous * (1 - MAX_COVERAGE_DROP));
+  if (next >= floor) {
+    return;
+  }
+
+  if (process.env.ALLOW_COVERAGE_DROP === "1") {
+    console.warn(
+      `Coverage collapse gate overridden by ALLOW_COVERAGE_DROP: publishing ${next} routes with a ` +
+      `real schedule against ${previous} already published.`
+    );
+    return;
+  }
+
+  throw new Error(
+    `Inventory build refused to publish: ${next} routes carry a real Denver schedule, against ` +
+    `${previous} in the payload already on disk (floor ${floor}). Every missing route would ship ` +
+    `as pink, telling drivers no schedule was found on curb Denver does sweep. Nothing was ` +
+    `written. Re-run once the rate limit has cleared, or set ALLOW_COVERAGE_DROP=1 if this drop ` +
+    `is genuinely correct.`
+  );
+}
+
 // Writes the two published artifacts. There used to be a third, denver-west-routes.js, holding
 // the identical payload assigned to window.DENVER_WEST_ROUTE_INVENTORY for a blocking <script>.
 // The client fetches the .json and only ever used the script as a catch fallback, so the page was
 // downloading the whole inventory twice on every visit; app.js now publishes the fetched payload
 // to that global itself.
 async function writeInventoryArtifacts(routeMap, coverageReport) {
+  const routes = slimRoutesForPublication(Array.from(routeMap.values()));
+  await assertNoCoverageCollapse(routes);
+
   const payload = {
     version: 1,
     generatedAt: new Date().toISOString(),
     areaLabel: "Denver expanded: West Denver inventory plus RiNo from Blake–Arapahoe and 27th–33rd Streets",
     routeCount: routeMap.size,
-    routes: slimRoutesForPublication(Array.from(routeMap.values()))
+    routes
   };
 
   await fs.writeFile(OUTPUT_PATH, `${JSON.stringify(payload)}\n`, "utf8");
@@ -1012,6 +1161,12 @@ module.exports = {
   applyCoveragePatches,
   auditAndPublish,
   writeInventoryArtifacts,
+  // Exported for test/crawl-guards.test.js. These are the guards that stand between a throttled
+  // crawl and a published payload that is four fifths pink, so they are worth testing directly
+  // rather than only through a run that takes twenty minutes and needs the live city API.
+  assertNoCoverageCollapse,
+  isRetryableStatus,
+  runPool,
   EXPECTED_BLOCKS_PATH,
   OUTPUT_PATH
 };
