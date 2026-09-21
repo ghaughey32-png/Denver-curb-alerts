@@ -328,15 +328,41 @@ test("the reset link is shown in full rather than hidden behind a button", () =>
   assert.doesNotMatch(html, /Click here|Reset your password<\/a>|>\s*Reset password\s*</i);
 });
 
-// Remote images are blocked by default in most clients, so a logo that does not load leaves a
-// broken box exactly where the identity was meant to be. The wordmark is text for that reason.
+// Remote images are blocked by default in most clients, so the identity cannot rest on one. The
+// icon is the only image and it is decorative: alt="" so a blocked one contributes no text, an
+// explicit width and height so it reserves the right space either way, and the wordmark beside it
+// in plain text so the mail still says who sent it when the image never arrives.
 test("the branding survives a client that blocks images", () => {
   const link = email.buildActionLink("https://www.curbalerts.co", "verify", "token-abc");
   const { html } = email.buildVerificationEmail({ to: "driver@example.com", link });
 
-  assert.doesNotMatch(html, /<img/i);
   assert.ok(html.includes("Denver Curb Alerts"), "no wordmark to fall back to");
   assert.ok(html.includes("Curb Alerts LLC"), "no operating entity in the footer");
+
+  const images = [...html.matchAll(/<img\b[^>]*>/gi)];
+  assert.equal(images.length, 1, "the icon should be the only image in the mail");
+
+  const [icon] = images;
+  assert.match(icon[0], /alt=""/, "a decorative icon must not contribute alt text");
+  assert.match(icon[0], /width="40"/, "Outlook needs the dimension as an attribute, not only in CSS");
+  assert.match(icon[0], /height="40"/);
+});
+
+// Gmail strips SVG, so the icon has to be the PNG. It is served from whichever origin sent the
+// mail, so a staging deploy or a local outbox run does not hotlink production.
+test("the icon is a PNG on the sending origin", () => {
+  const live = email.buildPasswordResetEmail({
+    to: "driver@example.com",
+    link: email.buildActionLink("https://www.curbalerts.co", "reset", "token-abc")
+  });
+  const local = email.buildPasswordResetEmail({
+    to: "driver@example.com",
+    link: email.buildActionLink("http://localhost:3000", "reset", "token-abc")
+  });
+
+  assert.match(live.html, /src="https:\/\/www\.curbalerts\.co\/apple-touch-icon\.png"/);
+  assert.match(local.html, /src="http:\/\/localhost:3000\/apple-touch-icon\.png"/);
+  assert.doesNotMatch(live.html, /\.svg/i, "Gmail strips SVG");
 });
 
 // Outlook on Windows renders through Word, which ignores max-width on a div. A table with an
