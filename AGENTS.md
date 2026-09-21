@@ -1286,8 +1286,9 @@ it has one now, alongside `garrett@` and `support@`. All three forward to the sa
 **Test a forwarding rule from an address that is not the destination.** Gmail deduplicates a message
 it sent, so mail from the destination account to a rule that forwards back to it is accepted,
 forwarded, and then silently dropped on arrival — which looks exactly like a broken rule. Cloudflare
-detects that case and emails a notice explaining it, which is how `alerts@` was confirmed; `support@`
-was confirmed properly, by someone else sending to it.
+detects that case and emails a notice explaining it, which is the only reason a same-account test
+tells you anything at all. Both addresses were then confirmed the right way, by someone else sending
+to them: `support@` the week before, `alerts@` on 2026-09-21.
 
 **`EMAIL_TRANSPORT=outbox` is what makes the flow reachable without a provider, and the naive
 version of this does not work.** Falling back to the outbox only when email is *disabled* is
