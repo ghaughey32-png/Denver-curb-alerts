@@ -1663,6 +1663,23 @@ Do not take a payment before the blueprint is actually applied.
   files and a new `?v=` in both `index.html` and `sw.js` — and do not leave it to a CDN again. The
   asset lock and the version test read `?v=` paths with subdirectories for this; they used to see
   only the basename, which would have let a changed `vendor/` file slip past the freshness check.
+- **The base map tiles come from `tile.openstreetmap.org`, one host, and must stay that way.** The
+  `{s}` a/b/c subdomains the tile layer used until 2026-09-21 existed to dodge HTTP/1.1 per-host
+  connection limits; they buy nothing over HTTP/2, cost OpenStreetMap cache efficiency, and the
+  tile usage policy no longer sanctions them — it warns the extra hostnames may be withdrawn
+  without notice. Do not reintroduce them, and keep the `© OpenStreetMap contributors`
+  attribution: that one is a licence condition of the underlying data, not of whoever serves the
+  tiles.
+
+  These are donated servers. The policy permits an app to use them, but reserves the right to
+  block without notice, and it **forbids bulk prefetching and "download for offline use"** — so a
+  basemap bundled into the iOS app cannot come from here, however much the rest of `public/`
+  already ships in the bundle. That is the reason to move to a self-hosted or paid basemap before
+  this app has customers, not a vague compliance worry. Assessed 2026-09-21: the cheap swap is a
+  paid raster provider, which is a URL and a key with Leaflet untouched; the self-hosted answer is
+  a PMTiles extract, which Leaflet cannot render on its own and which `server.js` cannot serve
+  yet — PMTiles needs HTTP Range support, `serveStaticFile` has none, and the service worker
+  cannot `cache.put` a 206 response.
 - **Names are historical.** `denver-west-routes.*` and every `sloans-lake-*` localStorage key now hold
   city-wide and east-Denver data. Don't infer scope from the names.
 - `data/` is ~360 MB, and `data/inventory-expected-blocks.json` alone is 36 MB across 97,827 blocks.

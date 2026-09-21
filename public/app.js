@@ -5067,7 +5067,13 @@ function initializeMap() {
 
   L.control.zoom({ position: "bottomright" }).addTo(state.map);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  // One host, not the {s} a/b/c subdomains. Those existed to get around HTTP/1.1 per-host
+  // connection limits, buy nothing over HTTP/2, and cost OpenStreetMap cache efficiency -- so the
+  // tile usage policy no longer sanctions them and warns they may be withdrawn without notice.
+  // These are donated servers with a block-without-notice clause and no account to appeal through;
+  // the policy also forbids bulk prefetching, so a basemap bundled for offline use cannot come
+  // from here. That is the move to make before this app has customers depending on it.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(state.map);
