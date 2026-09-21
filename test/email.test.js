@@ -314,3 +314,49 @@ test("with no provider configured the routes say so instead of pretending", asyn
     assert.equal(reset.status, 503, "offering a reset the server cannot send is worse than not offering one");
   }, { EMAIL_TRANSPORT: "" });
 });
+
+// The branded HTML has to keep the one property that separates a reset mail from the phishing it
+// resembles: the destination is visible. A styled "Click here" button hides where the link goes,
+// which on a phone means nowhere the reader can check -- so the URL is shown in full, and the
+// thing shown is the thing tapped. Reworded and restyled 2026-09-21.
+test("the reset link is shown in full rather than hidden behind a button", () => {
+  const link = email.buildActionLink("https://www.curbalerts.co", "reset", "token-abc");
+  const { html } = email.buildPasswordResetEmail({ to: "driver@example.com", link });
+
+  assert.ok(html.includes(`href="${link}"`), "the link is not the anchor's destination");
+  assert.ok(html.includes(`>${link}</a>`), "the link text is not the link itself");
+  assert.doesNotMatch(html, /Click here|Reset your password<\/a>|>\s*Reset password\s*</i);
+});
+
+// Remote images are blocked by default in most clients, so a logo that does not load leaves a
+// broken box exactly where the identity was meant to be. The wordmark is text for that reason.
+test("the branding survives a client that blocks images", () => {
+  const link = email.buildActionLink("https://www.curbalerts.co", "verify", "token-abc");
+  const { html } = email.buildVerificationEmail({ to: "driver@example.com", link });
+
+  assert.doesNotMatch(html, /<img/i);
+  assert.ok(html.includes("Denver Curb Alerts"), "no wordmark to fall back to");
+  assert.ok(html.includes("Curb Alerts LLC"), "no operating entity in the footer");
+});
+
+// Outlook on Windows renders through Word, which ignores max-width on a div. A table with an
+// explicit width attribute is the one layout that survives it, and <style> blocks are stripped by
+// Gmail in several contexts, so everything that matters is inline.
+test("the layout is table-based with inline styles, for Outlook and Gmail", () => {
+  const link = email.buildActionLink("https://www.curbalerts.co", "reset", "token-abc");
+  const { html } = email.buildPasswordResetEmail({ to: "driver@example.com", link });
+
+  assert.match(html, /<table role="presentation"[^>]*width="520"/);
+  assert.doesNotMatch(html, /<style/i);
+  assert.doesNotMatch(html, /class="/);
+});
+
+// The plain text part is the payload, and it carries the bare URL. A client that shows only text
+// still has to be able to complete a reset.
+test("the plain text part still carries the bare link", () => {
+  const link = email.buildActionLink("https://www.curbalerts.co", "reset", "token-abc");
+  const { text } = email.buildPasswordResetEmail({ to: "driver@example.com", link });
+
+  assert.ok(text.includes(link));
+  assert.doesNotMatch(text, /[<>]/, "the text part has picked up markup");
+});
