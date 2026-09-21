@@ -775,7 +775,9 @@ card data, because there is none. If a purchase path ships, that copy changes in
 selling something the Terms say is free is worse than either state on its own. The support address
 in both pages is `support@curbalerts.co`, on the domain bought 2026-09-10. It replaced a
 `support@denvercurbalerts.com` placeholder on a domain nobody owned. Printing it is not the same as
-it receiving mail: confirm the forwarding or mailbox exists before any store listing points at it.
+it receiving mail, so it was tested from outside: a message sent by someone else reached the Gmail
+behind it, confirmed 2026-09-21. It forwards through Cloudflare Email Routing like the rest of the
+domain's inbound mail — see the Email section for why that coexists with Resend's sending records.
 
 **Selling on iOS is gated on the shell, not on the payment plumbing.** Apple requires in-app
 purchase for a digital subscription sold inside an iOS app, so a purchase path there is StoreKit
@@ -1277,11 +1279,15 @@ and in, neither path disturbing the other. It survived the forward because DKIM 
 since the forwarding host is not in the sending domain's SPF record, so DKIM alignment is what
 carries DMARC across a forward. That is worth remembering before anyone weakens the DKIM record.
 
-**Replies still bounce.** `alerts@curbalerts.co` is a sending identity, not a mailbox, and Email
-Routing has no rule for it unless one was added. `garrett@curbalerts.co` is confirmed routed by the
-test above; `support@curbalerts.co` is not, and it is the address printed on the Terms and Privacy
-pages. The root MX records prove Email Routing is enabled, which is not the same as proving any
-particular address is routed.
+**Replies are routed too, as of 2026-09-21.** `alerts@curbalerts.co` is a sending identity rather
+than a mailbox, so a reply to a reset email would have bounced until Email Routing got a rule for it;
+it has one now, alongside `garrett@` and `support@`. All three forward to the same Gmail.
+
+**Test a forwarding rule from an address that is not the destination.** Gmail deduplicates a message
+it sent, so mail from the destination account to a rule that forwards back to it is accepted,
+forwarded, and then silently dropped on arrival — which looks exactly like a broken rule. Cloudflare
+detects that case and emails a notice explaining it, which is how `alerts@` was confirmed; `support@`
+was confirmed properly, by someone else sending to it.
 
 **`EMAIL_TRANSPORT=outbox` is what makes the flow reachable without a provider, and the naive
 version of this does not work.** Falling back to the outbox only when email is *disabled* is
