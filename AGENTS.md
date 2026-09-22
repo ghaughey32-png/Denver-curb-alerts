@@ -590,6 +590,24 @@ allowed to straggle — past that, routes refreshed on day one are themselves go
 Being throttled is not damage. The payload only ever gains fresher dates, the route count is
 asserted unchanged before every write, and a route Denver declines keeps the dates it had.
 
+**A light probe will tell you Denver is fine when it is not, so do not gate a run on one.** Tried
+2026-09-22: a 90-point probe answered 89/90 with one 502, identical to the reading taken before a
+run that went on to complete eight rounds — and the real run that followed it aborted on its *first*
+round, 31 lookups given up against 124 502s, twice the failure rate of that earlier first round.
+Ninety requests over fifteen seconds do not exercise a limit that keys on sustained volume; they
+only prove the service is reachable.
+
+The abort guard is the better instrument, because it is the real workload and it fails safely: a
+throttled attempt costs about 150 lookups and two minutes, writes nothing, and leaves the payload,
+the version and the checkpoint untouched. **So do not probe — wait, then just run it.** An abort is
+the answer.
+
+**Recovery takes about a day, not a few hours.** 4.6 hours of quiet was not enough on 2026-09-22.
+Both stretches that did get through followed roughly a full day of no traffic. If an overnight wait
+still aborts on round one, the next thing to try is `CONCURRENCY` of 1 or 2 — test it behind
+`--limit` before committing to a run several hours long.
+
+
 `rebuild:offline` is deliberately narrow: it reclassifies, and withdraws a pink fallback when its
 block now resolves to a real schedule. It never invents new pink coverage (reprocessing learns
 nothing new about a block, and several uncovered blocks are unpublished by deliberate product
