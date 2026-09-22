@@ -2,6 +2,45 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getStreetOrientation, getRouteSideForCurb } = require("../public/curb-geometry.js");
 
+// Denver returns a rolling window of upcoming dates, so the payload's dates are replaced at every
+// seasonal refresh (npm run refresh:schedules, April and November). Asserting exact calendar dates
+// here therefore guaranteed a failure twice a year, and told us nothing the rule text on the lines
+// above does not already say -- worse, a hardcoded list stops checking anything real the moment it
+// goes stale, which is exactly when a wrong date would slip through.
+//
+// So assert the property the dates have to satisfy instead: every scheduled date falls on the
+// ordinal weekday its own route's rule names. That keeps working across refreshes and actually
+// catches a refresh that writes the wrong dates.
+const SCHEDULE_WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+function parseOrdinalWeekdayRule(rule) {
+  const match = String(rule || "").match(/the\s+(\d)(?:st|nd|rd|th)\s+(\w+day)\b/i);
+  if (!match) return null;
+  const weekday = SCHEDULE_WEEKDAYS.indexOf(match[2].toLowerCase());
+  return weekday < 0 ? null : { ordinal: Number(match[1]), weekday };
+}
+
+function assertSchedulesMatchRules(route) {
+  assert.ok(Array.isArray(route.schedules) && route.schedules.length, `route ${route.id} should carry sweep dates`);
+
+  const rules = [route.leftSweepingRule, route.rightSweepingRule].map(parseOrdinalWeekdayRule).filter(Boolean);
+  assert.ok(rules.length, `route ${route.id} should name an ordinal weekday in at least one rule`);
+
+  for (const entry of route.schedules) {
+    const match = String(entry.Date || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    assert.ok(match, `route ${route.id}: ${JSON.stringify(entry.Date)} should be MM/DD/YYYY`);
+
+    const date = new Date(Number(match[3]), Number(match[1]) - 1, Number(match[2]));
+    const ordinal = Math.floor((date.getDate() - 1) / 7) + 1;
+    assert.ok(
+      rules.some((rule) => rule.weekday === date.getDay() && rule.ordinal === ordinal),
+      `route ${route.id}: ${entry.Date} is the ${ordinal}${["th","st","nd","rd"][ordinal] || "th"} ` +
+      `${SCHEDULE_WEEKDAYS[date.getDay()]}, which matches neither ` +
+      `"${route.leftSweepingRule}" nor "${route.rightSweepingRule}"`
+    );
+  }
+}
+
 test("S Knox curbs stop and bend around the Alameda/Morrison interchange", () => {
   const app = require("node:fs").readFileSync(require("node:path").join(__dirname, "../public/app.js"), "utf8");
   assert.match(app, /applySouthKnoxAlamedaInterchangeGeometry\(routeMap\)/);
@@ -96,10 +135,7 @@ test("S Irving inside the Hooker/Julian circle keeps its confirmed Wednesday cur
   assert.equal(route.rightSweepDirection, "West");
   assert.match(route.leftSweepingRule, /East side: The 3rd Wednesday/i);
   assert.match(route.rightSweepingRule, /West side: The 3rd Wednesday/i);
-  assert.deepEqual(route.schedules, [
-    { Date: "08/19/2026", Description: "East & West" },
-    { Date: "09/16/2026", Description: "East & West" }
-  ]);
+  assertSchedulesMatchRules(route);
   assert.equal(getStreetOrientation(route.map.path), "north-south");
   assert.equal(getRouteSideForCurb(route.map.path, "east"), "left");
   assert.equal(getRouteSideForCurb(route.map.path, "west"), "right");
@@ -136,12 +172,7 @@ test("S Julian Circle uses its confirmed schedule and suppresses pink fallbacks"
     assert.equal(route.streetName, "S JULIAN CIR");
     assert.match(route.leftSweepingRule, /East side: The 3rd Wednesday/i);
     assert.match(route.rightSweepingRule, /West side: The 3rd Tuesday/i);
-    assert.deepEqual(route.schedules, [
-      { Date: "08/18/2026", Description: "West" },
-      { Date: "08/19/2026", Description: "East" },
-      { Date: "09/15/2026", Description: "West" },
-      { Date: "09/16/2026", Description: "East" }
-    ]);
+    assertSchedulesMatchRules(route);
   });
   assert.equal(routes[0].from, "S IRVING ST/S HOOKER CIR");
   assert.equal(routes[0].to, "W ASBURY AVE");
@@ -161,12 +192,7 @@ test("S Julian Way carries route 19406's schedule through the Mexico name-change
   assert.equal(official.to, "W MEXICO AVE/NMCHG");
   assert.match(official.leftSweepingRule, /East side: The 3rd Wednesday/i);
   assert.match(official.rightSweepingRule, /West side: The 3rd Tuesday/i);
-  assert.deepEqual(official.schedules, [
-    { Date: "08/18/2026", Description: "West" },
-    { Date: "08/19/2026", Description: "East" },
-    { Date: "09/15/2026", Description: "West" },
-    { Date: "09/16/2026", Description: "East" }
-  ]);
+  assertSchedulesMatchRules(official);
 
   const app = require("node:fs").readFileSync(require("node:path").join(__dirname, "../public/app.js"), "utf8");
   assert.match(app, /addConfirmedSouthJulianWayCoverage\(routeMap\)/);
@@ -183,12 +209,7 @@ test("S Hazel Court Barr–Mexico replaces only its pink fallback with confirmed
   assert.equal(route.to, "W MEXICO AVE");
   assert.match(route.leftSweepingRule, /East side: The 3rd Wednesday/i);
   assert.match(route.rightSweepingRule, /West side: The 3rd Tuesday/i);
-  assert.deepEqual(route.schedules, [
-    { Date: "08/18/2026", Description: "West" },
-    { Date: "08/19/2026", Description: "East" },
-    { Date: "09/15/2026", Description: "West" },
-    { Date: "09/16/2026", Description: "East" }
-  ]);
+  assertSchedulesMatchRules(route);
 
   const app = require("node:fs").readFileSync(require("node:path").join(__dirname, "../public/app.js"), "utf8");
   assert.match(app, /confirmSouthHazelBarrMexicoCoverage\(routeMap\)/);
@@ -205,12 +226,7 @@ test("the diagonal Perry-labeled fallback is confirmed S Patton Court", () => {
   assert.equal(route.to, "WYE");
   assert.match(route.leftSweepingRule, /East side: The 3rd Tuesday/i);
   assert.match(route.rightSweepingRule, /West side: The 3rd Wednesday/i);
-  assert.deepEqual(route.schedules, [
-    { Date: "08/18/2026", Description: "East" },
-    { Date: "08/19/2026", Description: "West" },
-    { Date: "09/15/2026", Description: "East" },
-    { Date: "09/16/2026", Description: "West" }
-  ]);
+  assertSchedulesMatchRules(route);
 
   const app = require("node:fs").readFileSync(require("node:path").join(__dirname, "../public/app.js"), "utf8");
   assert.match(app, /addConfirmedSouthPattonWyeCoverage\(routeMap\)/);
@@ -372,10 +388,7 @@ test("S Pecos from Arizona to Louisiana uses the screenshot-confirmed schedule",
   assert.equal(route.sweepType, "Scheduled");
   assert.match(route.leftSweepingRule, /East side: The 2nd Wednesday/i);
   assert.match(route.rightSweepingRule, /West side: The 2nd Tuesday/i);
-  assert.deepEqual(route.schedules, [
-    { Date: "09/08/2026", Description: "West" },
-    { Date: "09/09/2026", Description: "East" }
-  ]);
+  assertSchedulesMatchRules(route);
   assert.equal(route.isPosted, true);
 });
 

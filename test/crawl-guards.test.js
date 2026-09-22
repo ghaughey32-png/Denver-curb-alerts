@@ -92,8 +92,11 @@ test("a throttled crawl aborts instead of finishing with a hollow payload", asyn
     await assert.rejects(
       () => runPool(urls, FAST),
       (error) => {
-        assert.match(error.message, /aborted before writing anything/i);
         assert.match(error.message, /throttling/i);
+        assert.match(error.message, /stopping before sending more/i);
+        // The message is shared by two callers with opposite write behaviour, so it must not
+        // claim anything about the payload on either of their behalves.
+        assert.doesNotMatch(error.message, /payload is untouched/i);
         return true;
       }
     );

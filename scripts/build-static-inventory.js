@@ -398,9 +398,11 @@ async function runPool(urls, options = {}) {
 
   if (abortReason) {
     throw new Error(
-      `Inventory build aborted before writing anything: Denver appears to be throttling this crawl ` +
-      `(${abortReason}). The published payload is untouched. Wait for the limit to clear before ` +
-      `retrying, and consider lowering CONCURRENCY below ${limits.concurrency}.`
+      `Denver appears to be throttling this run (${abortReason}). Stopping before sending more ` +
+      `requests. Wait for the limit to clear before retrying; lowering CONCURRENCY below ` +
+      `${limits.concurrency} may also help. What this means for the published payload is the ` +
+      `caller's to say -- build:inventory has written nothing at this point, refresh:schedules ` +
+      `has written every round it completed.`
     );
   }
 
