@@ -107,6 +107,40 @@ function writeAssetVersionLock(lock = buildAssetVersionLock()) {
   return lock;
 }
 
+// Bumps only the inventory's own version, for a change that rewrites the payload and nothing else.
+// bumpAssetVersions is the wrong tool there: it retags app.js and styles.css too, and refuses when
+// an asset it does not retag is sitting changed, neither of which has anything to do with new
+// sweep dates. Without this the refreshed payload ships under the version installed clients have
+// already cached, and the service worker answers it from Cache Storage forever -- a "?v=" URL is
+// immutable by contract, so a hit can never be revalidated.
+function bumpInventoryVersion() {
+  const cities = fs.readFileSync(CITIES_PATH, "utf8");
+  const serviceWorker = fs.readFileSync(SERVICE_WORKER_PATH, "utf8");
+
+  const current = Number(cities.match(/denver-west-routes\.json\?v=(\d+)/)?.[1]);
+  const shellVersion = Number(serviceWorker.match(/curb-alerts-shell-v(\d+)/)?.[1]);
+  if (!Number.isInteger(current) || !Number.isInteger(shellVersion)) {
+    throw new Error("Could not read the current inventory or shell version out of public/; refusing to guess");
+  }
+
+  const next = current + 1;
+  fs.writeFileSync(
+    CITIES_PATH,
+    cities.replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next}`),
+    "utf8"
+  );
+  fs.writeFileSync(
+    SERVICE_WORKER_PATH,
+    serviceWorker
+      .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next}`)
+      .replace(/curb-alerts-shell-v\d+/g, `curb-alerts-shell-v${shellVersion + 1}`),
+    "utf8"
+  );
+  writeAssetVersionLock();
+
+  return { inventory: { previous: current, next }, shell: { previous: shellVersion, next: shellVersion + 1 } };
+}
+
 function bumpAssetVersions(assetTag) {
   if (!assetTag || !/^[A-Za-z0-9._-]+$/.test(assetTag)) {
     throw new Error(`Asset tag must be a plain slug, got ${JSON.stringify(assetTag)}`);
@@ -166,6 +200,7 @@ function bumpAssetVersions(assetTag) {
 module.exports = {
   readCurrentVersions,
   bumpAssetVersions,
+  bumpInventoryVersion,
   buildAssetVersionLock,
   readAssetVersionLock,
   writeAssetVersionLock,

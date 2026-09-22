@@ -1,0 +1,181 @@
+// Refreshes the sweep dates on the routes already published, and nothing else.
+//
+// Denver returns a rolling window of upcoming dates rather than a rule you can evaluate forever,
+// so the payload goes stale roughly two months after the crawl that built it. build:inventory is
+// the wrong way to fix that: its REGIONS grid covers 10 of the 60 published areas, so a "full
+// rebuild" deletes the other 50 and republishes them as pink (see AGENTS.md). This script asks
+// Denver about the routes we already have, at their own coordinates, and updates their dates in
+// place.
+//
+// It cannot lose coverage, which is the whole point. No route is ever removed, no geometry is
+// touched, and a lookup that fails simply leaves that route's old dates alone. The worst outcome
+// of a bad run is that nothing changed.
+//
+// sweepType is deliberately NOT updated. It decides the curb colour, and a route moving between
+// Scheduled, Weekly and Nightly changes what the map tells a driver, so a divergence is reported
+// for a human rather than applied silently.
+const fs = require("fs");
+const path = require("path");
+const { runPool } = require("./build-static-inventory.js");
+const { bumpInventoryVersion } = require("./lib/asset-versions.js");
+
+const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3000";
+const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
+// One round asks about this many points at most. Each lookup comes back with a handful of routes,
+// so a round refreshes far more routes than it spends requests, and the next round only asks about
+// what is still stale.
+const ROUND_SIZE = 1200;
+
+const hasGeometry = (route) => Array.isArray(route.map && route.map.path) && route.map.path.length >= 1;
+
+// Only routes that carry a real Denver schedule. A pink fallback has no dates to refresh by
+// definition, and asking about one would just rediscover that Denver has nothing there.
+function selectRefreshableRoutes(routes) {
+  return routes.filter((route) => route.sweepType !== "Unavailable" && hasGeometry(route));
+}
+
+// The middle of a route's own geometry, which is the point most likely to sit on it. path[0] is an
+// endpoint and endpoints land on intersections, where Denver may answer about the cross street.
+function getLookupPoint(route) {
+  const p = route.map.path;
+  return p[Math.floor(p.length / 2)];
+}
+
+// One point per still-stale route, deduplicated: neighbouring routes can share a midpoint, and
+// asking twice wastes a request against a service that is already rate-limiting us.
+function buildLookupPoints(routes, refreshedIds, roundSize = ROUND_SIZE) {
+  const seen = new Set();
+  const points = [];
+  for (const route of routes) {
+    if (refreshedIds.has(String(route.id))) continue;
+    const [lat, lon] = getLookupPoint(route);
+    const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    points.push({ lat, lon });
+    if (points.length >= roundSize) break;
+  }
+  return points;
+}
+
+// Applies one round's answers. Mutates the routes in `byId`, which are the payload's own objects.
+function applyRefresh(byId, summaries, state) {
+  for (const summary of summaries) {
+    if (!summary || !Array.isArray(summary.routes)) continue;
+    for (const fresh of summary.routes) {
+      const route = byId.get(String(fresh.id));
+      if (!route) continue;
+
+      state.refreshedIds.add(String(fresh.id));
+
+      if (fresh.sweepType && fresh.sweepType !== route.sweepType) {
+        state.sweepTypeDivergences.push(`${route.id} ${route.streetName}: ${route.sweepType} -> ${fresh.sweepType}`);
+      }
+
+      const before = JSON.stringify(route.schedules || []);
+      if (Array.isArray(fresh.schedules)) {
+        route.schedules = fresh.schedules;
+      }
+      if (fresh.leftSweepingRule) route.leftSweepingRule = fresh.leftSweepingRule;
+      if (fresh.rightSweepingRule) route.rightSweepingRule = fresh.rightSweepingRule;
+      if (typeof fresh.isPosted === "boolean") route.isPosted = fresh.isPosted;
+
+      if (JSON.stringify(route.schedules || []) !== before) state.changed += 1;
+    }
+  }
+}
+
+function describeDateRange(routes) {
+  const dates = new Set();
+  for (const route of routes) {
+    for (const entry of route.schedules || []) {
+      const m = String(entry.Date || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) dates.add(`${m[3]}-${m[1]}-${m[2]}`);
+    }
+  }
+  const sorted = [...dates].sort();
+  return { first: sorted[0] || null, last: sorted[sorted.length - 1] || null, count: sorted.length };
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const dryRun = args.includes("--dry-run");
+  const limitArg = args.find((a) => a.startsWith("--limit="));
+  const limit = limitArg ? Number(limitArg.split("=")[1]) : Infinity;
+
+  const payload = JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf8"));
+  const routesBefore = payload.routes.length;
+  const targets = selectRefreshableRoutes(payload.routes).slice(0, limit);
+  const byId = new Map(targets.map((route) => [String(route.id), route]));
+
+  const rangeBefore = describeDateRange(payload.routes);
+  console.log(`Payload: ${routesBefore} routes, ${targets.length} with a real schedule to refresh.`);
+  console.log(`Dates now: ${rangeBefore.first} -> ${rangeBefore.last} (${rangeBefore.count} distinct)\n`);
+
+  const state = { refreshedIds: new Set(), changed: 0, sweepTypeDivergences: [] };
+  let round = 0;
+
+  while (state.refreshedIds.size < targets.length) {
+    const points = buildLookupPoints(targets, state.refreshedIds);
+    if (!points.length) break;
+
+    round += 1;
+    const before = state.refreshedIds.size;
+    const urls = points.map((p) => `${APP_ORIGIN}/api/denver/sweeping?latitude=${p.lat}&longitude=${p.lon}`);
+    console.log(`Round ${round}: asking about ${urls.length} points (${targets.length - before} routes still stale)`);
+
+    const summaries = await runPool(urls);
+    applyRefresh(byId, summaries, state);
+
+    const gained = state.refreshedIds.size - before;
+    console.log(`  refreshed ${gained} more route(s); ${state.refreshedIds.size}/${targets.length} done\n`);
+    // A round that teaches us nothing will not do better on the next pass with the same points.
+    if (!gained) {
+      console.log("Round made no progress; stopping rather than looping.");
+      break;
+    }
+  }
+
+  const stale = targets.length - state.refreshedIds.size;
+  const rangeAfter = describeDateRange(payload.routes);
+
+  console.log("=== result ===");
+  console.log(`routes refreshed      : ${state.refreshedIds.size} of ${targets.length}`);
+  console.log(`  with changed dates  : ${state.changed}`);
+  console.log(`left with old dates   : ${stale}`);
+  console.log(`dates after           : ${rangeAfter.first} -> ${rangeAfter.last} (${rangeAfter.count} distinct)`);
+
+  if (state.sweepTypeDivergences.length) {
+    console.log(`\nsweepType divergences NOT applied (they change curb colour; review by hand): ${state.sweepTypeDivergences.length}`);
+    state.sweepTypeDivergences.slice(0, 20).forEach((line) => console.log(`  ${line}`));
+  }
+
+  if (payload.routes.length !== routesBefore) {
+    throw new Error(`Refusing to write: route count moved from ${routesBefore} to ${payload.routes.length}. This script must never add or remove a route.`);
+  }
+
+  if (dryRun) {
+    console.log("\n--dry-run: nothing written.");
+    return;
+  }
+
+  if (!state.changed) {
+    console.log("\nNo dates changed; leaving the payload and its version alone.");
+    return;
+  }
+
+  payload.generatedAt = new Date().toISOString();
+  fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(payload)}\n`, "utf8");
+  const bumped = bumpInventoryVersion();
+  console.log(`\nWrote the payload and bumped it: ?v=${bumped.inventory.previous} -> ?v=${bumped.inventory.next}, shell v${bumped.shell.next}.`);
+  console.log("Run npm test before committing.");
+}
+
+module.exports = { selectRefreshableRoutes, getLookupPoint, buildLookupPoints, applyRefresh, describeDateRange };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

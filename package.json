@@ -15,7 +15,8 @@
     "lock:assets": "node scripts/lock-asset-versions.js",
     "check:city-limits": "node scripts/check-city-limits.js",
     "audit:inventory": "node --test test/inventory-auditor.test.js test/inventory-coverage.test.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "refresh:schedules": "node scripts/refresh-route-schedules.js"
   },
   "dependencies": {
     "pg": "^8.13.1",

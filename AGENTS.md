@@ -46,8 +46,9 @@ Denver API integration. Don't duplicate that content here.
 | `npm start` | Serves on `127.0.0.1:3000`. Must be running **before** `add:area`, `build:inventory`, or `build:review-queue`. |
 | `npm test` | `node --test test/*.test.js`. Runs in about half a second. |
 | `npm run add:area -- <area-id> [flags]` | **Adds a whole new pilot area in one command** — see below. Needs the local server up. |
+| `npm run refresh:schedules` | Refreshes sweep dates on the routes already published. Cannot lose coverage. This is the seasonal refresh. Needs the local server up. |
 | `npm run audit:inventory` | Offline coverage gate. Run this before every handoff. |
-| `npm run build:inventory` | Full rebuild. Hits Denver's live API hundreds of times; needs the local server up. |
+| `npm run build:inventory` | **Not a full-city rebuild** — its grid covers 10 of 60 areas. See the warning below before running it. Needs the local server up. |
 | `npm run rebuild:offline` | Reclassifies the published inventory with no network. Use for matching/classification fixes; see below. |
 | `npm run map:area -- <area-id>` | Staged discovery for one pilot area. **Defaults `APP_ORIGIN` to production**, not localhost — set it deliberately. |
 | `npm run build:review-queue -- <overpass.json> [area-id]` | Builds a human-review queue. Never touches the published inventory. |
@@ -482,6 +483,36 @@ the routes already in `public/denver-west-routes.json` are the same routes a fre
 `npm run rebuild:offline` reruns only the classification, in about a minute with zero API calls.
 Reach for the full crawl only when you actually want fresh data from Denver — schedule
 changes, new or retired routes, seasonal updates, or a pilot area that has never been crawled.
+
+**`build:inventory` is NOT a full-city rebuild, whatever its name and this table used to say.**
+Measured 2026-09-21: its `REGIONS` grid spans only 39.7104–39.79125 N, -105.05325 to -104.968 W —
+West and Central Denver plus RiNo, the original pilot area. Of the 60 areas in
+`data/coverage-pilot-areas.json`, **10 are inside that box and 50 are outside it**, and **12,996 of
+the 19,268 published routes carrying a real schedule, 67.4%, lie beyond it.**
+
+So running it does not refresh those areas. It *deletes* them: the routes are never looked up, the
+auditor covers every one of their blocks with a pink fallback, and the unexplained-gap gate passes
+because pink is its answer for a block with no schedule. Two runs that day, one throttled at
+concurrency 8 and one healthy at concurrency 3, both produced exactly **3,932** routes with a real
+schedule and 20,919 pink — identical, because the limit is the grid and the grid is deterministic.
+About 84% of the map would have read *we found no Denver schedule here*, on curb Denver sweeps.
+`assertNoCoverageCollapse` refused both. Without it, the map was one command from being destroyed.
+
+**The grid is stale because `add:area` never extended it.** Each new area was crawled by
+`map-area-approach-3.js` at the time it was added, and its routes have lived in the published
+payload ever since; nothing ever taught `REGIONS` about them. The payload is therefore an
+accumulation of 60 area crawls, and no single command reproduces it.
+
+**So do not reach for `build:inventory` to refresh schedules.** Use
+`npm run refresh:schedules`, which walks the routes already published, looks each one up at its own
+coordinates and updates only its dates. It cannot lose coverage, because it never removes a route —
+a failed lookup just leaves that route's old dates in place. That is the tool for the seasonal
+refresh described above.
+
+`build:inventory` is still correct for what its grid does cover, and it is still the only command
+that enforces the unexplained-gap gate. Before running it for anything else, either extend `REGIONS`
+to cover all 60 areas — roughly triple the lookups, and the coverage expectations across the city
+have to be re-derived with it — or accept that it will hand 50 areas to the collapse gate.
 
 Denver's API rate-limits the full crawl hard, and **it throttles rather than refusing**, which is
 what makes it dangerous: lookups come back without routes while a single well-behaved request from
@@ -1678,8 +1709,13 @@ Do not take a payment before the blueprint is actually applied.
   than gaps.
 - **The published inventory is stale relative to the scripts, and a full rebuild will surface it.**
   Re-measured 2026-08-24, correcting an earlier version of this note that sent one agent down a
-  wrong path. `build:inventory` would **publish cleanly** — `audit.unexplainedGaps` is 0, so the
-  build gate does not throw. Two tests then fail against the regenerated payload:
+  wrong path. **Re-measured again 2026-09-21, and this note is stale in a way that matters: the
+  regenerated payload would be 84% pink, because the crawl grid covers 10 of 60 areas.** See the
+  grid warning under `rebuild:offline` above; `assertNoCoverageCollapse` now refuses it. What
+  follows was true of the payload the grid *does* cover, and the Larimer count still applies to a
+  crawl of that area. `audit.unexplainedGaps` being 0 is not the reassurance it reads as — pink is
+  the auditor's answer for a block with no schedule, so the gate passes precisely when coverage has
+  been replaced wholesale. Two tests then fail against the regenerated payload:
 
   - `ensureRinoOfficialRouteCoverage` brings LARIMER ST unavailable routes from 6 to **11** (33rd–34th,
     34th–35th and three `rino-larimer-*`), while `test/curb-geometry.test.js` asserts exactly 6. The
