@@ -125,3 +125,34 @@ test("the date range is read off the payload the way the client reads it", () =>
 
   assert.deepEqual(range, { first: "2026-09-22", last: "2026-10-28", count: 3 });
 });
+
+test("the checkpoint round-trips, and a stale one is ignored", () => {
+  const { readCheckpoint, writeCheckpoint, clearCheckpoint, CHECKPOINT_PATH } = require("../scripts/refresh-route-schedules.js");
+  const fsx = require("node:fs");
+  const had = fsx.existsSync(CHECKPOINT_PATH) ? fsx.readFileSync(CHECKPOINT_PATH) : null;
+
+  try {
+    writeCheckpoint({ refreshedIds: new Set(["1", "2", "3"]) });
+    const fresh = readCheckpoint();
+    assert.equal(fresh.ids.size, 3);
+    assert.ok(fresh.ids.has("2"));
+
+    // A full refresh takes several runs, but picking up a week-old list would skip routes whose
+    // dates have since expired -- exactly the staleness this script exists to remove.
+    fsx.writeFileSync(
+      CHECKPOINT_PATH,
+      JSON.stringify({ updatedAt: new Date(Date.now() - 80 * 3600000).toISOString(), refreshedIds: ["9"] })
+    );
+    assert.equal(readCheckpoint(), null, "a checkpoint older than the window must be ignored");
+    assert.equal(readCheckpoint(100).ids.size, 1, "and honoured when the caller widens the window");
+
+    fsx.writeFileSync(CHECKPOINT_PATH, "{ not json");
+    assert.equal(readCheckpoint(), null, "a corrupt checkpoint must not take the run down");
+
+    clearCheckpoint();
+    assert.equal(readCheckpoint(), null);
+    clearCheckpoint(); // clearing twice must not throw
+  } finally {
+    if (had) fsx.writeFileSync(CHECKPOINT_PATH, had);
+  }
+});

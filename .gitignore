@@ -21,3 +21,4 @@ data/mapping-report-*.json
 data/inventory-coverage-report.json
 data/osm-extract-*.osm
 data-local/
+data/schedule-refresh-checkpoint.json

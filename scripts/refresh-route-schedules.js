@@ -17,7 +17,7 @@
 const fs = require("fs");
 const path = require("path");
 const { runPool } = require("./build-static-inventory.js");
-const { bumpInventoryVersion } = require("./lib/asset-versions.js");
+const { bumpInventoryVersion, writeAssetVersionLock } = require("./lib/asset-versions.js");
 
 const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3000";
 const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
@@ -25,6 +25,44 @@ const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.jso
 // so a round refreshes far more routes than it spends requests, and the next round only asks about
 // what is still stale.
 const ROUND_SIZE = 1200;
+
+const CHECKPOINT_PATH = path.join(__dirname, "..", "data", "schedule-refresh-checkpoint.json");
+// Denver degrades under sustained load rather than all at once: measured 2026-09-21, the 502 rate
+// climbed round by round from 48 to 228 and the abort guard tripped at round 9 with 11,216 of
+// 19,268 routes refreshed. A pause between rounds is cheap insurance against being the reason.
+const ROUND_PAUSE_MS = 15000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// A full refresh is tens of thousands of lookups and Denver will throttle before the end of one.
+// Writing only at the end therefore means never finishing: that first abort discarded 11,216
+// refreshed routes. So every round is persisted, and the checkpoint records which routes are
+// already done so the next run picks up instead of starting over.
+function readCheckpoint(maxAgeHours = 36) {
+  try {
+    const saved = JSON.parse(fs.readFileSync(CHECKPOINT_PATH, "utf8"));
+    const ageHours = (Date.now() - new Date(saved.updatedAt).getTime()) / 3600000;
+    if (!Number.isFinite(ageHours) || ageHours > maxAgeHours) return null;
+    return { ids: new Set(saved.refreshedIds || []), ageHours };
+  } catch {
+    return null;
+  }
+}
+
+function writeCheckpoint(state) {
+  fs.writeFileSync(
+    CHECKPOINT_PATH,
+    `${JSON.stringify({ updatedAt: new Date().toISOString(), refreshedIds: [...state.refreshedIds] }, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+function clearCheckpoint() {
+  try {
+    fs.unlinkSync(CHECKPOINT_PATH);
+  } catch {
+    /* nothing to clear */
+  }
+}
 
 const hasGeometry = (route) => Array.isArray(route.map && route.map.path) && route.map.path.length >= 1;
 
@@ -100,6 +138,7 @@ function describeDateRange(routes) {
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
+  const noResume = args.includes("--no-resume");
   const limitArg = args.find((a) => a.startsWith("--limit="));
   const limit = limitArg ? Number(limitArg.split("=")[1]) : Infinity;
 
@@ -110,10 +149,37 @@ async function main() {
 
   const rangeBefore = describeDateRange(payload.routes);
   console.log(`Payload: ${routesBefore} routes, ${targets.length} with a real schedule to refresh.`);
-  console.log(`Dates now: ${rangeBefore.first} -> ${rangeBefore.last} (${rangeBefore.count} distinct)\n`);
+  console.log(`Dates now: ${rangeBefore.first} -> ${rangeBefore.last} (${rangeBefore.count} distinct)`);
 
   const state = { refreshedIds: new Set(), changed: 0, sweepTypeDivergences: [] };
+
+  // Denver throttles before a full pass finishes, so a run is expected to be one of several.
+  const resumed = noResume ? null : readCheckpoint();
+  if (resumed) {
+    for (const id of resumed.ids) if (byId.has(id)) state.refreshedIds.add(id);
+    console.log(`Resuming: ${state.refreshedIds.size} route(s) already refreshed ${resumed.ageHours.toFixed(1)}h ago.`);
+  }
+  console.log("");
+
+  let bumpedThisRun = false;
+  const persist = () => {
+    payload.generatedAt = new Date().toISOString();
+    fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(payload)}\n`, "utf8");
+    // The payload's bytes move on the first write of a run, so its "?v=" has to move with them or
+    // the cache-first service worker serves the old copy from Cache Storage forever. Once per run
+    // is enough; later rounds just re-record the lock against the version already bumped to.
+    if (!bumpedThisRun) {
+      const bumped = bumpInventoryVersion();
+      bumpedThisRun = true;
+      console.log(`  (bumped the inventory to ?v=${bumped.inventory.next}, shell v${bumped.shell.next})`);
+    } else {
+      writeAssetVersionLock();
+    }
+    writeCheckpoint(state);
+  };
+
   let round = 0;
+  let throttled = null;
 
   while (state.refreshedIds.size < targets.length) {
     const points = buildLookupPoints(targets, state.refreshedIds);
@@ -124,16 +190,36 @@ async function main() {
     const urls = points.map((p) => `${APP_ORIGIN}/api/denver/sweeping?latitude=${p.lat}&longitude=${p.lon}`);
     console.log(`Round ${round}: asking about ${urls.length} points (${targets.length - before} routes still stale)`);
 
-    const summaries = await runPool(urls);
-    applyRefresh(byId, summaries, state);
+    let summaries;
+    try {
+      summaries = await runPool(urls);
+    } catch (error) {
+      // The abort guard is doing its job. Everything refreshed so far is real and worth keeping,
+      // so stop asking and fall through to the write rather than throwing it all away.
+      if (/throttl/i.test(error.message)) {
+        throttled = error.message;
+        break;
+      }
+      throw error;
+    }
 
+    applyRefresh(byId, summaries, state);
     const gained = state.refreshedIds.size - before;
-    console.log(`  refreshed ${gained} more route(s); ${state.refreshedIds.size}/${targets.length} done\n`);
-    // A round that teaches us nothing will not do better on the next pass with the same points.
+    console.log(`  refreshed ${gained} more route(s); ${state.refreshedIds.size}/${targets.length} done`);
+
+    if (payload.routes.length !== routesBefore) {
+      throw new Error(`Refusing to continue: route count moved from ${routesBefore} to ${payload.routes.length}. This script must never add or remove a route.`);
+    }
+
+    if (!dryRun && state.changed) persist();
+    console.log("");
+
     if (!gained) {
       console.log("Round made no progress; stopping rather than looping.");
       break;
     }
+
+    if (state.refreshedIds.size < targets.length) await sleep(ROUND_PAUSE_MS);
   }
 
   const stale = targets.length - state.refreshedIds.size;
@@ -150,10 +236,6 @@ async function main() {
     state.sweepTypeDivergences.slice(0, 20).forEach((line) => console.log(`  ${line}`));
   }
 
-  if (payload.routes.length !== routesBefore) {
-    throw new Error(`Refusing to write: route count moved from ${routesBefore} to ${payload.routes.length}. This script must never add or remove a route.`);
-  }
-
   if (dryRun) {
     console.log("\n--dry-run: nothing written.");
     return;
@@ -164,14 +246,28 @@ async function main() {
     return;
   }
 
-  payload.generatedAt = new Date().toISOString();
-  fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(payload)}\n`, "utf8");
-  const bumped = bumpInventoryVersion();
-  console.log(`\nWrote the payload and bumped it: ?v=${bumped.inventory.previous} -> ?v=${bumped.inventory.next}, shell v${bumped.shell.next}.`);
+  if (throttled) {
+    console.log(`\nStopped early: ${throttled}`);
+    console.log(`Everything refreshed so far IS written. Re-run in a few hours to pick up the remaining ${stale}; it resumes from the checkpoint automatically.`);
+  } else {
+    clearCheckpoint();
+    console.log("\nEvery route refreshed. Checkpoint cleared.");
+  }
+
   console.log("Run npm test before committing.");
 }
 
-module.exports = { selectRefreshableRoutes, getLookupPoint, buildLookupPoints, applyRefresh, describeDateRange };
+module.exports = {
+  selectRefreshableRoutes,
+  getLookupPoint,
+  buildLookupPoints,
+  applyRefresh,
+  describeDateRange,
+  readCheckpoint,
+  writeCheckpoint,
+  clearCheckpoint,
+  CHECKPOINT_PATH
+};
 
 if (require.main === module) {
   main().catch((error) => {
