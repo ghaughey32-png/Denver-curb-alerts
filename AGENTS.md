@@ -568,11 +568,27 @@ map still shows dates and they are still mostly right. **Do not read "the map st
 Denver's word, and it is wrong precisely where a holiday shift, a re-routed week or an end-of-season
 change would move a sweep — the cases a driver most needs the warning for.
 
-Denver sweeps April through November. **Re-crawl when the season opens in April, and again before
-its last sweeps in November.** Neither is optional maintenance; each is the difference between
-warning people from the published city dates and warning them from a projection. Budget for the
-Larimer count under **Known issues** below, which a fresh crawl moves from 6 to 11 and which has to
-be corrected together with the crawl rather than before it.
+Denver sweeps April through November. **Refresh when the season opens in April, and again before its
+last sweeps in November**, with `npm run refresh:schedules` rather than a crawl. Neither is optional
+maintenance; each is the difference between warning people from the published city dates and warning
+them from a projection.
+
+**Plan each refresh as several runs across a day or two, not one sitting.** Denver's API cannot
+sustain a whole-city pass, and it does not fail cleanly — it degrades. Measured 2026-09-21 over
+19,268 routes: the 502 rate climbed round by round, 48, 88, 188, 228, until the abort guard tripped
+at round 9 with 11,216 routes refreshed. That was not bad luck or a busy afternoon. Nothing about a
+later attempt makes round 14 reachable, so a single run finishing is not the shape to plan for.
+
+What makes that routine rather than painful is that every round writes the payload and records
+`data/schedule-refresh-checkpoint.json`, so a run that stops early keeps everything it did and the
+next one resumes from where it stopped. Expect two or three runs, a few hours apart. Signs you are
+pushing too hard are in the per-round output: a climbing 502 count and a growing "gave up" number
+mean stop and come back later, not lower the concurrency and carry on. The checkpoint is ignored
+once it is more than 36 hours old, which also sets the outer bound on how long a refresh should be
+allowed to straggle — past that, routes refreshed on day one are themselves going stale.
+
+Being throttled is not damage. The payload only ever gains fresher dates, the route count is
+asserted unchanged before every write, and a route Denver declines keeps the dates it had.
 
 `rebuild:offline` is deliberately narrow: it reclassifies, and withdraws a pink fallback when its
 block now resolves to a real schedule. It never invents new pink coverage (reprocessing learns
