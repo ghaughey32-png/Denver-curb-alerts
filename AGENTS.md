@@ -973,8 +973,16 @@ still just a bug: never gate anything before there is a way to pay. The library 
 
 Two consequences to design for. Reminders run signed out and key on the device, so on iOS the gate
 belongs on the device, from StoreKit's own entitlement, not behind an account. And a browser cannot
-run StoreKit, so web-push reminders either stay free or need Stripe back (see above); decide that
-before gating, not after.
+run StoreKit, so web-push reminders either stay free or need Stripe back (see above).
+
+**Decided 2026-09-23: the website becomes map only, and the paywall ships in the first App Store
+version.** Web reminders are switched off rather than sold, so the free website is not a way around
+the subscription; do it when the iOS app goes live, and warn any browser that holds reminders before
+they stop, per the rule above. Paywalling from 1.0 means no population of free iOS users ever has
+to be moved onto a paid plan. Nothing inside the app may point at the website as a free
+alternative; Apple rejects steering. The plan is StoreKit 2 with a yearly product at $14.99 carrying
+a 14-day free trial and a monthly at $2.99 with none, gated on the device in
+`ReminderScheduler.reschedule`, with a 16-day Billing Grace Period switched on in App Store Connect.
 
 **`buildDefaultBilling()` is the floor, not the starting point, and must stay unentitled.**
 `getEntitlement` falls back to it for an account whose billing is missing or corrupt, so a default
