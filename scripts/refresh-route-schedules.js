@@ -21,16 +21,35 @@ const { bumpInventoryVersion, writeAssetVersionLock } = require("./lib/asset-ver
 
 const APP_ORIGIN = process.env.APP_ORIGIN || "http://127.0.0.1:3000";
 const OUTPUT_PATH = path.join(__dirname, "..", "public", "denver-west-routes.json");
-// One round asks about this many points at most. Each lookup comes back with a handful of routes,
-// so a round refreshes far more routes than it spends requests, and the next round only asks about
-// what is still stale.
-const ROUND_SIZE = 1200;
+// Denver never answers 429. Across 38,461 responses over two days it returned 34,645 200s and
+// 3,816 502s and not one rate-limit status, so this is not a limiter saying "slow down" -- it is a
+// small city service falling over under concurrent load, which is why it degrades gradually rather
+// than switching off, and why recovery takes about a day.
+//
+// That makes concurrency the lever that matters. A rate limiter counts requests however they
+// arrive; an overloaded backend cares how many are in flight at once. So the refresh runs gentler
+// than the crawler it borrows runPool from: one request at a time, with a longer breather between
+// rounds. It is slower and it is meant to be -- this is a background job that has all day, and the
+// two runs that tried to hurry got nothing written on the second one.
+//
+// Override for a machine or a day where Denver is livelier:
+//   npm run refresh:schedules -- --concurrency=2 --round-pause=20 --round-size=600
+const REFRESH_CONCURRENCY = 1;
+const ROUND_PAUSE_MS = 30000;
+// Smaller rounds than the crawler's 1200 because every round is a checkpoint: at one request at a
+// time this saves progress about every seven minutes instead of every twenty.
+const ROUND_SIZE = 600;
+
+// Numeric --flag=value, falling back to the default when absent or nonsense. A typo must not
+// silently turn the gentle profile into the one that has already failed twice.
+function readNumericFlag(args, name, fallback) {
+  const raw = args.find((arg) => arg.startsWith(`--${name}=`));
+  if (!raw) return fallback;
+  const value = Number(raw.split("=")[1]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
 
 const CHECKPOINT_PATH = path.join(__dirname, "..", "data", "schedule-refresh-checkpoint.json");
-// Denver degrades under sustained load rather than all at once: measured 2026-09-21, the 502 rate
-// climbed round by round from 48 to 228 and the abort guard tripped at round 9 with 11,216 of
-// 19,268 routes refreshed. A pause between rounds is cheap insurance against being the reason.
-const ROUND_PAUSE_MS = 15000;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // A full refresh is tens of thousands of lookups and Denver will throttle before the end of one.
@@ -141,6 +160,9 @@ async function main() {
   const noResume = args.includes("--no-resume");
   const limitArg = args.find((a) => a.startsWith("--limit="));
   const limit = limitArg ? Number(limitArg.split("=")[1]) : Infinity;
+  const concurrency = readNumericFlag(args, "concurrency", REFRESH_CONCURRENCY);
+  const roundSize = readNumericFlag(args, "round-size", ROUND_SIZE);
+  const roundPauseMs = readNumericFlag(args, "round-pause", ROUND_PAUSE_MS / 1000) * 1000;
 
   const payload = JSON.parse(fs.readFileSync(OUTPUT_PATH, "utf8"));
   const routesBefore = payload.routes.length;
@@ -150,6 +172,7 @@ async function main() {
   const rangeBefore = describeDateRange(payload.routes);
   console.log(`Payload: ${routesBefore} routes, ${targets.length} with a real schedule to refresh.`);
   console.log(`Dates now: ${rangeBefore.first} -> ${rangeBefore.last} (${rangeBefore.count} distinct)`);
+  console.log(`Pace: ${concurrency} request(s) at a time, ${roundSize} per round, ${roundPauseMs / 1000}s between rounds.`);
 
   const state = { refreshedIds: new Set(), changed: 0, sweepTypeDivergences: [] };
 
@@ -182,7 +205,7 @@ async function main() {
   let throttled = null;
 
   while (state.refreshedIds.size < targets.length) {
-    const points = buildLookupPoints(targets, state.refreshedIds);
+    const points = buildLookupPoints(targets, state.refreshedIds, roundSize);
     if (!points.length) break;
 
     round += 1;
@@ -192,7 +215,7 @@ async function main() {
 
     let summaries;
     try {
-      summaries = await runPool(urls);
+      summaries = await runPool(urls, { concurrency });
     } catch (error) {
       // The abort guard is doing its job. Everything refreshed so far is real and worth keeping,
       // so stop asking and fall through to the write rather than throwing it all away.
@@ -219,7 +242,7 @@ async function main() {
       break;
     }
 
-    if (state.refreshedIds.size < targets.length) await sleep(ROUND_PAUSE_MS);
+    if (state.refreshedIds.size < targets.length) await sleep(roundPauseMs);
   }
 
   const stale = targets.length - state.refreshedIds.size;
@@ -263,6 +286,7 @@ module.exports = {
   buildLookupPoints,
   applyRefresh,
   describeDateRange,
+  readNumericFlag,
   readCheckpoint,
   writeCheckpoint,
   clearCheckpoint,

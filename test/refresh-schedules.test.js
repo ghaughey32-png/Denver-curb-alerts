@@ -156,3 +156,17 @@ test("the checkpoint round-trips, and a stale one is ignored", () => {
     if (had) fsx.writeFileSync(CHECKPOINT_PATH, had);
   }
 });
+
+test("a mistyped pace flag falls back to the gentle default instead of the profile that failed", () => {
+  const { readNumericFlag } = require("../scripts/refresh-route-schedules.js");
+
+  assert.equal(readNumericFlag(["--concurrency=2"], "concurrency", 1), 2);
+  assert.equal(readNumericFlag(["--round-pause=45"], "round-pause", 30), 45);
+
+  // Denver answered 3,816 502s and zero 429s, so this is an overloaded backend rather than a rate
+  // limiter and concurrency is the lever that matters. A typo quietly restoring a heavier setting
+  // is the one way this flag could do harm.
+  for (const junk of [[], ["--concurrency="], ["--concurrency=abc"], ["--concurrency=0"], ["--concurrency=-4"], ["--concurrencyx=9"]]) {
+    assert.equal(readNumericFlag(junk, "concurrency", 1), 1, JSON.stringify(junk));
+  }
+});

@@ -603,9 +603,22 @@ the version and the checkpoint untouched. **So do not probe — wait, then just 
 the answer.
 
 **Recovery takes about a day, not a few hours.** 4.6 hours of quiet was not enough on 2026-09-22.
-Both stretches that did get through followed roughly a full day of no traffic. If an overnight wait
-still aborts on round one, the next thing to try is `CONCURRENCY` of 1 or 2 — test it behind
-`--limit` before committing to a run several hours long.
+Both stretches that did get through followed roughly a full day of no traffic.
+
+**Denver never answers 429, and that changes which lever matters.** Across 38,461 responses over
+2026-09-21 and 22 it returned 34,645 200s and 3,816 502s and **not one rate-limit status**. This is
+not a limiter counting requests, it is a small city service falling over under concurrent load —
+which is why it degrades gradually rather than switching off at a threshold, why recovery is slow
+and vague rather than a fixed cooldown, and why a 90-request probe sails through while 1,200 does
+not. Against a rate limiter, going slower often just fails more slowly; against an overloaded
+backend it is the fix.
+
+So `refresh:schedules` runs deliberately gentler than the crawler whose `runPool` it borrows:
+**one request at a time, 600 per round, 30s between rounds.** That is slow on purpose — it is a
+background job with all day, and the two runs that tried to hurry ended with nothing written on the
+second. Override per run with `--concurrency=`, `--round-size=` and `--round-pause=` (seconds);
+a malformed value falls back to the gentle default rather than silently restoring a heavier one,
+which `test/refresh-schedules.test.js` asserts.
 
 
 `rebuild:offline` is deliberately narrow: it reclassifies, and withdraws a pink fallback when its
