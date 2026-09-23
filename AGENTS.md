@@ -597,6 +597,12 @@ the payload, so a rule that is itself out of date projects confidently and wrong
 is the reason to refresh in April** — a season's worth of route changes, invisible to the client by
 construction — and it is also why the April pass is the more important of the two.
 
+**Projection stops at the season's edge.** `sweepSeason` on the Denver record in `public/cities.js`
+(April through November) holds `getRuleBasedSweepDates` to the months Denver sweeps. Until
+2026-09-23 it projected through every month, so from late November every saved curb would have sent
+its full run of reminders for a December-to-March sweep that never happens. Dates Denver publishes
+are not held to it. `test/sweep-season.test.js` covers both halves.
+
 Note what a refresh still cannot fix. The ~826 posted curb sides whose rules name only a week ("The
 4th week of the month") have no weekday to project from, and Denver publishes no dates for them
 either, so they are dark before and after. Weekly and Nightly routes carry no dates at all by
@@ -1349,7 +1355,9 @@ group. Leave the key out for a build that should reach *Friend Test 1*. Build 6,
 was exported **without** that key, so it can go to either group and to review. Its archive was the
 first to sign with the App Group, and `-allowProvisioningUpdates` registered
 `group.co.curbalerts.app` on both App IDs. Build 7, uploaded 2026-09-19, is build 6 plus the
-widget's dark appearance, and replaces it as the submission candidate. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+widget's dark appearance, and replaces it as the submission candidate. Build 8, uploaded
+2026-09-23, is build 7 plus the sweep-season fix below, exported without the internal-only key, and
+replaces it as the submission candidate. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
