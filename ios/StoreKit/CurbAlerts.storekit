@@ -1,0 +1,100 @@
+{
+  "identifier" : "C0A1E7B5",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_billingGracePeriodEnabled" : true,
+    "_billingIssuesEnabled" : false,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "C0A1E7B6",
+      "localizations" : [
+        {
+          "description" : "Street sweeping reminders for your curbs",
+          "displayName" : "Curb Alerts Reminders",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Curb Alerts Reminders",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "14.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "C0A1E7B7",
+          "introductoryOffer" : {
+            "internalID" : "C0A1E7B9",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P2W"
+          },
+          "localizations" : [
+            {
+              "description" : "Sweeping reminders for a year, with a 14-day free trial",
+              "displayName" : "Reminders, yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "co.curbalerts.app.reminders.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Reminders Yearly",
+          "subscriptionGroupID" : "C0A1E7B6",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "C0A1E7B8",
+          "localizations" : [
+            {
+              "description" : "Sweeping reminders, month to month",
+              "displayName" : "Reminders, monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "co.curbalerts.app.reminders.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Reminders Monthly",
+          "subscriptionGroupID" : "C0A1E7B6",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

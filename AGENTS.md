@@ -1395,6 +1395,23 @@ the account's email and its synced curb library (linked), and issue reports with
 and keeps nothing, and the parking pin never leaves the device. If the server ever starts storing a
 lookup, or a new payload leaves the phone, this file and the App Store privacy answers change with it.
 
+**The subscription is read by `SubscriptionManager`, begun 2026-09-23 as step 1 of the StoreKit
+plan.** StoreKit 2, no package. It listens on `Transaction.updates` from launch, refreshes on every
+foreground and background refresh, and boils StoreKit's state down to `ReminderAccess` in
+`ios/Shared` — a status, an `endsAt` and `willRenew` — written to the App Group so the widget can
+read it without importing StoreKit. `isEntitled` is the one question the gate asks, and it counts a
+failed payment as covered until the grace period's end. A change in access calls
+`ReminderScheduler.reschedule`, which is where the gate itself belongs (step 2); **until step 2
+lands, nothing reads `isEntitled` and every reminder still fires.** The subscription is keyed to the
+Apple ID, not to an account, because reminders run signed out.
+
+Prices are never written into the app or the page — they come from `Product.displayPrice`.
+`ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.
+It sits outside the synchronized folders on purpose, so it is not bundled, and the shared
+`CurbAlerts` scheme (now committed under `xcshareddata`) points Run at it. It only applies when the
+app is launched from Xcode; `simctl launch` and TestFlight use the real store. Keep its product ids
+equal to `SubscriptionManager.productIDs` and to App Store Connect.
+
 **Not done yet, in the order they matter:**
 
 - Geofencing and APNs (steps 4 and 5).

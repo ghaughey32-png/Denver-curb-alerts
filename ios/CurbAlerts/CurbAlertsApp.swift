@@ -24,6 +24,8 @@ struct CurbAlertsApp: App {
                 // Opening the app is the moment the rolling window moves forward. The page will hand
                 // over a fresh job list too once it renders, but this refill does not wait on it.
                 Task {
+                    // A renewal, a lapse or a refund can all happen while the app is closed.
+                    await SubscriptionManager.shared.refresh()
                     try? await ReminderScheduler.shared.reschedule()
                     await WebShell.shared.refreshPermission()
                 }
@@ -36,6 +38,7 @@ struct CurbAlertsApp: App {
         // iOS keeps only 64 pending local notifications, so only the next three weeks are ever on
         // the device. This is what tops that window up for someone who does not open the app.
         .backgroundTask(.appRefresh(ReminderScheduler.refreshTaskIdentifier)) {
+            await SubscriptionManager.shared.refresh()
             try? await ReminderScheduler.shared.reschedule()
             ReminderScheduler.submitBackgroundRefresh()
         }
@@ -52,6 +55,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         UNUserNotificationCenter.current().delegate = NotificationCoordinator.shared
         ReminderScheduler.registerCategories()
         ReminderStore.migrateFromStandardDefaultsIfNeeded()
+        // Before the first screen, so a purchase that completed while the app was closed - or on
+        // another device - is heard about as soon as possible.
+        Task {
+            await SubscriptionManager.shared.start()
+            await SubscriptionManager.shared.refresh()
+        }
         return true
     }
 }

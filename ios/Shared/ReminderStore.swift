@@ -28,7 +28,7 @@ struct ReminderStore {
 
     /// Falls back to the app's own defaults if the group container is unavailable, which only
     /// happens when the entitlement is missing. The app keeps working; the widget sees nothing.
-    private let defaults = UserDefaults(suiteName: ReminderStore.appGroup) ?? .standard
+    let defaults = UserDefaults(suiteName: ReminderStore.appGroup) ?? .standard
 
     var jobs: [ReminderJob] {
         get {
