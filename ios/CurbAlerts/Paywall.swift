@@ -13,15 +13,23 @@ struct PaywallView: View {
     /// so the page's promise always settles.
     let gone: () -> Void
 
+    /// "4¢", worked out from the yearly plan's real price once StoreKit has it. Never typed in: the
+    /// price is set in App Store Connect and can change, and a buyer may be paying in another currency.
+    @State private var dailyCost: String?
+
     static let termsURL = URL(string: "https://www.curbalerts.co/#terms")!
     static let privacyURL = URL(string: "https://www.curbalerts.co/#privacy")!
 
     var body: some View {
         SubscriptionStoreView(productIDs: SubscriptionManager.productIDs) {
             VStack(spacing: 12) {
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(.orange)
+                // A copy of the app icon (AppLogo in the asset catalog): iOS will not hand an app its
+                // own AppIcon as an image. Clipped to the home-screen icon's shape.
+                Image("AppLogo")
+                    .resizable()
+                    .frame(width: 84, height: 84)
+                    .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
                 Text("Never get a sweeping ticket")
                     .font(.title2.weight(.bold))
                     .multilineTextAlignment(.center)
@@ -29,10 +37,23 @@ struct PaywallView: View {
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
-                Text("One Denver sweeping ticket is $50.")
-                    .font(.subheadline.weight(.semibold))
+                VStack(spacing: 2) {
+                    Text("A Denver street sweeping ticket costs $50.")
+                    if let dailyCost {
+                        Text("Curb Alerts costs about \(dailyCost) a day.")
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
             }
             .padding(.horizontal)
+            .task {
+                let products = await SubscriptionManager.shared.loadProducts()
+                if let yearly = products.first(where: { $0.id == SubscriptionManager.yearlyProductID }) {
+                    dailyCost = Self.dailyCost(of: yearly)
+                }
+            }
         }
         .storeButton(.visible, for: .restorePurchases)
         .subscriptionStorePolicyDestination(url: Self.termsURL, for: .termsOfService)
@@ -48,6 +69,21 @@ struct PaywallView: View {
         // SubscriptionStoreView draws its own close button in a sheet; a second one of ours
         // sat beside it on a device and was removed.
         .onDisappear(perform: gone)
+    }
+}
+
+extension PaywallView {
+    /// The yearly plan spread over its year: $14.99 is about 4¢ a day. Whole cents for a price under a
+    /// dollar in US dollars, which is how anyone would say it; the store's own currency format otherwise.
+    static func dailyCost(of product: Product) -> String {
+        let perDay = product.price / 365
+        if product.priceFormatStyle.currencyCode == "USD" {
+            let cents = (NSDecimalNumber(decimal: perDay * 100).doubleValue).rounded()
+            if cents >= 1 && cents < 100 {
+                return "\(Int(cents))¢"
+            }
+        }
+        return perDay.formatted(product.priceFormatStyle)
     }
 }
 
