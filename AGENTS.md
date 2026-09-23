@@ -574,10 +574,35 @@ map still shows dates and they are still mostly right. **Do not read "the map st
 Denver's word, and it is wrong precisely where a holiday shift, a re-routed week or an end-of-season
 change would move a sweep — the cases a driver most needs the warning for.
 
-Denver sweeps April through November. **Refresh when the season opens in April, and again before its
-last sweeps in November**, with `npm run refresh:schedules` rather than a crawl. Neither is optional
-maintenance; each is the difference between warning people from the published city dates and warning
-them from a projection.
+Denver sweeps April through November. **Refresh when the season opens in April, and again before
+its last sweeps in November**, with `npm run refresh:schedules` rather than a crawl.
+
+**But refresh for route changes, not for stale dates — the dates were never the problem.** Measured
+2026-09-23, immediately after a full refresh: across all **10,448** routes carrying an October date
+and a projectable rule, the client's own `getRuleBasedSweepDates` had already produced the
+**identical** date. 100% agreement, **zero** corrections. Every driver would have seen exactly the
+same sweep day without the refresh; the 3,379 "changed dates" were the payload catching up to what
+the client was computing correctly all along.
+
+So the sentence that used to sit here — that a refresh is "the difference between warning people
+from the published city dates and warning them from a projection" — was wrong, and it justified
+three days of work that changed nothing a user could see. **Run the comparison before you spend a
+day on this.** Project each dated route's rule into the month ahead, compare against its published
+dates, and see whether a single one disagrees. It takes two seconds and it is the honest test of
+whether a refresh is worth running at all.
+
+What projection genuinely cannot do is notice the world changing: a street newly swept or retired,
+a route re-cut, a rule reworded, `isPosted` flipping. Projection extends whatever rule text is in
+the payload, so a rule that is itself out of date projects confidently and wrongly forever. **That
+is the reason to refresh in April** — a season's worth of route changes, invisible to the client by
+construction — and it is also why the April pass is the more important of the two.
+
+Note what a refresh still cannot fix. The ~826 posted curb sides whose rules name only a week ("The
+4th week of the month") have no weekday to project from, and Denver publishes no dates for them
+either, so they are dark before and after. Weekly and Nightly routes carry no dates at all by
+nature; of 19,268 routes with a real schedule only about 10,450 are dated in the first place. A
+refresh touches that half and leaves the rest exactly as it found them.
+
 
 **A whole-city refresh finishes in one run, and the three days of prose that used to sit here
 saying otherwise were wrong.** Measured 2026-09-23: 19,159 of 19,268 routes refreshed in fourteen
