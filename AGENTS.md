@@ -492,9 +492,11 @@ the 19,268 published routes carrying a real schedule, 67.4%, lie beyond it.**
 
 So running it does not refresh those areas. It *deletes* them: the routes are never looked up, the
 auditor covers every one of their blocks with a pink fallback, and the unexplained-gap gate passes
-because pink is its answer for a block with no schedule. Two runs that day, one throttled at
-concurrency 8 and one healthy at concurrency 3, both produced exactly **3,932** routes with a real
-schedule and 20,919 pink — identical, because the limit is the grid and the grid is deterministic.
+because pink is its answer for a block with no schedule. Two runs that day, at concurrency 8 and
+at 3, both produced exactly **3,932** routes with a real schedule and 20,919 pink — identical,
+because the limit is the grid and the grid is deterministic. That identical pair is what proved it;
+an earlier version of this paragraph called the first run "throttled", which was the wrong reading
+and cost two more days before the same tell showed up again in the refresh.
 About 84% of the map would have read *we found no Denver schedule here*, on curb Denver sweeps.
 `assertNoCoverageCollapse` refused both. Without it, the map was one command from being destroyed.
 
@@ -514,40 +516,44 @@ that enforces the unexplained-gap gate. Before running it for anything else, eit
 to cover all 60 areas — roughly triple the lookups, and the coverage expectations across the city
 have to be re-derived with it — or accept that it will hand 50 areas to the collapse gate.
 
-Denver's API rate-limits the full crawl hard, and **it throttles rather than refusing**, which is
-what makes it dangerous: lookups come back without routes while a single well-behaved request from
-the same machine keeps answering normally. You cannot detect it by probing — only the aggregate
-shows it. Measured 2026-09-21 at the old `CONCURRENCY` of 8: the run finished in **four minutes
-instead of twenty** and published **3,168 scheduled routes against the 10,451 already on disk**,
-with `Unavailable` going from 2,039 to 20,919. The auditor had dutifully covered every orphaned
-block with pink and the build gate passed reporting **zero unexplained gaps**, because pink *is*
-its answer for a block with no schedule. About 84% of the map would have told drivers no Denver
-schedule was found, on curb Denver sweeps. It was caught by comparing against the previous payload
-and reverted; nothing shipped.
+**The crawl's own 502s were very probably the same crash coordinates, not rate limiting.** This
+paragraph used to open "Denver's API rate-limits the full crawl hard, and it throttles rather than
+refusing", and that claim has not survived. The 2026-09-21 crawl at `CONCURRENCY` 8 returned 1,608
+502s across 8,591 lookups — **18.7%**, against the **18.2%** crash rate measured directly two days
+later — and the refresh that finally ran end to end retried exactly zero times. Read the old story
+with that in mind: what made that crawl publish 3,168 scheduled routes against the 10,451 on disk
+was the grid covering 10 of 60 areas, which is deterministic and documented above, not load.
 
-Four guards in [scripts/build-static-inventory.js](scripts/build-static-inventory.js) now stand in
-the way, and `test/crawl-guards.test.js` covers all of them:
+What did happen is still worth keeping, because the guards it produced are what saved the map: the
+auditor covered every orphaned block with pink, the build gate passed reporting **zero unexplained
+gaps** — pink *is* its answer for a block with no schedule — and about 84% of the map would have
+told drivers no Denver schedule was found on curb Denver sweeps. `assertNoCoverageCollapse` refused
+it. Nothing shipped.
 
-- **`CONCURRENCY` is 3**, not 8. Slower, and not seen to trip the limit.
-- **Retries with jittered exponential backoff** on the answers that mean "not now" — a thrown
-  request, 408, 429, 5xx. A 400 is *not* retried: it is Denver answering definitively, which is
-  what its address endpoint has done for every address since before 2026-08-22.
-- **`fetchWithRetry` distinguishes an answer from a failure.** The old `runPool` collapsed both
-  into `null`, so a throttled lookup was indistinguishable from "the city sweeps nothing here" —
-  that single line is why four fifths of the city could go missing without one error surfacing.
-  A run that exceeds `MAX_FAILURE_RATE` after `FAILURE_SAMPLE_SIZE` lookups now **aborts before
-  writing anything**.
-- **`assertNoCoverageCollapse` is the last line**, and the one that would have caught this on its
-  own. It runs inside `writeInventoryArtifacts`, so `rebuild:offline` gets it too, and refuses to
-  publish when routes carrying a real schedule fall more than `MAX_COVERAGE_DROP` below what is
-  already on disk. It compares against the published payload rather than any absolute number,
+Four guards in [scripts/build-static-inventory.js](scripts/build-static-inventory.js), covered by
+`test/crawl-guards.test.js`:
+
+- **`CONCURRENCY` is 3**, not 8. There is no measured reason to believe 8 was too fast; 3 is simply
+  considerate to a small city service, and the crawl is not in a hurry.
+- **Retries with jittered exponential backoff** on answers that mean "not now" — a thrown request,
+  408, 429, 5xx. A 400 is *not* retried: Denver's address endpoint has answered 400 for every
+  address since before 2026-08-22. Neither is the null-reference crash, which `isUpstreamCrashBody`
+  recognises by body and treats as a definitive answer.
+- **`fetchWithRetry` distinguishes an answer from a failure.** The old `runPool` collapsed both into
+  `null`, so a failed lookup was indistinguishable from "the city sweeps nothing here" — that single
+  line is why four fifths of the city could go missing without one error surfacing. A run past
+  `MAX_FAILURE_RATE` after `FAILURE_SAMPLE_SIZE` lookups aborts before writing anything. **Treat
+  that abort as a question, not an answer**: it fired three times on crash coordinates before
+  anyone checked what was actually failing.
+- **`assertNoCoverageCollapse` is the last line**, and the one that would have caught 2026-09-21 on
+  its own. It runs inside `writeInventoryArtifacts`, so `rebuild:offline` gets it too, and refuses
+  to publish when routes carrying a real schedule fall more than `MAX_COVERAGE_DROP` below what is
+  already on disk. It compares against the published payload rather than an absolute number,
   because that number grows as the city is mapped. Denver does not retire a third of its routes
-  between two crawls. Set `ALLOW_COVERAGE_DROP=1` for a drop that is genuinely correct.
+  between two crawls. `ALLOW_COVERAGE_DROP=1` overrides it deliberately.
 
 `runPool` takes an options object overriding each limit, which is how the tests exercise the abort
-in milliseconds instead of minutes, and how a crawl can be slowed further without editing the file.
-
-**Being throttled once means waiting, not retrying.** Come back in hours, not minutes.
+in milliseconds instead of minutes.
 
 **The published payload has a shelf life of about two months, and nothing in the app says so.**
 Denver returns a rolling window of upcoming dates rather than a rule you can evaluate forever, so
@@ -573,52 +579,51 @@ last sweeps in November**, with `npm run refresh:schedules` rather than a crawl.
 maintenance; each is the difference between warning people from the published city dates and warning
 them from a projection.
 
-**Plan each refresh as several runs across a day or two, not one sitting.** Denver's API cannot
-sustain a whole-city pass, and it does not fail cleanly — it degrades. Measured 2026-09-21 over
-19,268 routes: the 502 rate climbed round by round, 48, 88, 188, 228, until the abort guard tripped
-at round 9 with 11,216 routes refreshed. That was not bad luck or a busy afternoon. Nothing about a
-later attempt makes round 14 reachable, so a single run finishing is not the shape to plan for.
+**A whole-city refresh finishes in one run, and the three days of prose that used to sit here
+saying otherwise were wrong.** Measured 2026-09-23: 19,159 of 19,268 routes refreshed in fourteen
+rounds and roughly eight thousand lookups, with **0 lookups given up and 0 retried**. Not one
+retry — Denver never once answered "not now". Expect a run of about 80 minutes at the gentle
+default, and expect it to finish.
 
-What makes that routine rather than painful is that every round writes the payload and records
-`data/schedule-refresh-checkpoint.json`, so a run that stops early keeps everything it did and the
-next one resumes from where it stopped. Expect two or three runs, a few hours apart. Signs you are
-pushing too hard are in the per-round output: a climbing 502 count and a growing "gave up" number
-mean stop and come back later, not lower the concurrency and carry on. The checkpoint is ignored
-once it is more than 36 hours old, which also sets the outer bound on how long a refresh should be
-allowed to straggle — past that, routes refreshed on day one are themselves going stale.
+**What was really stopping it: Denver's lookup permanently crashes on some coordinates.** It answers
+HTTP 500 with `" Object reference not set to an instance of an object."` — the null-reference defect
+recorded under **Known issues** for North Tennyson since 2026-08-24, which turns out to be scattered
+across the city rather than confined to one street. `server.js` wraps any upstream failure as a 502,
+`isRetryableStatus` treats 5xx as "not now", so each dead coordinate burned four attempts, and the
+abort guard counted the exhausted retries as a 20% failure rate and stopped the run.
 
-Being throttled is not damage. The payload only ever gains fresher dates, the route count is
-asserted unchanged before every write, and a route Denver declines keeps the dates it had.
+The tell was there twice and got explained away twice: two runs aborted with **identical** numbers —
+31 gave up, 93 retried, 124 502s — at concurrency 3 and at concurrency 1, twenty-one hours apart.
+Identical counts across different load mean load was never the variable, which is the same reasoning
+that cracked the crawl-grid problem two days earlier. Proved by re-asking 12 failing coordinates
+three times each with no other traffic: all 12 failed every time.
 
-**A light probe will tell you Denver is fine when it is not, so do not gate a run on one.** Tried
-2026-09-22: a 90-point probe answered 89/90 with one 502, identical to the reading taken before a
-run that went on to complete eight rounds — and the real run that followed it aborted on its *first*
-round, 31 lookups given up against 124 502s, twice the failure rate of that earlier first round.
-Ninety requests over fifteen seconds do not exercise a limit that keys on sustained volume; they
-only prove the service is reachable.
+`isUpstreamCrashBody` now matches that exact signature. Such a lookup is Denver answering
+definitively, like the 400 from its address endpoint — not retried, not counted against the failure
+rate, recorded as unreachable in the checkpoint so no later round spends another request on it, and
+printed as its own line. A genuinely struggling service still matches none of that and is still
+retried.
 
-The abort guard is the better instrument, because it is the real workload and it fails safely: a
-throttled attempt costs about 150 lookups and two minutes, writes nothing, and leaves the payload,
-the version and the checkpoint untouched. **So do not probe — wait, then just run it.** An abort is
-the answer.
+**104 routes, 0.5%, cannot be refreshed at all.** Their coordinates crash Denver and always will.
+They keep the dates they have and fall back to rule-text projection like any route past the window.
+That is the honest floor on this job; do not chase it.
 
-**Recovery takes about a day, not a few hours.** 4.6 hours of quiet was not enough on 2026-09-22.
-Both stretches that did get through followed roughly a full day of no traffic.
+**So do not plan around throttling, do not wait a day between attempts, and do not probe first.**
+All three were invented to explain the crash coordinates. What survives of that reasoning is only
+this: Denver returned **zero 429s across 38,461 responses**, so there is no evidence of a rate
+limiter — but there is now no evidence of an overloaded backend either, because a run that is being
+overloaded does not retry zero times.
 
-**Denver never answers 429, and that changes which lever matters.** Across 38,461 responses over
-2026-09-21 and 22 it returned 34,645 200s and 3,816 502s and **not one rate-limit status**. This is
-not a limiter counting requests, it is a small city service falling over under concurrent load —
-which is why it degrades gradually rather than switching off at a threshold, why recovery is slow
-and vague rather than a fixed cooldown, and why a 90-request probe sails through while 1,200 does
-not. Against a rate limiter, going slower often just fails more slowly; against an overloaded
-backend it is the fix.
+The checkpoint and the per-round write are still worth having, for a dropped connection or a laptop
+that sleeps, not because a run is expected to fail. The gentle default — **one request at a time,
+600 per round, 30s between rounds** — is also kept: it cost nothing here, it is considerate to a
+small city service, and an 80-minute background job has no reason to hurry. Override with
+`--concurrency=`, `--round-size=` and `--round-pause=` (seconds); a malformed value falls back to
+the default, which `test/refresh-schedules.test.js` asserts.
 
-So `refresh:schedules` runs deliberately gentler than the crawler whose `runPool` it borrows:
-**one request at a time, 600 per round, 30s between rounds.** That is slow on purpose — it is a
-background job with all day, and the two runs that tried to hurry ended with nothing written on the
-second. Override per run with `--concurrency=`, `--round-size=` and `--round-pause=` (seconds);
-a malformed value falls back to the gentle default rather than silently restoring a heavier one,
-which `test/refresh-schedules.test.js` asserts.
+**If a run ever does abort, read the per-round line before assuming load.** `gave up` and `retried`
+staying at zero while `crashed Denver` climbs is the healthy shape. A real service problem would
+show retries, and nothing in this project has ever produced one.
 
 
 `rebuild:offline` is deliberately narrow: it reclassifies, and withdraws a pink fallback when its
@@ -1692,9 +1697,15 @@ Do not take a payment before the blueprint is actually applied.
 
 ## Known issues and historical quirks
 
-- **Denver's route lookup crashes on North Tennyson Street.** Coordinates anywhere along Tennyson
-  between W 46th and W 52nd return HTTP 500 with " Object reference not set to an instance of an
-  object." from Denver, while the service is otherwise healthy — one street east at -105.0400 returns
+- **Denver's route lookup crashes on specific coordinates all over the city, not just Tennyson.**
+  They return HTTP 500 with " Object reference not set to an instance of an object." while the
+  service is otherwise healthy. Measured 2026-09-23 over a full refresh: **104 of 19,268 routes,
+  0.5%**, cannot be looked up at their own midpoint — Lawrence, W 11th, W Byron, N Decatur,
+  N Josephine and E 42nd among them — and 12 of 12 sampled failures failed all three times they
+  were re-asked with no other traffic. `server.js` wraps them as 502s, which is why they read as a
+  struggling service for three days; `isUpstreamCrashBody` now recognises the signature so they are
+  neither retried nor counted as failures. The original case is still the clearest: coordinates
+  anywhere along Tennyson between W 46th and W 52nd fail, while one street east at -105.0400 returns
   four routes, all scheduled. This is an upstream null-reference defect, not an absence of sweeping,
   so no amount of re-crawling will resolve those blocks and the curated client-side pink in
   `ensureUnavailableTennysonCoverage` is the coverage. Confirmed 2026-08-24, and it is why the pink
