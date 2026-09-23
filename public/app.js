@@ -2361,6 +2361,31 @@ function areRemindersPaywalled() {
   return Boolean(subscription && subscription.known && !subscription.entitled);
 }
 
+// The website's reminders retire once the iPhone app is live (decided 2026-09-23), so the free
+// website is not a way around the subscription. One value on the city record, which server.js reads
+// too, so the page and the dispatcher agree about when. Null until it is set, which leaves every
+// branch below exactly as it was. Never applies inside the app, whose reminders are the product.
+function getWebReminderRetirement(now = new Date()) {
+  if (canUseNativeReminders() || !ACTIVE_CITY.webRemindersEndAt) {
+    return null;
+  }
+
+  const endsAt = new Date(ACTIVE_CITY.webRemindersEndAt);
+  if (Number.isNaN(endsAt.getTime())) {
+    return null;
+  }
+
+  return { endsAt, ended: now.getTime() >= endsAt.getTime() };
+}
+
+function haveWebRemindersEnded() {
+  return Boolean(getWebReminderRetirement()?.ended);
+}
+
+function openAppStoreListing() {
+  window.open(ACTIVE_CITY.appStoreUrl, "_blank", "noopener");
+}
+
 // Resolves to the subscription as it stands once the sheet closes, bought from or not.
 async function openReminderPaywall() {
   const bridge = getNativeReminderBridge();
@@ -2399,9 +2424,28 @@ function renderSubscriptionBanner() {
 
   const subscription = getNativeSubscription();
   const hasReminders = getRemindedSegmentIds().size > 0 || Boolean(state.parkedCar);
+  const retirement = getWebReminderRetirement();
   let banner = null;
 
-  if (subscription && subscription.known && hasReminders) {
+  if (retirement && hasReminders) {
+    banner = retirement.ended
+      ? {
+          urgent: false,
+          kicker: "Reminders moved",
+          title: "Sweep reminders are in the iPhone app now",
+          body: "This website no longer sends reminders. Your curbs are still saved here, and the map and every curb's schedule stay free.",
+          label: "Get the iPhone app",
+          action: openAppStoreListing
+        }
+      : {
+          urgent: false,
+          kicker: "Reminders are moving",
+          title: `Reminders on this website end ${formatSubscriptionDate(retirement.endsAt.toISOString())}`,
+          body: "Sweep reminders are moving to the Curb Alerts iPhone app. Until then they keep working here, and the map stays free on this website.",
+          label: "Get the iPhone app",
+          action: openAppStoreListing
+        };
+  } else if (subscription && subscription.known && hasReminders) {
     const endDay = formatSubscriptionDate(subscription.endsAt);
 
     if (subscription.status === "billingIssue") {
@@ -6055,10 +6099,14 @@ function renderCurbSheet() {
   curbSheetAction.textContent = !copy.canRemind
     ? "Reminders unavailable for this curb"
     : selected
-      ? areRemindersPaywalled()
-        ? "Reminder paused — tap to remove"
-        : "Reminder on — tap to remove"
-      : "Remind me about this curb";
+      ? haveWebRemindersEnded()
+        ? "Saved curb — tap to remove"
+        : areRemindersPaywalled()
+          ? "Reminder paused — tap to remove"
+          : "Reminder on — tap to remove"
+      : haveWebRemindersEnded()
+        ? "Get reminders in the iPhone app"
+        : "Remind me about this curb";
   curbSheetAction.classList.toggle("is-on", copy.canRemind && selected);
   renderCurbSheetStatus(segment, selected);
 
@@ -6119,6 +6167,11 @@ function toggleCurbReminder(segmentId) {
   if (turningOn) {
     if (segment.schedule?.remindersAllowed === false) {
       lookupStatus.textContent = "Streets not maintained by Denver have no Denver sweeping schedule and cannot be saved for sweeping reminders.";
+      return;
+    }
+    // After the website's reminders end, turning one on here would save a curb that reminds nobody.
+    if (haveWebRemindersEnded()) {
+      openAppStoreListing();
       return;
     }
     // In the app the reminder is what is paid for, so turning one on without a subscription opens
@@ -7244,7 +7297,7 @@ async function registerPushSubscriptionWithServer(subscription) {
 }
 
 async function syncReminderPlanToServer(options = {}) {
-  if (!window.fetch || !isSecureHost() || !canUseWebPush() || !state.pushConfig.enabled || !state.pushSubscription?.endpoint) {
+  if (haveWebRemindersEnded() || !window.fetch || !isSecureHost() || !canUseWebPush() || !state.pushConfig.enabled || !state.pushSubscription?.endpoint) {
     state.reminderPlanSyncPending = false;
     state.reminderPlanSyncError = "";
     return;
@@ -7417,7 +7470,7 @@ function clearNotificationTimers() {
 function scheduleBrowserNotifications() {
   clearNotificationTimers();
 
-  if (hasRemotePushReady()) {
+  if (hasRemotePushReady() || haveWebRemindersEnded()) {
     return;
   }
 
@@ -7502,7 +7555,7 @@ function renderPushPrimer() {
   const dismissed = loadJson(PUSH_PRIMER_DISMISSED_KEY, false) === true;
   const needsInstall = requiresHomeScreenInstallForPush() && !isStandaloneDisplay();
 
-  if (!hasSavedSet || dismissed || pushIsConnected() || (!needsInstall && !canStillEnablePush())) {
+  if (!hasSavedSet || dismissed || haveWebRemindersEnded() || pushIsConnected() || (!needsInstall && !canStillEnablePush())) {
     pushPrimer.hidden = true;
     return;
   }
@@ -7570,6 +7623,20 @@ function renderNotificationStatus() {
     enableNotificationsButton.classList.toggle("notifications-on", nativePermission === "granted");
     enableNotificationsButton.disabled = nativePermission !== "default";
     sendTestButton.disabled = !(canShowNativeTest && nativePermission === "granted");
+    scheduleTestButton.disabled = true;
+    if (installHelpButton) {
+      installHelpButton.hidden = true;
+    }
+    return;
+  }
+
+  if (haveWebRemindersEnded()) {
+    notificationStatus.textContent =
+      "Sweep reminders have moved to the Curb Alerts iPhone app. This website still shows every curb's schedule.";
+    enableNotificationsButton.textContent = "Get the iPhone app";
+    enableNotificationsButton.classList.remove("notifications-on");
+    enableNotificationsButton.disabled = false;
+    sendTestButton.disabled = true;
     scheduleTestButton.disabled = true;
     if (installHelpButton) {
       installHelpButton.hidden = true;
@@ -7673,6 +7740,11 @@ function renderNotificationStatus() {
 }
 
 async function requestBrowserNotifications() {
+  if (haveWebRemindersEnded()) {
+    openAppStoreListing();
+    return;
+  }
+
   const nativeBridge = getNativeReminderBridge();
   if (nativeBridge) {
     try {
@@ -8093,6 +8165,12 @@ function setReadinessItem(item, isReady, readyText, waitingText) {
 function renderReminderReadiness() {
   if (!readinessCount) {
     return;
+  }
+
+  // A checklist for getting reminders working has nothing to check once the website sends none.
+  const readinessSection = readinessCount.closest(".readiness-section");
+  if (readinessSection) {
+    readinessSection.hidden = haveWebRemindersEnded();
   }
 
   const remindedCount = getRemindedSegmentIds().size;

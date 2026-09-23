@@ -1451,8 +1451,22 @@ Restore Purchases. Nothing is paywalled or bannered until StoreKit has answered 
 **Do not upload a build until the two products exist in App Store Connect.** Launched outside
 Xcode the paywall asks the real store, and until then it says *Subscription Unavailable* — so a
 tester would be told their reminders are off with no way to turn them back on. Sandbox purchases
-on TestFlight are free once the products exist. The website goes map only when the iOS app goes
-live, as decided above, and that is still to do.
+on TestFlight are free once the products exist.
+
+**The website goes map only through one switch: `webRemindersEndAt` on the Denver record in
+`public/cities.js`** (built 2026-09-23, still `null`). The page and `server.js` both read it, so they
+cannot disagree about when. `null` leaves the website exactly as it was, which is what keeps
+`develop` releasable before launch. On launch day set it to a full timestamp with its offset about
+two weeks out, and ship it like any asset change (bump `cities.js`'s `?v=`, which must still end in
+`-inv<N>`). Before that moment reminders keep working; every web device with reminders coming gets
+one push saying when they end (`lib/web-reminders.js`, stamped `webRetirementWarnedAt` on its plan)
+and a banner on the page. At that moment each gets one "stopped" push, the dispatcher sends no more
+web reminders, the push and plan POSTs answer 410, and the page swaps its reminder buttons for
+**Get the iPhone app** (`appStoreUrl`, Apple ID 6812789158) and hides the readiness checklist. The
+map, curb schedules, saved curbs, accounts and the parking pin all stay. An unparseable value
+counts as unset, so a typo cannot switch everyone's reminders off, and the app ignores the value
+entirely. `test/web-reminders.test.js` covers the notices; Android users lose reminders with this,
+which was accepted — see **Android, later**.
 
 Prices are never written into the app or the page — they come from `Product.displayPrice`.
 `ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.

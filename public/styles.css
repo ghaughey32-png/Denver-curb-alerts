@@ -2830,6 +2830,12 @@ a.ghost-button {
   color: #b0392b;
 }
 
+/* Hidden once the website's reminders end. .panel-step-section sets no display today, but a
+   guard costs nothing and is the one AGENTS.md asks for on anything the JS toggles. */
+.readiness-section[hidden] {
+  display: none;
+}
+
 /* .notification-status-block sets display, which beats the UA [hidden] rule. */
 .subscription-row[hidden] {
   display: none;

@@ -60,6 +60,7 @@ function loadCurbReminders({ curbs, savedSets = [], storage = {} }) {
     saveJson: (key, value) => store.set(key, JSON.stringify(value)),
     // A browser: no subscription, so nothing is paywalled. test/subscription-ui.test.js covers the app.
     areRemindersPaywalled: () => false,
+    haveWebRemindersEnded: () => false,
     removeJson: (key) => store.delete(key),
     buildDefaultReminders: (reminders) => ({ ...reminders }),
     renderAll: () => {},

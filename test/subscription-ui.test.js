@@ -32,10 +32,12 @@ function fakeElement() {
   return { hidden: false, textContent: "", onclick: null, classList: { toggles: {}, toggle(name, on) { this.toggles[name] = on; } } };
 }
 
-function loadBanner({ bridge, remindedCount = 1, parkedCar = null }) {
+function loadBanner({ bridge, remindedCount = 1, parkedCar = null, webRemindersEndAt = null }) {
   const lines = APP_SOURCE.split("\n");
   const source = [
     "getNativeReminderBridge",
+    "canUseNativeReminders",
+    "getWebReminderRetirement",
     "getNativeSubscription",
     "areRemindersPaywalled",
     "formatSubscriptionDate",
@@ -47,6 +49,8 @@ function loadBanner({ bridge, remindedCount = 1, parkedCar = null }) {
     state: { parkedCar },
     getRemindedSegmentIds: () => new Set(Array.from({ length: remindedCount }, (_, index) => `curb-${index}`)),
     openReminderPaywall: () => {},
+    openAppStoreListing: () => {},
+    ACTIVE_CITY: { webRemindersEndAt, appStoreUrl: "https://apps.apple.com/app/id6812789158" },
     subscriptionBanner: fakeElement(),
     subscriptionBannerKicker: fakeElement(),
     subscriptionBannerTitle: fakeElement(),
@@ -134,4 +138,23 @@ test("turning a reminder on without a subscription opens the plans instead of sa
 test("the subscription row's [hidden] guard exists, because its class sets display", () => {
   const css = fs.readFileSync(path.join(__dirname, "..", "public", "styles.css"), "utf8");
   assert.match(css, /\.subscription-row\[hidden\]\s*\{\s*display:\s*none;/);
+});
+
+test("once the website's reminders are retiring, a browser with reminders is told when and pointed at the app", () => {
+  const upcoming = loadBanner({ bridge: undefined, webRemindersEndAt: "2099-10-15T00:00:00-06:00" });
+  assert.equal(upcoming.subscriptionBanner.hidden, false);
+  assert.match(upcoming.subscriptionBannerTitle.textContent, /^Reminders on this website end /);
+  assert.equal(upcoming.subscriptionBannerAction.textContent, "Get the iPhone app");
+
+  const ended = loadBanner({ bridge: undefined, webRemindersEndAt: "2020-10-15T00:00:00-06:00" });
+  assert.equal(ended.subscriptionBannerTitle.textContent, "Sweep reminders are in the iPhone app now");
+});
+
+test("the iPhone app ignores the website's end date: its reminders are the product", () => {
+  const sandbox = loadBanner({
+    bridge: shellBridge({ known: true, status: "active", entitled: true, willRenew: true, endsAt: LATER }),
+    webRemindersEndAt: "2020-10-15T00:00:00-06:00"
+  });
+  assert.equal(sandbox.getWebReminderRetirement(), null);
+  assert.equal(sandbox.subscriptionBanner.hidden, true);
 });

@@ -47,6 +47,15 @@
     // January, February and March sweep that never happens. Only the projection is held to this --
     // a date Denver itself publishes is shown whatever month it falls in.
     sweepSeason: { firstMonth: 4, lastMonth: 11 },
+    // When the website's sweep reminders end, as a full timestamp with its offset, or null while they
+    // run as they always have. Decided 2026-09-23: the website becomes map only once the iPhone app is
+    // live, so that it is not a free way around the subscription. Set this on launch day to about two
+    // weeks out: every device with reminders is warned at once and again when the moment arrives
+    // (lib/web-reminders.js), and the page shows a banner until then. The page and server.js both read
+    // this one value. The iPhone app ignores it; its reminders are the product.
+    webRemindersEndAt: null,
+    // The Curb Alerts listing, Apple ID 6812789158. What the website offers in place of reminders.
+    appStoreUrl: "https://apps.apple.com/app/id6812789158",
     // The published inventory, about 12 MB. Its "?v=" is rewritten by
     // scripts/lib/asset-versions.js on every pipeline bump and has to keep agreeing with the copy
     // in public/index.html and public/sw.js; test/static-cache-version.test.js reads this literal.

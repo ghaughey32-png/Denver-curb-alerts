@@ -9,6 +9,8 @@ const accounts = require("./lib/accounts.js");
 // Named `mailer`, not `email`: handleAccounts and handleSessions both bind `email` to an address,
 // which shadowed the module and made every call on it a TypeError inside those handlers.
 const mailer = require("./lib/email.js");
+const webReminders = require("./lib/web-reminders.js");
+const cityRegistry = require("./public/cities.js");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -1133,6 +1135,10 @@ async function handlePushSubscriptions(request, response, url) {
   }
 
   if (request.method === "POST") {
+    if (refuseEndedWebReminders(response)) {
+      return;
+    }
+
     try {
       const body = JSON.parse(await readRequestBody(request));
       const subscription = body.subscription;
@@ -1218,6 +1224,10 @@ async function handleReminderPlans(request, response, url) {
   }
 
   if (request.method === "POST") {
+    if (refuseEndedWebReminders(response)) {
+      return;
+    }
+
     try {
       const body = JSON.parse(await readRequestBody(request));
       const endpoint = String(body.endpoint || "");
@@ -1944,6 +1954,10 @@ async function handleScheduledPushTest(request, response) {
     return;
   }
 
+  if (refuseEndedWebReminders(response)) {
+    return;
+  }
+
   const config = getPushConfig();
   if (!config.enabled) {
     sendJson(response, 503, {
@@ -2016,6 +2030,10 @@ async function handlePushTest(request, response) {
     return;
   }
 
+  if (refuseEndedWebReminders(response)) {
+    return;
+  }
+
   const config = getPushConfig();
   if (!config.enabled) {
     sendJson(response, 503, {
@@ -2060,6 +2078,22 @@ async function handlePushTest(request, response) {
   }
 }
 
+// The website's reminders retire once the iPhone app is live; see lib/web-reminders.js. Read from the
+// city record the page also reads, so the two cannot disagree about when.
+function getWebReminderRetirement(now = new Date()) {
+  return webReminders.getWebReminderRetirement(cityRegistry.getActiveCity().webRemindersEndAt, now);
+}
+
+// After the end date nothing new signs up for web reminders. Answers 410 and returns true.
+function refuseEndedWebReminders(response) {
+  if (!getWebReminderRetirement()?.ended) {
+    return false;
+  }
+
+  sendJson(response, 410, { error: webReminders.WEB_REMINDERS_ENDED_MESSAGE });
+  return true;
+}
+
 async function dispatchDueReminderPlans() {
   const config = getPushConfig();
   if (!config.enabled) {
@@ -2069,11 +2103,33 @@ async function dispatchDueReminderPlans() {
   const [plans, subscriptions] = await Promise.all([readReminderPlans(), readPushSubscriptions()]);
   const subscriptionsByEndpoint = new Map(subscriptions.map((subscription) => [subscription.endpoint, subscription]));
   const now = Date.now();
+  const retirement = getWebReminderRetirement(new Date(now));
   let changed = false;
 
   for (const plan of plans) {
     const subscription = subscriptionsByEndpoint.get(plan.endpoint);
     if (!subscription) {
+      continue;
+    }
+
+    // Reminders never stop silently, here as in the app: one notice when the end is set, one when
+    // it arrives. A failed send is retried on the next tick, because the stamp is only written on
+    // success.
+    const notice = webReminders.planRetirementNotice(plan, retirement, new Date(now));
+    if (notice) {
+      try {
+        await config.webPush.sendNotification(
+          { endpoint: subscription.endpoint, keys: subscription.keys },
+          JSON.stringify(notice.payload)
+        );
+        plan[notice.field] = new Date(now).toISOString();
+        changed = true;
+      } catch (error) {
+        console.error(`Unable to deliver the web reminder retirement notice: ${error.message}`);
+      }
+    }
+
+    if (retirement?.ended) {
       continue;
     }
 
