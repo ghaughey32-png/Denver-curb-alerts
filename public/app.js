@@ -1561,6 +1561,7 @@ const ACTIVE_CITY = window.CityRegistry.getActiveCity();
 const CITY_MAP_BOUNDS = ACTIVE_CITY.bounds;
 const CITY_NAME_PATTERN = new RegExp(`\\b${ACTIVE_CITY.name}\\b`, "i");
 const STATIC_ROUTE_INVENTORY_URL = ACTIVE_CITY.inventoryUrl;
+const CITY_SWEEP_SEASON = ACTIVE_CITY.sweepSeason || null;
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const MOVED_SWEEPS_KEY = "denver-curb-alerts-moved-sweeps";
@@ -6218,6 +6219,12 @@ function getRuleBasedSweepDates(segment, monthCount = 8) {
 
   for (let offset = 0; offset < monthCount; offset += 1) {
     const targetMonth = new Date(startMonth.getFullYear(), startMonth.getMonth() + offset, 1);
+    // A rule projected into a month the city does not sweep is a reminder for nothing, and a run
+    // of those every winter teaches the driver to ignore the ones in April that matter.
+    if (!isInSweepSeason(targetMonth)) {
+      continue;
+    }
+
     const sweepDate = getMonthlyOrdinalWeekdayDate(
       targetMonth.getFullYear(),
       targetMonth.getMonth(),
@@ -6231,6 +6238,17 @@ function getRuleBasedSweepDates(segment, monthCount = 8) {
   }
 
   return dates;
+}
+
+// With no season on the city record every month counts, which is what the projection did before
+// the record carried one.
+function isInSweepSeason(date) {
+  if (!CITY_SWEEP_SEASON) {
+    return true;
+  }
+
+  const month = date.getMonth() + 1;
+  return month >= CITY_SWEEP_SEASON.firstMonth && month <= CITY_SWEEP_SEASON.lastMonth;
 }
 
 function parseMonthlySweepRule(ruleText) {

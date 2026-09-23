@@ -1,24 +1,24 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v204",
+    "cacheName": "curb-alerts-shell-v205",
     "files": {
-      "index.html": "79e1b167e27f3544397495d5211c27ff6c52156d7dd317e5aa8ba98cd43edbc4",
-      "sw.js": "cf362eb3b1cc0825378094c6b9c664d2962eb8325d347ca55383e7df589feac0"
+      "index.html": "bb736a3f7de792f07478479cb979444dcbf2b73939082510f9449f0f571820f3",
+      "sw.js": "56a919bfadcc81919f5ef0aabfa15cb0ede87581bb9cc26fdb6e6542b17f84f5"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260921-osm-tile-host",
-      "sha256": "f1d53a17180e70f7c2c4e82b9164d064f03b5c6414d33840f108883f6eeb5f89"
+      "version": "20260923-sweep-season",
+      "sha256": "4313be6a440c37d11c08bf99523ac7a0f91f4ea133afd3c028cb14c49bd05359"
     },
     "apple-touch-icon.png": {
       "version": "20260916-two-sides",
       "sha256": "c91650dc433935215c41dd1f99481df859ebbf0134def27b98c799f1a78f640b"
     },
     "cities.js": {
-      "version": "20260921-city-registry-inv98",
-      "sha256": "78f0a38f07a9db82cf9213fdfe1f81363188d91a0b07d393181e086dc1de7ee2"
+      "version": "20260923-sweep-season-inv98",
+      "sha256": "8fabd20f9df6ace068f9fdfe5f646adc9c140feb9cd7dfe02403a94123ab6a2b"
     },
     "curb-geometry.js": {
       "version": "20260813b",

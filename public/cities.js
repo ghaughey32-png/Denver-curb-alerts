@@ -40,6 +40,13 @@
       east: -104.5995
     },
     minZoom: 11,
+    // The months the city sweeps, 1 = January, inclusive at both ends. Denver sweeps April through
+    // November. The client projects a monthly rule ("the 4th Tuesday of the month") forward when
+    // the published dates run out, and without this it projected straight through the winter: every
+    // saved curb would have sent its full run of reminders, evening and morning, for a December,
+    // January, February and March sweep that never happens. Only the projection is held to this --
+    // a date Denver itself publishes is shown whatever month it falls in.
+    sweepSeason: { firstMonth: 4, lastMonth: 11 },
     // The published inventory, about 12 MB. Its "?v=" is rewritten by
     // scripts/lib/asset-versions.js on every pipeline bump and has to keep agreeing with the copy
     // in public/index.html and public/sw.js; test/static-cache-version.test.js reads this literal.
