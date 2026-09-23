@@ -39,8 +39,9 @@ enum AccessNoticePlanner {
     /// first thing read on the lock screen. Every notice here gets it: each one is about reminders
     /// being off or about to stop.
     static let alarm = "😱 "
-    /// A cancelled plan gets crossed-out eyes rather than the scream: the driver ended it themselves.
-    static let cancelledAlarm = "😵 "
+    /// A cancelled plan gets the skull and crossbones rather than the scream: the driver ended it
+    /// themselves.
+    static let cancelledAlarm = "☠️ "
     /// Warnings go out mid-morning, not at whatever hour a renewal happens to fall.
     static let warningHour = 10
 
