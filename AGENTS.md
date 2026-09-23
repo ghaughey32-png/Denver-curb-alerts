@@ -977,8 +977,8 @@ run StoreKit, so web-push reminders either stay free or need Stripe back (see ab
 
 **Decided 2026-09-23: the website becomes map only, and the paywall ships in the first App Store
 version.** Web reminders are switched off rather than sold, so the free website is not a way around
-the subscription; do it when the iOS app goes live, and warn any browser that holds reminders before
-they stop, per the rule above. Paywalling from 1.0 means no population of free iOS users ever has
+the subscription. Done the same day, with no warnings, because nobody relied on the website for
+reminders; see the map-only paragraph under **The iOS project**. Paywalling from 1.0 means no population of free iOS users ever has
 to be moved onto a paid plan. Nothing inside the app may point at the website as a free
 alternative; Apple rejects steering. The plan is StoreKit 2 with a yearly product at $14.99 carrying
 a 14-day free trial and a monthly at $2.99 with none, gated on the device in
@@ -1453,20 +1453,17 @@ Xcode the paywall asks the real store, and until then it says *Subscription Unav
 tester would be told their reminders are off with no way to turn them back on. Sandbox purchases
 on TestFlight are free once the products exist.
 
-**The website goes map only through one switch: `webRemindersEndAt` on the Denver record in
-`public/cities.js`** (built 2026-09-23, still `null`). The page and `server.js` both read it, so they
-cannot disagree about when. `null` leaves the website exactly as it was, which is what keeps
-`develop` releasable before launch. On launch day set it to a full timestamp with its offset about
-two weeks out, and ship it like any asset change (bump `cities.js`'s `?v=`, which must still end in
-`-inv<N>`). Before that moment reminders keep working; every web device with reminders coming gets
-one push saying when they end (`lib/web-reminders.js`, stamped `webRetirementWarnedAt` on its plan)
-and a banner on the page. At that moment each gets one "stopped" push, the dispatcher sends no more
-web reminders, the push and plan POSTs answer 410, and the page swaps its reminder buttons for
-**Get the iPhone app** (`appStoreUrl`, Apple ID 6812789158) and hides the readiness checklist. The
-map, curb schedules, saved curbs, accounts and the parking pin all stay. An unparseable value
-counts as unset, so a typo cannot switch everyone's reminders off, and the app ignores the value
-entirely. `test/web-reminders.test.js` covers the notices; Android users lose reminders with this,
-which was accepted — see **Android, later**.
+**The website is map only, since 2026-09-23: `webReminders: false` on the Denver record in
+`public/cities.js`.** No warnings or transition were needed, because nobody relied on the website
+for reminders. The page and `server.js` both read it: the dispatcher sends no web push, the push and
+plan POSTs and both test sends answer 410, and the page swaps its reminder buttons for the App Store
+listing and hides the readiness checklist and push prompt. The map, schedules, saved curbs, accounts
+and the parking pin stay. The app ignores the setting. `appStoreUrl` beside it is null until Apple
+approves the app, and the website's button reads *Reminders are coming in the iPhone app*, disabled,
+until then — **set `appStoreUrl` on launch day** (bump `cities.js`'s `?v=`, which must end in
+`-inv<N>`). Android users get no reminders with this, which was accepted; see **Android, later**.
+The landing line "remind you before it happens" is shared with the app, where it is true, and was
+left alone.
 
 Prices are never written into the app or the page — they come from `Product.displayPrice`.
 `ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.

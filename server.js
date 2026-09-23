@@ -9,7 +9,6 @@ const accounts = require("./lib/accounts.js");
 // Named `mailer`, not `email`: handleAccounts and handleSessions both bind `email` to an address,
 // which shadowed the module and made every call on it a TypeError inside those handlers.
 const mailer = require("./lib/email.js");
-const webReminders = require("./lib/web-reminders.js");
 const cityRegistry = require("./public/cities.js");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -1135,7 +1134,7 @@ async function handlePushSubscriptions(request, response, url) {
   }
 
   if (request.method === "POST") {
-    if (refuseEndedWebReminders(response)) {
+    if (refuseWebReminders(response)) {
       return;
     }
 
@@ -1224,7 +1223,7 @@ async function handleReminderPlans(request, response, url) {
   }
 
   if (request.method === "POST") {
-    if (refuseEndedWebReminders(response)) {
+    if (refuseWebReminders(response)) {
       return;
     }
 
@@ -1954,7 +1953,7 @@ async function handleScheduledPushTest(request, response) {
     return;
   }
 
-  if (refuseEndedWebReminders(response)) {
+  if (refuseWebReminders(response)) {
     return;
   }
 
@@ -2030,7 +2029,7 @@ async function handlePushTest(request, response) {
     return;
   }
 
-  if (refuseEndedWebReminders(response)) {
+  if (refuseWebReminders(response)) {
     return;
   }
 
@@ -2078,58 +2077,35 @@ async function handlePushTest(request, response) {
   }
 }
 
-// The website's reminders retire once the iPhone app is live; see lib/web-reminders.js. Read from the
-// city record the page also reads, so the two cannot disagree about when.
-function getWebReminderRetirement(now = new Date()) {
-  return webReminders.getWebReminderRetirement(cityRegistry.getActiveCity().webRemindersEndAt, now);
+// The website sends no sweep reminders: they are what the iPhone app sells (public/cities.js,
+// webReminders). Signing a browser up for them answers 410, and the dispatcher sends nothing.
+function areWebRemindersOff() {
+  return cityRegistry.getActiveCity().webReminders === false;
 }
 
-// After the end date nothing new signs up for web reminders. Answers 410 and returns true.
-function refuseEndedWebReminders(response) {
-  if (!getWebReminderRetirement()?.ended) {
+function refuseWebReminders(response) {
+  if (!areWebRemindersOff()) {
     return false;
   }
 
-  sendJson(response, 410, { error: webReminders.WEB_REMINDERS_ENDED_MESSAGE });
+  sendJson(response, 410, { error: "Sweep reminders are in the Curb Alerts iPhone app. The map on this website is still free." });
   return true;
 }
 
 async function dispatchDueReminderPlans() {
   const config = getPushConfig();
-  if (!config.enabled) {
+  if (!config.enabled || areWebRemindersOff()) {
     return;
   }
 
   const [plans, subscriptions] = await Promise.all([readReminderPlans(), readPushSubscriptions()]);
   const subscriptionsByEndpoint = new Map(subscriptions.map((subscription) => [subscription.endpoint, subscription]));
   const now = Date.now();
-  const retirement = getWebReminderRetirement(new Date(now));
   let changed = false;
 
   for (const plan of plans) {
     const subscription = subscriptionsByEndpoint.get(plan.endpoint);
     if (!subscription) {
-      continue;
-    }
-
-    // Reminders never stop silently, here as in the app: one notice when the end is set, one when
-    // it arrives. A failed send is retried on the next tick, because the stamp is only written on
-    // success.
-    const notice = webReminders.planRetirementNotice(plan, retirement, new Date(now));
-    if (notice) {
-      try {
-        await config.webPush.sendNotification(
-          { endpoint: subscription.endpoint, keys: subscription.keys },
-          JSON.stringify(notice.payload)
-        );
-        plan[notice.field] = new Date(now).toISOString();
-        changed = true;
-      } catch (error) {
-        console.error(`Unable to deliver the web reminder retirement notice: ${error.message}`);
-      }
-    }
-
-    if (retirement?.ended) {
       continue;
     }
 

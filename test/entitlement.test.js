@@ -150,24 +150,24 @@ test("an expired entitlement does not lock anyone out of their own library", asy
   });
 });
 
-test("reminders are never gated, because withholding one is how someone gets a ticket", async () => {
-  await withServer(async ({ call, readCollection, writeCollection }) => {
+// Reminders are what the iPhone app sells, and the app gates them on the device (see "The reminders
+// are what gets sold" in AGENTS.md). The website sends none at all, so a browser cannot sign up for
+// them whatever its account says, and no endpoint answers 402 either - there is nothing to pay for
+// on the website.
+test("the website takes no reminder sign-ups: they are in the iPhone app", async () => {
+  await withServer(async ({ call }) => {
     const created = await call("/api/accounts", {
       method: "POST",
       json: { email: "reminders@example.com", password: "sweeping-tuesday-8am" }
     });
 
-    const stored = readCollection("accounts");
-    stored[0].billing = { ...stored[0].billing, status: "canceled", currentPeriodEnd: null };
-    writeCollection("accounts", stored);
-
-    const endpoint = "https://push.example.com/lapsed-device";
+    const endpoint = "https://push.example.com/web-device";
     const registered = await call("/api/push/subscriptions", {
       method: "POST",
       cookie: created.sessionCookie,
       json: { subscription: { endpoint, keys: { p256dh: "key", auth: "auth" } } }
     });
-    assert.ok(registered.status < 400, `registering a device must not be gated, got ${registered.status}`);
+    assert.equal(registered.status, 410);
 
     const plan = await call("/api/reminder-plans", {
       method: "POST",
@@ -178,12 +178,7 @@ test("reminders are never gated, because withholding one is how someone gets a t
         jobs: [{ id: "job-1", title: "Move your car", body: "Sweeping tomorrow", scheduledAt: new Date(Date.now() + 3600000).toISOString() }]
       }
     });
-    assert.ok(plan.status < 400, `scheduling a reminder must not be gated, got ${plan.status}`);
-
-    const readBack = await call(`/api/reminder-plans?endpoint=${encodeURIComponent(endpoint)}`, {
-      cookie: created.sessionCookie
-    });
-    assert.equal(readBack.status, 200);
+    assert.equal(plan.status, 410);
   });
 });
 
