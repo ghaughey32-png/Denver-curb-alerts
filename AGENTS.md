@@ -1412,9 +1412,27 @@ turns them off together, and the widget says *Reminders paused* rather than *No 
 The full job list is never trimmed, so a renewal brings everything straight back without the page.
 "Send test now" is deliberately not gated: seeing a reminder before paying is the pitch.
 
-**Do not upload a build from this point until steps 3 and 4 have landed.** With the gate in and
-nothing else, every TestFlight tester's reminders stop the moment they update, with no warning,
-and the page still says they are on — both breaking the never-stop-silently rule above.
+**The warnings are `AccessNoticePlanner`, scheduled by `reschedule` beside the reminders (step 3,
+2026-09-23).** Local notifications, so they arrive whether or not the app is opened. A failed payment
+warns at once, three days and one day before the grace period ends, and when it does; a cancelled
+plan warns three days and one day before it ends (at once, if less than a day is left) and when it
+does; a refund, or a lapse first seen after the fact, gets the stop notice at once; and reminders set
+up before they needed a subscription get one notice saying so. The stop notice names the next sweep
+the driver will now miss, which is the sentence that makes it blatant. A failed-payment notice opens
+Apple's billing page, a cancelled one Apple's subscription screen.
+
+Three details are load bearing. Nothing is planned while `ReminderAccess.checkedAt` is
+`.distantPast` — StoreKit not having answered yet is not "unsubscribed", and a launch race must not
+tell a paying driver otherwise. Day names are computed as of when each notice fires, not when it is
+planned. And one-off notices are remembered in `sentAccessNotices`, one stop notice per lapse, and
+that memory is cleared whenever the plan is active again, so the next lapse warns afresh. The
+planner is pure and was checked scenario by scenario with `swiftc` against the Shared files; there
+is no Swift test target, so re-run that kind of check if you change it.
+
+**Do not upload a build from this point until step 4 has landed.** The warnings tell a lapsed
+driver to open the app and turn reminders back on, and until the paywall exists there is nothing
+there to do it with — and the page still says reminders are on. The in-app banner half of the
+warnings also lands with step 4, since it is page UI.
 
 Prices are never written into the app or the page — they come from `Product.displayPrice`.
 `ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.

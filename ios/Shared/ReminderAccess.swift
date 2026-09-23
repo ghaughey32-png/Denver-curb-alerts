@@ -67,6 +67,15 @@ struct ReminderAccess: Codable, Equatable {
 
 extension ReminderStore {
     private static let accessKey = "reminderAccess"
+    private static let sentNoticesKey = "sentAccessNotices"
+
+    /// Ids of the reminders-are-stopping notices already scheduled or sent, so a one-off warning
+    /// goes out once rather than on every open. Kept short; ids carry their end date, so an old one
+    /// never matches a new lapse.
+    var sentAccessNotices: [String] {
+        get { defaults.stringArray(forKey: Self.sentNoticesKey) ?? [] }
+        nonmutating set { defaults.set(Array(newValue.suffix(50)), forKey: Self.sentNoticesKey) }
+    }
 
     var access: ReminderAccess {
         get {

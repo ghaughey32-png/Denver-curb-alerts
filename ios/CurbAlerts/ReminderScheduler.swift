@@ -110,6 +110,58 @@ actor ReminderScheduler {
         for (job, date) in upcoming {
             try await center.add(Self.request(for: job, at: date))
         }
+
+        try await scheduleAccessNotices(moved: moved, now: now)
+    }
+
+    /// The warnings that reminders are about to stop, or have. Planned from the full job list, not
+    /// the covered one: the point is to name what the driver is about to stop hearing about.
+    private func scheduleAccessNotices(moved: Set<String>, now: Date) async throws {
+        let prefix = AccessNoticePlanner.identifierPrefix
+        let pending = await center.pendingNotificationRequests()
+        center.removePendingNotificationRequests(
+            withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(prefix) }
+        )
+
+        // Covered again, so every earlier warning is spent: the next lapse starts from nothing.
+        if store.access.status == .trial || store.access.status == .active, !store.sentAccessNotices.isEmpty {
+            store.sentAccessNotices = []
+        }
+
+        let sent = store.sentAccessNotices
+        let notices = AccessNoticePlanner.plan(
+            access: store.access,
+            jobs: store.jobs,
+            moved: moved,
+            alreadySent: Set(sent),
+            now: now
+        )
+        for notice in notices {
+            try await center.add(Self.request(for: notice))
+        }
+
+        let newIds = notices.map(\.id).filter { !sent.contains($0) }
+        if !newIds.isEmpty {
+            store.sentAccessNotices = sent + newIds
+        }
+    }
+
+    private static func request(for notice: AccessNoticePlanner.Notice) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = notice.title
+        content.body = notice.body
+        content.sound = .default
+        content.threadIdentifier = "subscription"
+        content.userInfo = ["accessAction": notice.action.rawValue]
+
+        let trigger: UNNotificationTrigger
+        if let fireAt = notice.fireAt {
+            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fireAt)
+            trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        } else {
+            trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        }
+        return UNNotificationRequest(identifier: notice.id, content: content, trigger: trigger)
     }
 
     func showTestNotification(title: String, body: String) async throws {
