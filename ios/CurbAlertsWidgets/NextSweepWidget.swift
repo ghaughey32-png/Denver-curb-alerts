@@ -55,6 +55,9 @@ struct NextSweepEntry: TimelineEntry {
     /// Shown so the tap on the button visibly did something, rather than the widget silently
     /// skipping ahead to a sweep a week away.
     let moved: UpcomingSweep?
+    /// There are reminders set up, but no subscription covering them. Shown in place of a sweep so
+    /// the widget never looks like it is still keeping watch when it is not.
+    var paused = false
 
     var link: String? {
         next?.url
@@ -87,7 +90,13 @@ struct NextSweepProvider: TimelineProvider {
 
     static func entry(at date: Date) -> NextSweepEntry {
         let store = ReminderStore()
-        let jobs = store.jobs
+        let access = store.access
+        // Worked out per entry, so a plan that ends at midnight Thursday turns the widget to
+        // "paused" at that midnight's entry with the app closed.
+        if !store.jobs.isEmpty && !access.isEntitled(at: date) {
+            return NextSweepEntry(date: date, next: nil, following: nil, moved: nil, paused: true)
+        }
+        let jobs = access.coveredJobs(store.jobs, at: date)
         let moved = store.effectiveMovedSweepKeys()
         let upcoming = UpcomingSweep.upcoming(jobs: jobs, moved: moved, now: date)
 
@@ -193,7 +202,9 @@ private struct HomeScreenView: View {
     let isMedium: Bool
 
     var body: some View {
-        if let moved = entry.moved {
+        if entry.paused {
+            pausedView
+        } else if let moved = entry.moved {
             movedView(moved)
         } else if let next = entry.next {
             sweepView(next)
@@ -298,6 +309,28 @@ private struct HomeScreenView: View {
             .lineLimit(1)
     }
 
+    private var pausedView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "bell.slash.fill")
+                Text("CURB ALERTS")
+            }
+            .font(.caption2.weight(.heavy))
+            .foregroundStyle(WidgetPalette.muted)
+
+            Text("Reminders paused")
+                .font(.headline)
+                .foregroundStyle(WidgetPalette.ink)
+
+            Spacer(minLength: 0)
+
+            Text("Open Curb Alerts to turn them back on.")
+                .font(.caption2)
+                .foregroundStyle(WidgetPalette.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var emptyView: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -327,7 +360,11 @@ private struct RectangularView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            if let moved = entry.moved {
+            if entry.paused {
+                Label("Reminders paused", systemImage: "bell.slash.fill")
+                    .font(.headline)
+                Text("Open Curb Alerts").lineLimit(1)
+            } else if let moved = entry.moved {
                 Label("Car moved", systemImage: "checkmark.circle.fill")
                     .font(.headline)
                 Text(SweepWording.curb(moved)).lineLimit(1)
@@ -357,7 +394,9 @@ private struct InlineView: View {
     let entry: NextSweepEntry
 
     var body: some View {
-        if let next = entry.next {
+        if entry.paused {
+            Label("Sweep reminders paused", systemImage: "bell.slash.fill")
+        } else if let next = entry.next {
             Label("Sweep \(SweepWording.when(next, from: entry.date)) · \(SweepWording.street(next))", systemImage: "car.fill")
         } else {
             Label("No sweeps coming up", systemImage: "car.fill")
@@ -371,7 +410,9 @@ private struct CircularView: View {
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            if let next = entry.next {
+            if entry.paused {
+                Image(systemName: "bell.slash")
+            } else if let next = entry.next {
                 let days = SweepWording.daysAway(next, from: entry.date)
                 VStack(spacing: 0) {
                     Image(systemName: "car.fill").font(.caption)

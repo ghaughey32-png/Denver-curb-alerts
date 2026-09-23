@@ -46,6 +46,23 @@ struct ReminderAccess: Codable, Equatable {
             return false
         }
     }
+
+    /// The reminders this access pays for: all of them on a plan that renews, those before `endsAt`
+    /// on one that will not, and none once it has lapsed. The notifications, the lock-screen card
+    /// and the widget all draw from this, so a lapse turns all three off together.
+    ///
+    /// The job list itself is never trimmed. It stays in the store, so the moment a subscription
+    /// starts or a card is fixed, every reminder comes back without waiting for the page.
+    func coveredJobs(_ jobs: [ReminderJob], at now: Date = Date()) -> [ReminderJob] {
+        guard isEntitled(at: now) else { return [] }
+        // On a trial or an active plan `endsAt` is the next charge, not an end, so nothing is cut.
+        guard status == .cancelling || status == .billingIssue, let endsAt else { return jobs }
+
+        return jobs.filter { job in
+            guard let alertAt = SweepCalendar.parseDate(job.scheduledAt) else { return false }
+            return alertAt < endsAt
+        }
+    }
 }
 
 extension ReminderStore {

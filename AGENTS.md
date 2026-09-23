@@ -1401,9 +1401,20 @@ foreground and background refresh, and boils StoreKit's state down to `ReminderA
 `ios/Shared` — a status, an `endsAt` and `willRenew` — written to the App Group so the widget can
 read it without importing StoreKit. `isEntitled` is the one question the gate asks, and it counts a
 failed payment as covered until the grace period's end. A change in access calls
-`ReminderScheduler.reschedule`, which is where the gate itself belongs (step 2); **until step 2
-lands, nothing reads `isEntitled` and every reminder still fires.** The subscription is keyed to the
-Apple ID, not to an account, because reminders run signed out.
+`ReminderScheduler.reschedule`. The subscription is keyed to the Apple ID, not to an account,
+because reminders run signed out.
+
+**The gate is `ReminderAccess.coveredJobs`, called at the top of `ReminderScheduler.reschedule`
+(step 2, 2026-09-23).** A plan that renews covers every job; a cancelled plan, or a failed payment
+inside its grace period, covers the jobs before `endsAt`; anything else covers none. The
+notifications, the lock-screen card and the widget all draw from that one filtered list, so a lapse
+turns them off together, and the widget says *Reminders paused* rather than *No sweeps coming up*.
+The full job list is never trimmed, so a renewal brings everything straight back without the page.
+"Send test now" is deliberately not gated: seeing a reminder before paying is the pitch.
+
+**Do not upload a build from this point until steps 3 and 4 have landed.** With the gate in and
+nothing else, every TestFlight tester's reminders stop the moment they update, with no warning,
+and the page still says they are on — both breaking the never-stop-silently rule above.
 
 Prices are never written into the app or the page — they come from `Product.displayPrice`.
 `ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.

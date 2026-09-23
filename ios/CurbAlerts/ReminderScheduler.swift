@@ -74,7 +74,11 @@ actor ReminderScheduler {
     }
 
     func reschedule() async throws {
-        let jobs = store.jobs
+        // The gate. Reminders are the product that is sold, so only the jobs the subscription
+        // covers are scheduled; the rest stay in the store for the moment it is renewed. This
+        // decides for the notifications, the lock-screen card and the widget alike, and it lives
+        // here rather than in the page so that no page bug can give reminders away or drop them.
+        let jobs = store.access.coveredJobs(store.jobs)
         let moved = store.effectiveMovedSweepKeys()
 
         // The lock-screen card has its own switch in Settings and does not need notification
