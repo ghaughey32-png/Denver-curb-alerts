@@ -2423,8 +2423,7 @@ function renderSubscriptionBanner() {
   if (subscription && subscription.known && hasReminders) {
     const endDay = formatSubscriptionDate(subscription.endsAt);
 
-    // Red, with the face, whenever reminders are off or a payment problem is about to turn them off.
-    // A cancellation the driver chose stays in the ordinary colour: it is news, not an alarm.
+    // Red, with the face, whenever reminders are off or about to stop, whatever the reason.
     if (subscription.status === "billingIssue") {
       banner = {
         urgent: true,
@@ -2438,9 +2437,9 @@ function renderSubscriptionBanner() {
       };
     } else if (subscription.status === "cancelling" && subscription.entitled) {
       banner = {
-        urgent: false,
+        urgent: true,
         kicker: "Subscription cancelled",
-        title: `Your sweep reminders end ${endDay}`,
+        title: `😱 Your sweep reminders end ${endDay}`,
         body: "Turn your subscription back on to keep being reminded before every sweep.",
         label: "Keep my reminders",
         action: () => getNativeReminderBridge().manageSubscription("manage")
