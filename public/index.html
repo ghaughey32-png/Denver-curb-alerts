@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20260921-password-reveal-target" />
+    <link rel="stylesheet" href="./styles.css?v=20260923-subscription" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -44,6 +44,17 @@
           <button id="sweep-check-confirm" class="primary-button" type="button">I moved my car</button>
           <button id="sweep-check-undo" class="ghost-button" type="button" hidden>Undo</button>
           <button id="sweep-check-dismiss" class="ghost-button" type="button" hidden>Done</button>
+        </div>
+      </section>
+      <!-- Reminders are what the iOS app sells, and they never stop silently. This says so whenever
+           they are paused, ending or at risk from a failed payment, whichever tab is open. It only
+           ever appears inside the app; a browser has no subscription to describe. -->
+      <section id="subscription-banner" class="sweep-check subscription-banner" aria-live="polite" hidden>
+        <p id="subscription-banner-kicker" class="sweep-check-kicker"></p>
+        <strong id="subscription-banner-title"></strong>
+        <p id="subscription-banner-body"></p>
+        <div class="sweep-check-actions">
+          <button id="subscription-banner-action" class="primary-button" type="button"></button>
         </div>
       </section>
       <section class="app-view landing-view is-active" data-view="landing">
@@ -289,6 +300,13 @@
             <div class="save-set-card">
               <div class="notification-status-block">
                 <p id="notification-status" class="notification-status-text">This app is not connected to push on this device yet.</p>
+              </div>
+              <div id="subscription-row" class="notification-status-block subscription-row" hidden>
+                <p id="subscription-status" class="subscription-status-text"></p>
+                <div class="notification-action-row">
+                  <button id="subscription-manage-button" class="ghost-button" type="button">See plans</button>
+                  <button id="subscription-restore-button" class="ghost-button" type="button">Restore purchases</button>
+                </div>
               </div>
               <div class="notification-action-row">
                 <button id="enable-notifications-button" class="primary-button" type="button">Turn on push for this device</button>
@@ -568,7 +586,7 @@
           <article class="legal-card">
             <p class="section-kicker">Terms of use</p>
             <h1>Terms for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated September 11, 2026</p>
+            <p class="legal-updated">Last updated September 23, 2026</p>
 
             <div class="legal-copy">
               <p>
@@ -584,23 +602,27 @@
                 construction, weather, and official Denver rules always control over anything shown in this app.
               </p>
 
-              <!-- This app charges nobody. The payment path was removed on 2026-09-03 and this
-                   copy went with it: describing a subscription, a renewal or a refund window that
-                   does not exist is worse than saying nothing. If a purchase path ever ships, the
-                   sections that came out of here — what is free, trial and renewal, cancelling,
-                   refunds, payments — have to come back with it, and the free/paid line still has
-                   to be drawn on scope rather than on reliability. Reminders key on the push
-                   endpoint rather than the account and fire for signed-out users; that is the one
-                   promise below that must survive any change to how this is sold. -->
+              <!-- Reminders in the iPhone app are sold, decided 2026-09-23; see "The reminders are what
+                   gets sold" in AGENTS.md. This copy has to stay true to the app: if the price
+                   structure, the trial or the warnings change, change this in the same commit. The one
+                   promise that must survive any change is the last paragraph - reminders never stop
+                   without warning. -->
               <h2>What it costs</h2>
               <p>
-                Nothing. The map, address search, curb colors, saved curb sets, accounts, and street sweeping reminders are
-                all free, and there is no way to pay us. We do not ask for a card, we do not store one, and no part of the
-                app is behind a paywall.
+                The map, address search, curb colors, and saved curbs are free. In the Curb Alerts iPhone app, street sweeping
+                reminders need a subscription, sold by Apple through the App Store. The plans and their prices are shown in
+                the app and on the App Store before you buy, and a free trial is offered on the yearly plan to people who have
+                not had one.
               </p>
               <p>
-                If that ever changes, reminders will not be what changes. An alert that stops you getting a ticket is never
-                going to be withheld over money.
+                A subscription renews automatically at the end of each period unless you cancel it at least 24 hours before.
+                Apple charges your Apple ID and handles billing, renewals, cancellations, and refunds; you can manage or
+                cancel your subscription in your iPhone's Settings under your Apple ID. We never see or store your card.
+              </p>
+              <p>
+                Your reminders will not stop without warning. If a payment fails, or your subscription is cancelled or ends,
+                the app tells you ahead of time and again when your reminders stop, so that a billing problem is never the
+                reason you get a ticket.
               </p>
 
               <h2>Changes to the app</h2>
@@ -643,7 +665,7 @@
           <article class="legal-card">
             <p class="section-kicker">Privacy</p>
             <h1>Privacy for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated September 21, 2026</p>
+            <p class="legal-updated">Last updated September 23, 2026</p>
 
             <div class="legal-copy">
               <p>
@@ -688,8 +710,9 @@
               </p>
               <p>
                 One more is involved only if you create an account: Resend delivers the confirmation and password reset
-                emails, which means your email address passes through it. There is no payment processor, because there are
-                no payments.
+                emails, which means your email address passes through it. Subscriptions in the iPhone app are sold and billed
+                by Apple through the App Store: we never see your card or your Apple ID, and whether your subscription is
+                active is checked with Apple on your phone and stays there.
               </p>
               <p>
                 Those emails show our app icon, which your email app loads from our server when it displays the message.
@@ -1086,6 +1109,6 @@
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./cities.js?v=20260923-sweep-season-inv98"></script>
-    <script src="./app.js?v=20260923-sweep-season"></script>
+    <script src="./app.js?v=20260923-subscription"></script>
   </body>
 </html>

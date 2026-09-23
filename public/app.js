@@ -1800,6 +1800,15 @@ const sweepCheckBody = document.querySelector("#sweep-check-body");
 const sweepCheckConfirmButton = document.querySelector("#sweep-check-confirm");
 const sweepCheckUndoButton = document.querySelector("#sweep-check-undo");
 const sweepCheckDismissButton = document.querySelector("#sweep-check-dismiss");
+const subscriptionBanner = document.querySelector("#subscription-banner");
+const subscriptionBannerKicker = document.querySelector("#subscription-banner-kicker");
+const subscriptionBannerTitle = document.querySelector("#subscription-banner-title");
+const subscriptionBannerBody = document.querySelector("#subscription-banner-body");
+const subscriptionBannerAction = document.querySelector("#subscription-banner-action");
+const subscriptionRow = document.querySelector("#subscription-row");
+const subscriptionStatus = document.querySelector("#subscription-status");
+const subscriptionManageButton = document.querySelector("#subscription-manage-button");
+const subscriptionRestoreButton = document.querySelector("#subscription-restore-button");
 const pushPrimerTitle = document.querySelector("#push-primer-title");
 const pushPrimerBody = document.querySelector("#push-primer-body");
 const pushPrimerAccept = document.querySelector("#push-primer-accept");
@@ -2329,6 +2338,149 @@ function getNativeReminderBridge() {
 
 function canUseNativeReminders() {
   return Boolean(getNativeReminderBridge());
+}
+
+// Reminders are what the iOS app sells (see "The reminders are what gets sold" in AGENTS.md). The
+// shell reports where the subscription stands as bridge.subscription, and decides the gate itself:
+// `entitled` arrives computed, so this page never re-derives the rule and cannot disagree with the
+// device about whether a reminder will fire. Null in a browser and in an app build from before the
+// paywall, which leaves every branch below exactly as it was for both.
+function getNativeSubscription() {
+  const bridge = getNativeReminderBridge();
+  if (!bridge || typeof bridge.showPaywall !== "function" || !bridge.subscription) {
+    return null;
+  }
+
+  return bridge.subscription;
+}
+
+// Paused only once StoreKit has actually answered. Before that the device does not know either, and
+// telling a paying driver their reminders are off because the app raced its own launch is a lie.
+function areRemindersPaywalled() {
+  const subscription = getNativeSubscription();
+  return Boolean(subscription && subscription.known && !subscription.entitled);
+}
+
+// Resolves to the subscription as it stands once the sheet closes, bought from or not.
+async function openReminderPaywall() {
+  const bridge = getNativeReminderBridge();
+  if (!bridge || typeof bridge.showPaywall !== "function") {
+    return null;
+  }
+
+  let subscription = null;
+  try {
+    subscription = await bridge.showPaywall();
+  } catch (error) {
+    lookupStatus.textContent = error.message || "The App Store could not be reached. Try again in a moment.";
+  }
+
+  renderAll();
+  renderCurbSheet();
+  return subscription;
+}
+
+function formatSubscriptionDate(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
+
+// The in-app half of "reminders never stop silently"; the notifications the device schedules are
+// the other half, and reach a driver who never opens the app. Whichever tab is open, this says when
+// reminders are paused, ending, or at risk from a failed payment, and offers the one fix.
+function renderSubscriptionBanner() {
+  if (!subscriptionBanner) {
+    return;
+  }
+
+  const subscription = getNativeSubscription();
+  const hasReminders = getRemindedSegmentIds().size > 0 || Boolean(state.parkedCar);
+  let banner = null;
+
+  if (subscription && subscription.known && hasReminders) {
+    const endDay = formatSubscriptionDate(subscription.endsAt);
+
+    if (subscription.status === "billingIssue") {
+      banner = {
+        urgent: true,
+        kicker: "Payment failed",
+        title: subscription.entitled ? `Your sweep reminders stop ${endDay}` : "Your sweep reminders are off",
+        body: subscription.entitled
+          ? "Apple couldn't renew your subscription. Update your payment method to keep your reminders."
+          : "Apple couldn't renew your subscription, so reminders have stopped. Update your payment method to turn them back on.",
+        label: "Update payment",
+        action: () => getNativeReminderBridge().manageSubscription("billing")
+      };
+    } else if (subscription.status === "cancelling" && subscription.entitled) {
+      banner = {
+        urgent: false,
+        kicker: "Subscription cancelled",
+        title: `Your sweep reminders end ${endDay}`,
+        body: "Turn your subscription back on to keep being reminded before every sweep.",
+        label: "Keep my reminders",
+        action: () => getNativeReminderBridge().manageSubscription("manage")
+      };
+    } else if (!subscription.entitled) {
+      banner = {
+        urgent: false,
+        kicker: "Reminders paused",
+        title: "Your sweep reminders are off",
+        body: "Reminders need a subscription. Your curbs are saved, and their reminders come back as soon as you subscribe.",
+        label: "See plans",
+        action: openReminderPaywall
+      };
+    }
+  }
+
+  subscriptionBanner.hidden = !banner;
+  if (!banner) {
+    subscriptionBannerAction.onclick = null;
+    return;
+  }
+
+  subscriptionBanner.classList.toggle("is-urgent", banner.urgent);
+  subscriptionBannerKicker.textContent = banner.kicker;
+  subscriptionBannerTitle.textContent = banner.title;
+  subscriptionBannerBody.textContent = banner.body;
+  subscriptionBannerAction.textContent = banner.label;
+  subscriptionBannerAction.onclick = () => {
+    Promise.resolve(banner.action()).catch(() => {});
+  };
+}
+
+// The plan line in My alerts, with the way to change it and Restore Purchases, which App Review
+// expects to find somewhere other than the paywall.
+function renderSubscriptionRow() {
+  if (!subscriptionRow) {
+    return;
+  }
+
+  const subscription = getNativeSubscription();
+  subscriptionRow.hidden = !subscription || !subscription.known;
+  if (subscriptionRow.hidden) {
+    return;
+  }
+
+  const endDay = formatSubscriptionDate(subscription.endsAt);
+  const plan = subscription.productId && subscription.productId.endsWith(".monthly") ? "Monthly plan" : "Yearly plan";
+  const lines = {
+    trial: `Free trial. ${plan} starts ${endDay}.`,
+    active: `${plan}. Renews ${endDay}.`,
+    cancelling: `${plan}, cancelled. Reminders end ${endDay}.`,
+    billingIssue: subscription.entitled
+      ? `Payment failed. Reminders stop ${endDay} unless it's fixed.`
+      : "Payment failed. Reminders are off until it's fixed.",
+    expired: "Your subscription has ended. Reminders are off.",
+    none: "Reminders need a subscription. The map is free."
+  };
+  subscriptionStatus.textContent = lines[subscription.status] || lines.none;
+
+  const subscribed = subscription.status !== "none" && subscription.status !== "expired";
+  subscriptionManageButton.textContent = subscribed ? "Manage subscription" : "See plans";
 }
 
 function getNativeReminderPermission() {
@@ -5903,7 +6055,9 @@ function renderCurbSheet() {
   curbSheetAction.textContent = !copy.canRemind
     ? "Reminders unavailable for this curb"
     : selected
-      ? "Reminder on — tap to remove"
+      ? areRemindersPaywalled()
+        ? "Reminder paused — tap to remove"
+        : "Reminder on — tap to remove"
       : "Remind me about this curb";
   curbSheetAction.classList.toggle("is-on", copy.canRemind && selected);
   renderCurbSheetStatus(segment, selected);
@@ -5965,6 +6119,17 @@ function toggleCurbReminder(segmentId) {
   if (turningOn) {
     if (segment.schedule?.remindersAllowed === false) {
       lookupStatus.textContent = "Streets not maintained by Denver have no Denver sweeping schedule and cannot be saved for sweeping reminders.";
+      return;
+    }
+    // In the app the reminder is what is paid for, so turning one on without a subscription opens
+    // the plans first, and the curb is saved only once they are bought. Saving it anyway would put
+    // a reminder on the map that the device will never send.
+    if (areRemindersPaywalled()) {
+      openReminderPaywall().then((subscription) => {
+        if (subscription?.entitled && !isCurbReminded(segmentId)) {
+          toggleCurbReminder(segmentId);
+        }
+      });
       return;
     }
     addSegmentsToDefaultSet([segment]);
@@ -6971,6 +7136,32 @@ function recordSweepsMovedElsewhere(sweepKeys) {
   renderAll();
 }
 
+function registerSubscriptionEvents() {
+  subscriptionManageButton?.addEventListener("click", () => {
+    const subscription = getNativeSubscription();
+    const subscribed = subscription && subscription.status !== "none" && subscription.status !== "expired";
+    if (subscribed) {
+      getNativeReminderBridge().manageSubscription(subscription.status === "billingIssue" ? "billing" : "manage").catch(() => {});
+    } else {
+      openReminderPaywall();
+    }
+  });
+
+  subscriptionRestoreButton?.addEventListener("click", async () => {
+    subscriptionRestoreButton.disabled = true;
+    try {
+      const subscription = await getNativeReminderBridge().restorePurchases();
+      subscriptionStatus.textContent = subscription?.entitled
+        ? "Purchases restored. Your reminders are on."
+        : "No subscription was found for this Apple ID.";
+    } catch (error) {
+      subscriptionStatus.textContent = error.message || "The App Store could not be reached. Try again in a moment.";
+    } finally {
+      subscriptionRestoreButton.disabled = false;
+    }
+  });
+}
+
 function registerSweepCheckEvents() {
   sweepCheckConfirmButton?.addEventListener("click", () => confirmSweepMoved(sweepCheckConfirmButton.dataset.sweepKey));
   sweepCheckUndoButton?.addEventListener("click", undoSweepMoved);
@@ -6984,6 +7175,10 @@ function registerSweepCheckEvents() {
       handleSweepCheckLink(detail.url);
     } else if (detail.type === "sweep-moved") {
       recordSweepsMovedElsewhere(detail.sweepKeys);
+    } else if (detail.type === "subscription-changed") {
+      // The bridge has already updated its own copy; everything that reads it redraws.
+      renderAll();
+      renderCurbSheet();
     } else if (detail.type === "permission-changed") {
       renderNotificationStatus();
       queueNativeReminderSync({ force: true });
@@ -7359,7 +7554,9 @@ function renderNotificationStatus() {
     const nativePermission = getNativeReminderPermission();
     const canShowNativeTest = typeof getNativeReminderBridge().showTestNotification === "function";
 
-    if (nativePermission === "granted") {
+    if (nativePermission === "granted" && areRemindersPaywalled()) {
+      notificationStatus.textContent = "Reminders are paused on this device: they need a subscription. Your curbs stay saved.";
+    } else if (nativePermission === "granted") {
       notificationStatus.textContent = state.nativeReminderError
         ? `Reminders are on for this device, but the schedule was not accepted: ${state.nativeReminderError}`
         : "Reminders are on for this device. Upcoming sweep times are scheduled on the device itself, so they arrive with no connection.";
@@ -7910,7 +8107,9 @@ function renderReminderReadiness() {
   // alone left this item unticked forever inside the app, even with notifications allowed.
   const hasNativeReminders = canUseNativeReminders() && getNativeReminderPermission() === "granted";
   const hasPush = hasRemotePushReady() || hasNativeReminders;
-  const hasJobs = state.notificationJobs.length > 0;
+  // A paused reminder is not a ready one, whatever the job list says: the device will not send it.
+  const paywalled = areRemindersPaywalled();
+  const hasJobs = state.notificationJobs.length > 0 && !paywalled;
   // There were four steps until 2026-09-16. "Save a reminder set" went when turning a curb's
   // reminder on stopped needing a save.
   const readyTotal = [hasCurb, hasPush, hasJobs].filter(Boolean).length;
@@ -7933,7 +8132,7 @@ function renderReminderReadiness() {
     readinessItems.jobs,
     hasJobs,
     `Reminders are set for ${groupJobsByNextSweep(state.notificationJobs).length === 1 ? "your next sweep" : "each set's next sweep"}.`,
-    "Your next sweep and its reminders will appear below."
+    paywalled ? "Reminders are paused until you subscribe." : "Your next sweep and its reminders will appear below."
   );
 }
 
@@ -8899,6 +9098,8 @@ function renderAll() {
   renderNotificationStatus();
   renderPushPrimer();
   renderSweepCheck();
+  renderSubscriptionBanner();
+  renderSubscriptionRow();
   renderParkSheet();
   renderReminderReadiness();
   renderAccount();
@@ -9127,6 +9328,7 @@ try {
 }
 
 registerSweepCheckEvents();
+registerSubscriptionEvents();
 renderAll();
 handleSweepCheckLink();
 initializePushFeatures();

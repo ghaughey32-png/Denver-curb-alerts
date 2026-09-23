@@ -1,6 +1,4 @@
 import Foundation
-import StoreKit
-import UIKit
 import UserNotifications
 
 final class NotificationCoordinator: NSObject, UNUserNotificationCenterDelegate {
@@ -29,7 +27,7 @@ final class NotificationCoordinator: NSObject, UNUserNotificationCenterDelegate 
             await WebShell.shared.dispatch(["type": "sweep-moved", "sweepKeys": sweepKeys])
         case UNNotificationDefaultActionIdentifier:
             if let raw = userInfo["accessAction"] as? String, let action = AccessNoticePlanner.Action(rawValue: raw) {
-                await open(action)
+                await SubscriptionActions.open(action)
                 return
             }
             // Opening a reminder is not confirmation. The page only moves that sweep to the front of
@@ -38,27 +36,6 @@ final class NotificationCoordinator: NSObject, UNUserNotificationCenterDelegate 
             await WebShell.shared.dispatch(["type": "open-url", "url": url])
         default:
             break
-        }
-    }
-
-    /// Where a reminders-are-stopping notice takes the driver: straight to the thing that fixes it.
-    @MainActor
-    private func open(_ action: AccessNoticePlanner.Action) async {
-        switch action {
-        case .billing:
-            // Apple's own page for updating the payment method on the Apple ID.
-            if let url = URL(string: "https://apps.apple.com/account/billing") {
-                await UIApplication.shared.open(url)
-            }
-        case .manage:
-            let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-            if let scene {
-                try? await AppStore.showManageSubscriptions(in: scene)
-            }
-        case .subscribe:
-            // The paywall lives in the app. Until it is wired to a route of its own, the app opening
-            // at all is the way there.
-            WebShell.shared.dispatch(["type": "open-url", "url": "/"])
         }
     }
 }

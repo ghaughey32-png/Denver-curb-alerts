@@ -90,7 +90,11 @@ final class WebShell: NSObject {
         let movedSweepKeys = await ReminderScheduler.shared.movedSweepKeys()
         lastPermission = permission
 
-        let initial: [String: Any] = ["permission": permission, "movedSweepKeys": movedSweepKeys]
+        let initial: [String: Any] = [
+            "permission": permission,
+            "movedSweepKeys": movedSweepKeys,
+            "subscription": ReminderStore().access.bridgeValue
+        ]
         let json = (try? JSONSerialization.data(withJSONObject: initial)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         let source = Self.bridgeSource.replacingOccurrences(of: "__INITIAL_STATE__", with: json)
 
@@ -124,6 +128,22 @@ final class WebShell: NSObject {
         platform: "ios",
         permission: initial.permission,
         movedSweepKeys: initial.movedSweepKeys,
+        subscription: initial.subscription,
+        showPaywall: function () {
+          return call("showPaywall").then(function (subscription) {
+            bridge.subscription = subscription;
+            return subscription;
+          });
+        },
+        manageSubscription: function (kind) {
+          return call("manageSubscription", { kind: kind || "manage" });
+        },
+        restorePurchases: function () {
+          return call("restorePurchases").then(function (subscription) {
+            bridge.subscription = subscription;
+            return subscription;
+          });
+        },
         requestPermission: function () {
           return call("requestPermission").then(function (permission) {
             bridge.permission = permission;
@@ -152,6 +172,13 @@ final class WebShell: NSObject {
           return call("clearSessionToken");
         }
       };
+      // Kept current before the page's own listener runs, since this one is registered first.
+      window.addEventListener("curb-alerts-native", function (event) {
+        var detail = event.detail || {};
+        if (detail.type === "subscription-changed" && detail.subscription) {
+          bridge.subscription = detail.subscription;
+        }
+      });
       window.DenverCurbAlertsNative = bridge;
     })();
     """
@@ -188,6 +215,19 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                 )
                 LiveActivityScheduler.startTestCard()
                 return (true, nil)
+
+            case "showPaywall":
+                await SubscriptionActions.showPaywall()
+                return (await SubscriptionManager.shared.refresh().bridgeValue, nil)
+
+            case "manageSubscription":
+                let kind = payload["kind"] as? String
+                await SubscriptionActions.open(kind == "billing" ? .billing : .manage)
+                return (true, nil)
+
+            case "restorePurchases":
+                try await SubscriptionActions.restore()
+                return (ReminderStore().access.bridgeValue, nil)
 
             case "getSessionToken":
                 if let token = SessionKeychain.read() {

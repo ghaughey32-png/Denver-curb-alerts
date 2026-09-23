@@ -995,10 +995,12 @@ anywhere that separation had nothing left to protect. Fourteen days outlasts two
 any Denver block, which is the point of the number — a trial shorter than one full sweep-and-reminder
 loop never shows someone what they would be paying for.
 
-**The Terms and Privacy copy was rewritten to match, and must not drift back.** The Terms now say
-the app costs nothing and there is no way to pay; the Privacy page lists no payment processor and no
-card data, because there is none. If a purchase path ships, that copy changes in the same commit —
-selling something the Terms say is free is worse than either state on its own. The support address
+**The Terms and Privacy copy must match what is sold, in the same commit.** Rewritten 2026-09-23 with
+the paywall: the Terms say the map is free and reminders in the iPhone app need an Apple
+subscription, how renewal, cancellation and refunds work through Apple, and that reminders never
+stop without warning; the Privacy page says Apple bills and the subscription check stays on the
+phone. Before that they said the app cost nothing. Selling something the Terms say is free is worse
+than either state on its own, so any change to plans, trial or warnings changes that copy too. The support address
 in both pages is `support@curbalerts.co`, on the domain bought 2026-09-10. It replaced a
 `support@denvercurbalerts.com` placeholder on a domain nobody owned. Printing it is not the same as
 it receiving mail, so it was tested from outside: a message sent by someone else reached the Gmail
@@ -1288,6 +1290,13 @@ ignores them:
   context, and `isSecureHost` refused before even asking. Found on a device 2026-09-15, where "Use
   my location" was a dead end. `requestUserLocation` prefers the bridge whenever it has this method,
   and a rejection's message is shown to the driver as written, so keep the native messages plain.
+- `subscription`, `showPaywall()`, `manageSubscription(kind)` and `restorePurchases()` (step 4 of the
+  StoreKit plan, 2026-09-23). `subscription` is `{ known, status, entitled, willRenew, productId,
+  endsAt }` with `entitled` computed on the device, so the page never re-derives the gate; a
+  `subscription-changed` event keeps it current, and the bridge updates its own copy before the
+  page's listener runs. `showPaywall` resolves once the sheet is gone, bought from or not, with the
+  subscription as it then stands. `getNativeSubscription` in `public/app.js` returns null unless
+  `showPaywall` exists, which is what keeps a browser and an older app build on their old paths.
 
 Verified on an iPhone 15 Pro on 2026-09-15: install, notification permission, a test alert on the
 lock screen, and its **I moved my car** button on long-press.
@@ -1429,10 +1438,21 @@ that memory is cleared whenever the plan is active again, so the next lapse warn
 planner is pure and was checked scenario by scenario with `swiftc` against the Shared files; there
 is no Swift test target, so re-run that kind of check if you change it.
 
-**Do not upload a build from this point until step 4 has landed.** The warnings tell a lapsed
-driver to open the app and turn reminders back on, and until the paywall exists there is nothing
-there to do it with — and the page still says reminders are on. The in-app banner half of the
-warnings also lands with step 4, since it is page UI.
+**The paywall is Apple's `SubscriptionStoreView` (`ios/CurbAlerts/Paywall.swift`, step 4,
+2026-09-23),** shown over the web view by `SubscriptionActions.showPaywall`. Use Apple's own close
+button; a second one of ours sat beside it on the simulator and was removed. The page's promise
+settles from `.onDisappear`, which fires however the sheet goes — a swipe-down delegate alone missed
+Apple's close button. In the page, turning a curb's reminder on without a subscription opens the
+paywall and saves the curb only once it is bought; `#subscription-banner` says when reminders are
+paused, ending or at risk, whichever tab is open; the My alerts card carries the plan, Manage and
+Restore Purchases. Nothing is paywalled or bannered until StoreKit has answered (`known`).
+`test/subscription-ui.test.js` covers the page half.
+
+**Do not upload a build until the two products exist in App Store Connect.** Launched outside
+Xcode the paywall asks the real store, and until then it says *Subscription Unavailable* — so a
+tester would be told their reminders are off with no way to turn them back on. Sandbox purchases
+on TestFlight are free once the products exist. The website goes map only when the iOS app goes
+live, as decided above, and that is still to do.
 
 Prices are never written into the app or the page — they come from `Product.displayPrice`.
 `ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.

@@ -57,9 +57,14 @@ actor SubscriptionManager {
         store.access = access
 
         // A change in access is a change in which reminders may run, and reschedule is the one
-        // place that turns reminders, the lock-screen card and the widget on and off.
-        if previous.status != access.status || previous.endsAt != access.endsAt || previous.productID != access.productID {
+        // place that turns reminders, the lock-screen card and the widget on and off. The page
+        // hears about it too, so it never says reminders are on when the device has stopped them.
+        if !previous.describesSameState(as: access) {
             try? await ReminderScheduler.shared.reschedule()
+            let subscription = access.bridgeValue
+            await MainActor.run {
+                WebShell.shared.dispatch(["type": "subscription-changed", "subscription": subscription])
+            }
         }
         return access
     }
@@ -154,5 +159,27 @@ actor SubscriptionManager {
         default:
             return ReminderAccess(status: .expired, productID: productID, endsAt: transaction.expirationDate, willRenew: false, checkedAt: now)
         }
+    }
+}
+
+extension ReminderAccess {
+    /// The same answer, ignoring when it was asked. Whether StoreKit has answered at all counts,
+    /// because the page treats "not asked yet" differently from "not subscribed".
+    func describesSameState(as other: ReminderAccess) -> Bool {
+        status == other.status && endsAt == other.endsAt && productID == other.productID
+            && willRenew == other.willRenew && (checkedAt == .distantPast) == (other.checkedAt == .distantPast)
+    }
+
+    /// What the page reads as `DenverCurbAlertsNative.subscription`. `entitled` is computed here, so
+    /// the page never re-derives the gate's rule and cannot disagree with it.
+    var bridgeValue: [String: Any] {
+        [
+            "known": checkedAt != .distantPast,
+            "status": status.rawValue,
+            "entitled": isEntitled(),
+            "willRenew": willRenew,
+            "productId": productID ?? NSNull(),
+            "endsAt": endsAt.map { ISO8601DateFormatter().string(from: $0) } ?? NSNull()
+        ]
     }
 }
