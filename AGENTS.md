@@ -949,20 +949,32 @@ vocabulary is still a processor's — `active`, `trialing`, `past_due`, `cancele
 the shape every processor hands back, and translating it into house terms on the way in only means
 translating it back later.
 
-**The library gate is off, and this is the one line to change when a purchase path exists.**
-`handleAccountLibrary` in `server.js` used to answer 402 to a lapsed trial. With no checkout to send
-that customer to, the same 402 locked every account out of its own sync fourteen days after signing
-up with no way at all to unlock it. **An unsellable paywall is just a bug.** Put the 402 back there
-and nowhere else. `test/entitlement.test.js` asserts an expired entitlement changes nothing today,
-and that no endpoint an account can reach answers 402; that test is the one to flip back.
+**The reminders are what gets sold. Decided 2026-09-23 by the app's author, reversing the rule that
+used to sit here.** The reminder is the service; the map stays free. The old rule said "whatever
+gets sold, it is never the reminders", on the argument that withholding the alert that prevents a
+$50 ticket would be indefensible. The author's answer is that paying for the thing that saves you
+$50 is an honest trade, and the old rule is gone. Do not re-argue it from the older reasoning.
 
-**Whatever gets sold, it is never the reminders.** Reminder plans and push subscriptions key on the
-push endpoint rather than the account and fire for signed-out users. This app exists to stop people
-getting $50 sweeping tickets; withholding the alert that prevents one to collect a subscription
-would be indefensible. It is also why the free/paid line, when there was one, was drawn on *scope*
-(how many devices your library reaches) rather than on *reliability* (whether you get warned). Draw
-it the same way next time. `test/entitlement.test.js` asserts a cancelled account can still register
-a device and schedule a plan.
+**What survives of the old concern is one rule: reminders never stop silently.** The harm was never
+charging; it was a driver who believes they are covered getting the ticket because a card failed
+and nothing said so. So before a lapsed entitlement stops a single reminder, the driver gets
+blatant warnings — in the app, and as a notification on the device while reminders still work —
+that their reminders are about to end and why. A billing retry (`past_due`) still counts as
+entitled, as `getEntitlement` already does, so a failed payment buys time to fix it rather than
+an immediate cutoff. A reminder that stops without warning is the bug; a reminder that stops after
+two clear warnings is the product working as sold.
+
+**Nothing is gated yet.** There is no StoreKit code; until there is, an expired entitlement changes
+nothing and every reminder fires. `test/entitlement.test.js` asserts exactly that — no endpoint
+answers 402, and a cancelled account can still register a device and schedule a plan — and those
+assertions are what change, deliberately, when the purchase path lands. An unsellable paywall is
+still just a bug: never gate anything before there is a way to pay. The library 402 that
+`handleAccountLibrary` once answered stays off.
+
+Two consequences to design for. Reminders run signed out and key on the device, so on iOS the gate
+belongs on the device, from StoreKit's own entitlement, not behind an account. And a browser cannot
+run StoreKit, so web-push reminders either stay free or need Stripe back (see above); decide that
+before gating, not after.
 
 **`buildDefaultBilling()` is the floor, not the starting point, and must stay unentitled.**
 `getEntitlement` falls back to it for an account whose billing is missing or corrupt, so a default
@@ -1212,8 +1224,7 @@ there is a reason not to depend on app opens, not before.
 where you parked, register a region around it, and the reminder becomes *you are parked on the north
 side of W 32nd, and it sweeps Tuesday at 7am*. Background location is native-only and it is the
 actual product rather than a wrapper fig leaf. A home-screen widget showing the next sweep for a
-saved set is the cheap second one. Whatever gets built, it stays off the reminders themselves — the
-rule in the payments section holds here too.
+saved set is the cheap second one.
 
 **The sequence.** Steps 1 and 2 are worth doing whether or not the shell ever ships, because they
 are defects in the web app's assumptions rather than shell scaffolding.
