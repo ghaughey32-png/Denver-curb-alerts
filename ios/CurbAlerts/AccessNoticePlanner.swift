@@ -39,6 +39,8 @@ enum AccessNoticePlanner {
     /// first thing read on the lock screen. Every notice here gets it: each one is about reminders
     /// being off or about to stop.
     static let alarm = "😱 "
+    /// A cancelled plan gets crossed-out eyes rather than the scream: the driver ended it themselves.
+    static let cancelledAlarm = "😵 "
     /// Warnings go out mid-morning, not at whatever hour a renewal happens to fall.
     static let warningHour = 10
 
@@ -127,7 +129,7 @@ enum AccessNoticePlanner {
                 let endDay = dayName(endsAt, now: readAt, calendar: calendar)
                 return Notice(
                     id: identifierPrefix + id + "|" + stamp,
-                    title: alarm + (isBilling ? "Payment failed: sweep reminders stop \(endDay)" : "Sweep reminders end \(endDay)"),
+                    title: isBilling ? alarm + "Payment failed: sweep reminders stop \(endDay)" : cancelledAlarm + "Sweep reminders end \(endDay)",
                     body: isBilling
                         ? "Apple couldn't renew your Curb Alerts subscription. Update your payment method to keep your reminders."
                         : "Your subscription is cancelled, so reminders stop \(endDay). Turn it back on to keep them.",

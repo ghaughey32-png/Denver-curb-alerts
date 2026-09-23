@@ -119,7 +119,7 @@ test("a failed payment inside its grace period says when reminders stop, urgentl
 
 test("a cancelled plan says when reminders end, in red, and offers to keep them", () => {
   const sandbox = loadBanner({ bridge: shellBridge({ known: true, status: "cancelling", entitled: true, endsAt: LATER }) });
-  assert.match(sandbox.subscriptionBannerTitle.textContent, /^😱 Your sweep reminders end /);
+  assert.match(sandbox.subscriptionBannerTitle.textContent, /^😵 Your sweep reminders end /);
   assert.equal(sandbox.subscriptionBanner.classList.toggles["is-urgent"], true);
   assert.equal(sandbox.subscriptionBannerAction.textContent, "Keep my reminders");
 });

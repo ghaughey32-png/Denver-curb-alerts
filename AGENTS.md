@@ -1447,8 +1447,8 @@ paywall and saves the curb only once it is bought; `#subscription-banner` says w
 paused, ending or at risk, whichever tab is open; the My alerts card carries the plan, Manage and
 Restore Purchases. Nothing is paywalled or bannered until StoreKit has answered (`known`). Whenever reminders are off, or a
 payment problem is about to turn them off, the banner is red (`.is-urgent`) and the title leads
-with 😱 — decided 2026-09-23 by the app's author, and that includes a plan the driver cancelled
-themselves. The device's notices carry the same 😱 in their titles (`AccessNoticePlanner.alarm`),
+with 😱 — decided 2026-09-23 by the app's author. A plan the driver cancelled is red too, but leads
+with 😵 (crossed-out eyes) instead of the scream. The device's notices carry the same 😱 in their titles (`AccessNoticePlanner.alarm`),
 because iOS gives an app no control over a notification's colour.
 `test/subscription-ui.test.js` covers the page half.
 

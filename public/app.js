@@ -2439,7 +2439,8 @@ function renderSubscriptionBanner() {
       banner = {
         urgent: true,
         kicker: "Subscription cancelled",
-        title: `😱 Your sweep reminders end ${endDay}`,
+        // A face with crossed-out eyes rather than the scream: the driver ended this themselves.
+        title: `😵 Your sweep reminders end ${endDay}`,
         body: "Turn your subscription back on to keep being reminded before every sweep.",
         label: "Keep my reminders",
         action: () => getNativeReminderBridge().manageSubscription("manage")
