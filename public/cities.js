@@ -43,7 +43,7 @@
     // The published inventory, about 12 MB. Its "?v=" is rewritten by
     // scripts/lib/asset-versions.js on every pipeline bump and has to keep agreeing with the copy
     // in public/index.html and public/sw.js; test/static-cache-version.test.js reads this literal.
-    inventoryUrl: "./denver-west-routes.json?v=97",
+    inventoryUrl: "./denver-west-routes.json?v=98",
     // The module holding this city's boundary rings, named rather than referenced because a plain
     // <script> tag is what loads it for the map. public/denver-city-limits.js assigns the global,
     // and requiring it in Node assigns the same one, so getCityLimits resolves in both.
