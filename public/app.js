@@ -2423,11 +2423,13 @@ function renderSubscriptionBanner() {
   if (subscription && subscription.known && hasReminders) {
     const endDay = formatSubscriptionDate(subscription.endsAt);
 
+    // Red, with the face, whenever reminders are off or a payment problem is about to turn them off.
+    // A cancellation the driver chose stays in the ordinary colour: it is news, not an alarm.
     if (subscription.status === "billingIssue") {
       banner = {
         urgent: true,
         kicker: "Payment failed",
-        title: subscription.entitled ? `Your sweep reminders stop ${endDay}` : "Your sweep reminders are off",
+        title: subscription.entitled ? `😱 Your sweep reminders stop ${endDay}` : "😱 Your sweep reminders are off",
         body: subscription.entitled
           ? "Apple couldn't renew your subscription. Update your payment method to keep your reminders."
           : "Apple couldn't renew your subscription, so reminders have stopped. Update your payment method to turn them back on.",
@@ -2445,9 +2447,9 @@ function renderSubscriptionBanner() {
       };
     } else if (!subscription.entitled) {
       banner = {
-        urgent: false,
+        urgent: true,
         kicker: "Reminders paused",
-        title: "Your sweep reminders are off",
+        title: "😱 Your sweep reminders are off",
         body: "Reminders need a subscription. Your curbs are saved, and their reminders come back as soon as you subscribe.",
         label: "See plans",
         action: openReminderPaywall

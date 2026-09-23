@@ -2820,14 +2820,19 @@ a.ghost-button {
   display: none;
 }
 
-/* A failed payment is the one subscription state that needs doing something about today. */
+/* Reminders off, or about to be over a payment. Red on purpose, and loud on purpose: this is the
+   banner standing between a driver and a ticket they think they are covered for. */
 .subscription-banner.is-urgent {
-  background: linear-gradient(180deg, rgba(192, 57, 43, 0.16), rgba(192, 57, 43, 0.06));
-  border-color: rgba(192, 57, 43, 0.4);
+  background: linear-gradient(180deg, rgba(214, 48, 39, 0.26), rgba(214, 48, 39, 0.14));
+  border: 2px solid #d63027;
 }
 
 .subscription-banner.is-urgent .sweep-check-kicker {
-  color: #b0392b;
+  color: #c0271d;
+}
+
+.subscription-banner.is-urgent .primary-button {
+  background: #d63027;
 }
 
 /* Hidden on the website, which sends no reminders. .panel-step-section sets no display today, but a

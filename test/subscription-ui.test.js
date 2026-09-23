@@ -99,7 +99,8 @@ test("saved curbs with no subscription say reminders are paused and offer the pl
   const sandbox = loadBanner({ bridge: shellBridge({ known: true, status: "none", entitled: false }) });
   assert.equal(sandbox.areRemindersPaywalled(), true);
   assert.equal(sandbox.subscriptionBanner.hidden, false);
-  assert.equal(sandbox.subscriptionBannerTitle.textContent, "Your sweep reminders are off");
+  assert.equal(sandbox.subscriptionBannerTitle.textContent, "😱 Your sweep reminders are off");
+  assert.equal(sandbox.subscriptionBanner.classList.toggles["is-urgent"], true);
   assert.equal(sandbox.subscriptionBannerAction.textContent, "See plans");
 });
 
@@ -112,13 +113,14 @@ test("a failed payment inside its grace period says when reminders stop, urgentl
   const sandbox = loadBanner({ bridge: shellBridge({ known: true, status: "billingIssue", entitled: true, endsAt: LATER }) });
   assert.equal(sandbox.subscriptionBanner.hidden, false);
   assert.equal(sandbox.subscriptionBanner.classList.toggles["is-urgent"], true);
-  assert.match(sandbox.subscriptionBannerTitle.textContent, /^Your sweep reminders stop \w+day, Oct 1[67]$/);
+  assert.match(sandbox.subscriptionBannerTitle.textContent, /^😱 Your sweep reminders stop \w+day, Oct 1[67]$/);
   assert.equal(sandbox.subscriptionBannerAction.textContent, "Update payment");
 });
 
 test("a cancelled plan says when reminders end and offers to keep them", () => {
   const sandbox = loadBanner({ bridge: shellBridge({ known: true, status: "cancelling", entitled: true, endsAt: LATER }) });
   assert.match(sandbox.subscriptionBannerTitle.textContent, /^Your sweep reminders end /);
+  assert.equal(sandbox.subscriptionBanner.classList.toggles["is-urgent"], false);
   assert.equal(sandbox.subscriptionBannerAction.textContent, "Keep my reminders");
 });
 

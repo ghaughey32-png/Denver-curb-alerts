@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v210",
+    "cacheName": "curb-alerts-shell-v212",
     "files": {
-      "index.html": "b7b3eb5a3a919279a40308b62d16fff0a6c9208464294da0cdd7f293a8876940",
-      "sw.js": "bbc52c6b3f7326080d501efc0192b42521e87dc39957b5d971abd8ffa4fcdee1"
+      "index.html": "627b607b2fba3c78fa50088a5ef281dd02fb0181ab082297c9ae99821df7246d",
+      "sw.js": "f4ad56edb5af234e0849a833133a84b6599aa16f6a4fdf6b441aa0a49ba67434"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260923-map-only-2",
-      "sha256": "8d0a18d8a56957c682af77086432de7afc72a3369f5cd3cf63919324d7e9505a"
+      "version": "20260923-alarm",
+      "sha256": "0faf0b9d8ba0b8b5c5c9e178da4341d0770038c3aa2a4fe8e6284360e4abbfbb"
     },
     "apple-touch-icon.png": {
       "version": "20260916-two-sides",
@@ -41,8 +41,8 @@
       "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
     },
     "styles.css": {
-      "version": "20260923-map-only",
-      "sha256": "603203e23df02696282db1b798fe5bdb770a6d0e88db3a8f397f6b6f4d2d5fd5"
+      "version": "20260923-alarm",
+      "sha256": "d9c2478c828063e6bccaacf2e145dfcbaf1a4aa4a0e4f848972217c7c8ea2ef2"
     },
     "vendor/leaflet/leaflet.css": {
       "version": "1.9.4",

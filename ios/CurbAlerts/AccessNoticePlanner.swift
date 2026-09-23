@@ -35,6 +35,10 @@ enum AccessNoticePlanner {
     }
 
     static let identifierPrefix = "access."
+    /// iOS gives an app no say over a notification's colour, so the alarm goes in the title, the
+    /// first thing read on the lock screen. Only on the notices where reminders are off or a payment
+    /// problem is about to turn them off; a cancellation the driver chose does not get it.
+    static let alarm = "😱 "
     /// Warnings go out mid-morning, not at whatever hour a renewal happens to fall.
     static let warningHour = 10
 
@@ -77,7 +81,7 @@ enum AccessNoticePlanner {
             let missed = missedSweepLine(readAt: max(date ?? now, now))
             return Notice(
                 id: identifierPrefix + "stopped|" + stamp,
-                title: "Sweep reminders have stopped",
+                title: alarm + "Sweep reminders have stopped",
                 body: [missed, "Open Curb Alerts to turn them back on."].compactMap { $0 }.joined(separator: " "),
                 fireAt: date.flatMap { $0 > now ? $0 : nil },
                 action: .subscribe
@@ -103,7 +107,7 @@ enum AccessNoticePlanner {
             let missed = missedSweepLine(readAt: now)
             once(Notice(
                 id: identifierPrefix + "needs-subscription",
-                title: "Sweep reminders need a subscription",
+                title: alarm + "Sweep reminders need a subscription",
                 body: ["Your curbs are saved, but reminders are off.", missed, "Open Curb Alerts to turn them back on."]
                     .compactMap { $0 }.joined(separator: " "),
                 fireAt: nil,
@@ -123,7 +127,7 @@ enum AccessNoticePlanner {
                 let endDay = dayName(endsAt, now: readAt, calendar: calendar)
                 return Notice(
                     id: identifierPrefix + id + "|" + stamp,
-                    title: isBilling ? "Payment failed: sweep reminders stop \(endDay)" : "Sweep reminders end \(endDay)",
+                    title: isBilling ? alarm + "Payment failed: sweep reminders stop \(endDay)" : "Sweep reminders end \(endDay)",
                     body: isBilling
                         ? "Apple couldn't renew your Curb Alerts subscription. Update your payment method to keep your reminders."
                         : "Your subscription is cancelled, so reminders stop \(endDay). Turn it back on to keep them.",
