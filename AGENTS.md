@@ -1539,6 +1539,32 @@ only way to get reminders inside a shell, which is wrong for the specific reason
 computes its jobs client-side with absolute times — that is what makes step 3 sufficient on its own.
 
 
+## Product analytics
+
+Added 2026-09-23. App Store Connect reports the store half of the funnel (impressions, product page
+views, downloads, where they came from) and the subscription half (trials, conversions, renewals,
+cancellations, refunds) at no cost and with no code. What it cannot see is the path inside the app,
+so the app counts that itself: `app_open`, `curb_opened`, `remind_tapped`, `paywall_shown`, then one
+of `trial_started`, `subscription_started` or `paywall_closed`. `npm run events` prints the funnel
+with each step's share of the one before; it reads `GET /api/events`, behind the admin token like
+every bulk read, so `ISSUE_REPORT_ADMIN_TOKEN` has to be set on Render and in the shell running it.
+
+**Counts only, and that is the design, not a first version of something richer.** An event is a
+name, a platform and an app version; the server adds one to a daily total in Denver time
+(`lib/events.js`, collection `event-counts`). No IP, account, device or install id is stored, so
+nothing can be joined back to a person. That is what the privacy manifest declares
+(`NSPrivacyCollectedDataTypeProductInteraction`, not linked, not tracking, analytics) and what the
+Privacy page says, and it keeps the app out of App Tracking Transparency. Per-person sequences would
+be a different, declared, consented feature. **The App Store Connect privacy answers must add
+"Product Interaction — Analytics — not linked to you" before the build carrying this is submitted.**
+
+Unknown event names answer 400, so the collection cannot grow without bound. The requesting address
+is used only for an in-memory rate limit (120 a minute) and never written. Increments are held in
+memory and written once a minute and on SIGTERM, so a crash loses at most a minute of counts. The
+page sends with `keepalive` and swallows every failure: a count must never delay or break the thing
+being counted. The paywall opened from a notification's "stopped" notice is not counted, because it
+opens natively without the page; the funnel is the page's taps. `test/events.test.js` covers it.
+
 ## Android, later
 
 Not started, and deliberately not now: decided 2026-09-23 to launch on the App Store alone. Selling

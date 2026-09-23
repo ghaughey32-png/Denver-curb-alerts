@@ -21,6 +21,12 @@ final class WebShell: NSObject {
     static let scheme = "curbalerts"
     static let startURL = URL(string: "curbalerts://app/index.html")!
     private static let messageHandlerName = "curbAlerts"
+    private static let appVersion: String = {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "0"
+        let build = info["CFBundleVersion"] as? String ?? "0"
+        return "\(version) (\(build))"
+    }()
 
     let webView: WKWebView
     private var hasStartedLoading = false
@@ -93,7 +99,10 @@ final class WebShell: NSObject {
         let initial: [String: Any] = [
             "permission": permission,
             "movedSweepKeys": movedSweepKeys,
-            "subscription": ReminderStore().access.bridgeValue
+            "subscription": ReminderStore().access.bridgeValue,
+            // "1.0 (9)": groups the anonymous funnel counts by build, so a change can be compared
+            // with the one before it.
+            "appVersion": Self.appVersion
         ]
         let json = (try? JSONSerialization.data(withJSONObject: initial)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         let source = Self.bridgeSource.replacingOccurrences(of: "__INITIAL_STATE__", with: json)
@@ -129,6 +138,7 @@ final class WebShell: NSObject {
         permission: initial.permission,
         movedSweepKeys: initial.movedSweepKeys,
         subscription: initial.subscription,
+        appVersion: initial.appVersion,
         showPaywall: function () {
           return call("showPaywall").then(function (subscription) {
             bridge.subscription = subscription;

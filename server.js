@@ -9,6 +9,7 @@ const accounts = require("./lib/accounts.js");
 // Named `mailer`, not `email`: handleAccounts and handleSessions both bind `email` to an address,
 // which shadowed the module and made every call on it a TypeError inside those handlers.
 const mailer = require("./lib/email.js");
+const productEvents = require("./lib/events.js");
 const cityRegistry = require("./public/cities.js");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -28,6 +29,7 @@ const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const EMAIL_TOKENS_FILE = path.join(DATA_DIR, "email-tokens.json");
 const SIGN_IN_ATTEMPTS_FILE = path.join(DATA_DIR, "sign-in-attempts.json");
+const EVENT_COUNTS_FILE = path.join(DATA_DIR, "event-counts.json");
 // Where a message goes when no provider is configured. Not a test fixture: it is how the whole
 // verification and reset flow is exercised locally, by opening the link out of the file.
 const EMAIL_OUTBOX_FILE = path.join(DATA_DIR, "outbox.json");
@@ -41,7 +43,8 @@ const COLLECTION_KEYS = {
   accounts: "accounts",
   sessions: "sessions",
   emailTokens: "email-tokens",
-  signInAttempts: "sign-in-attempts"
+  signInAttempts: "sign-in-attempts",
+  eventCounts: "event-counts"
 };
 
 const MIME_TYPES = {
@@ -195,7 +198,8 @@ async function ensureDataFiles() {
     ensureJsonFile(ACCOUNTS_FILE),
     ensureJsonFile(SESSIONS_FILE),
     ensureJsonFile(EMAIL_TOKENS_FILE),
-    ensureJsonFile(SIGN_IN_ATTEMPTS_FILE)
+    ensureJsonFile(SIGN_IN_ATTEMPTS_FILE),
+    ensureJsonFile(EVENT_COUNTS_FILE)
   ]);
 }
 
@@ -356,7 +360,8 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.accounts, ACCOUNTS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.emailTokens, EMAIL_TOKENS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.signInAttempts, SIGN_IN_ATTEMPTS_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.signInAttempts, SIGN_IN_ATTEMPTS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.eventCounts, EVENT_COUNTS_FILE)
     ]);
     storageBackend = "database";
     await backfillAccountTrials();
@@ -446,6 +451,23 @@ async function writePushSubscriptions(subscriptions) {
   }
 
   await writeCollectionToFile(PUSH_SUBSCRIPTIONS_FILE, subscriptions);
+}
+
+async function readEventCounts() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.eventCounts);
+  }
+
+  return readCollectionFromFile(EVENT_COUNTS_FILE);
+}
+
+async function writeEventCounts(rows) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.eventCounts, rows);
+    return;
+  }
+
+  await writeCollectionToFile(EVENT_COUNTS_FILE, rows);
 }
 
 async function readReminderPlans() {
@@ -2092,6 +2114,93 @@ function refuseWebReminders(response) {
   return true;
 }
 
+// Anonymous funnel counts (lib/events.js). Increments are held here and written once a minute, so a
+// busy evening does not rewrite the collection on every tap. A crash loses at most a minute of
+// counts, which analytics can afford and a reminder could not.
+let pendingEventCounts = new Map();
+// Per-address request counts for the current minute, to keep one caller from inflating the numbers.
+// Memory only and never written anywhere: the address is used to refuse, not to record.
+const eventRateWindow = new Map();
+const EVENT_RATE_LIMIT_PER_MINUTE = 120;
+
+function isEventRateLimited(request) {
+  const minute = Math.floor(Date.now() / 60000);
+  const address = getRequestIp(request);
+  const entry = eventRateWindow.get(address);
+  if (!entry || entry.minute !== minute) {
+    if (eventRateWindow.size > 10000) {
+      eventRateWindow.clear();
+    }
+    eventRateWindow.set(address, { minute, count: 1 });
+    return false;
+  }
+
+  entry.count += 1;
+  return entry.count > EVENT_RATE_LIMIT_PER_MINUTE;
+}
+
+async function flushEventCounts() {
+  if (pendingEventCounts.size === 0) {
+    return;
+  }
+
+  const batch = pendingEventCounts;
+  pendingEventCounts = new Map();
+  try {
+    await writeEventCounts(productEvents.mergeCounts(await readEventCounts(), batch));
+  } catch (error) {
+    // Put the batch back rather than drop it; the next flush tries again.
+    for (const [key, count] of batch) {
+      pendingEventCounts.set(key, (pendingEventCounts.get(key) || 0) + count);
+    }
+    console.error(`Unable to save event counts: ${error.message}`);
+  }
+}
+
+async function handleEvents(request, response, url) {
+  if (request.method === "POST") {
+    if (isEventRateLimited(request)) {
+      sendJson(response, 429, { error: "Too many events." });
+      return;
+    }
+
+    let body;
+    try {
+      body = JSON.parse(await readRequestBody(request));
+    } catch {
+      sendJson(response, 400, { error: "Expected a JSON body." });
+      return;
+    }
+
+    const event = productEvents.normalizeEvent(body);
+    if (!event) {
+      sendJson(response, 400, { error: "Unknown event." });
+      return;
+    }
+
+    const key = productEvents.countKey(productEvents.denverDay(), event);
+    pendingEventCounts.set(key, (pendingEventCounts.get(key) || 0) + 1);
+    sendJson(response, 202, { ok: true });
+    return;
+  }
+
+  if (request.method === "GET") {
+    if (!hasAdminAccess(request)) {
+      sendJson(response, 403, { error: "Not authorized." });
+      return;
+    }
+
+    // Includes what has not been written yet, so a count is visible the moment it is made.
+    const days = Math.min(Math.max(Number(url.searchParams.get("days")) || 30, 1), 366);
+    const since = productEvents.denverDay(new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000));
+    const rows = productEvents.mergeCounts(await readEventCounts(), pendingEventCounts).filter((row) => row.day >= since);
+    sendJson(response, 200, { since, rows, funnel: productEvents.summarizeFunnel(rows) });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed." });
+}
+
 async function dispatchDueReminderPlans() {
   const config = getPushConfig();
   if (!config.enabled || areWebRemindersOff()) {
@@ -2298,6 +2407,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (url.pathname === "/api/events") {
+    await handleEvents(request, response, url);
+    return;
+  }
+
   if (url.pathname === "/api/denver/sweeping") {
     await handleDenverLookup(response, url);
     return;
@@ -2407,5 +2521,14 @@ server.listen(PORT, HOST, async () => {
     dispatchDueReminderPlans().catch((error) => {
       console.error(`Reminder dispatch failed: ${error.message}`);
     });
+    flushEventCounts();
   }, REMINDER_DISPATCH_INTERVAL_MS);
 });
+
+// Render sends SIGTERM on every deploy. Saving the last minute of counts first means a deploy does
+// not quietly erase part of a day's funnel.
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.once(signal, () => {
+    flushEventCounts().finally(() => process.exit(0));
+  });
+}

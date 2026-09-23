@@ -1,16 +1,16 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v215",
+    "cacheName": "curb-alerts-shell-v216",
     "files": {
-      "index.html": "89da721fff98c87b099fdee04d4ff4e627cd39a222b994b5b34a2a0449028c06",
-      "sw.js": "2fafcd09b70345a9bb53e10b32de8f2adea4d17ac94a89b26425c00a5537eb54"
+      "index.html": "caaa56f408a02a8163f643ee1e14b9028dc17baa59a6ba49bfb27bcf4da2b886",
+      "sw.js": "f23379c8aa8980c8c5be5579ee58d556ac0462ea24d44dd3f1c3983f2f21979c"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20260923-alarm-4",
-      "sha256": "cc81670bcf06ebb1c27a2c26623b09e8b1f5421edb0164d6674773a8c2d42f61"
+      "version": "20260923-events",
+      "sha256": "7b121726ac85970999c9f3a0b57139fb1f60b39d961c2f868134600870130671"
     },
     "apple-touch-icon.png": {
       "version": "20260916-two-sides",

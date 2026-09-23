@@ -2174,6 +2174,33 @@ function getApiBaseOrigin() {
   return window.location.origin;
 }
 
+// Anonymous funnel counts: which step people reach between opening the app and paying (see
+// lib/events.js). A name, the platform and the app version, and nothing that identifies anyone - the
+// server adds one to a daily total. Fire and forget: a count that fails to send must never delay or
+// break the thing being counted.
+function trackEvent(event) {
+  if (typeof window.fetch !== "function") {
+    return;
+  }
+
+  const bridge = getNativeReminderBridge();
+  try {
+    window.fetch(buildApiUrl("/api/events"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "omit",
+      keepalive: true,
+      body: JSON.stringify({
+        event,
+        platform: bridge ? "ios" : "web",
+        appVersion: bridge ? bridge.appVersion || "unknown" : "web"
+      })
+    }).catch(() => {});
+  } catch {
+    // An unbuildable URL (a page opened from disk) counts nothing and costs nothing.
+  }
+}
+
 function buildApiUrl(path) {
   return new URL(path, `${getApiBaseOrigin()}/`).toString();
 }
@@ -2387,11 +2414,20 @@ async function openReminderPaywall() {
     return null;
   }
 
+  trackEvent("paywall_shown");
   let subscription = null;
   try {
     subscription = await bridge.showPaywall();
   } catch (error) {
     lookupStatus.textContent = error.message || "The App Store could not be reached. Try again in a moment.";
+  }
+
+  if (!subscription?.entitled) {
+    trackEvent("paywall_closed");
+  } else if (subscription.status === "trial") {
+    trackEvent("trial_started");
+  } else {
+    trackEvent("subscription_started");
   }
 
   renderAll();
@@ -5977,6 +6013,7 @@ function openCurbSheet(segmentId) {
   }
   if (activeCurbSheetSegmentId !== segmentId) {
     lastCurbReminderChange = null;
+    trackEvent("curb_opened");
   }
   activeCurbSheetSegmentId = segmentId;
   renderCurbSheet();
@@ -6133,7 +6170,8 @@ function renderCurbSheetStatus(segment, reminded) {
   curbSheetStatus.hidden = false;
 }
 
-function toggleCurbReminder(segmentId) {
+// options.afterPaywall: the same tap coming back once the plans were bought, not a second tap.
+function toggleCurbReminder(segmentId, options = {}) {
   const segment = getSegmentById(segmentId);
   if (!segment) {
     return;
@@ -6147,6 +6185,9 @@ function toggleCurbReminder(segmentId) {
       lookupStatus.textContent = "Streets not maintained by Denver have no Denver sweeping schedule and cannot be saved for sweeping reminders.";
       return;
     }
+    if (!options.afterPaywall) {
+      trackEvent("remind_tapped");
+    }
     // The website sends no reminders, so saving a curb for one here would remind nobody.
     if (areWebRemindersOff()) {
       openAppStoreListing();
@@ -6158,7 +6199,7 @@ function toggleCurbReminder(segmentId) {
     if (areRemindersPaywalled()) {
       openReminderPaywall().then((subscription) => {
         if (subscription?.entitled && !isCurbReminded(segmentId)) {
-          toggleCurbReminder(segmentId);
+          toggleCurbReminder(segmentId, { afterPaywall: true });
         }
       });
       return;
@@ -9386,6 +9427,7 @@ try {
 
 registerSweepCheckEvents();
 registerSubscriptionEvents();
+trackEvent("app_open");
 renderAll();
 handleSweepCheckLink();
 initializePushFeatures();
