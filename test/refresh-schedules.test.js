@@ -205,3 +205,31 @@ test("a coordinate that crashes Denver is an answer, not a failure to retry", ()
     assert.equal(isUpstreamCrashBody(other), false, other.slice(0, 60));
   }
 });
+
+test("bumping the inventory also retags cities.js, which holds the inventory URL", () => {
+  const { nextCitiesTag } = require("../scripts/lib/asset-versions.js");
+  const fsx = require("node:fs");
+  const path2 = require("node:path");
+  const ROOT = path2.join(__dirname, "..");
+
+  // cities.js carried one tag across inventory URLs 96, 97 and 98 on 2026-09-21..23. The service
+  // worker answers a versioned URL from Cache Storage without revalidating, so every existing
+  // install would have kept pointing at 96 and never fetched the refreshed dates. The asset lock
+  // could not catch it: bumpInventoryVersion rewrites the lock straight after, re-recording the new
+  // hash at the old version.
+  assert.equal(nextCitiesTag("20260921-city-registry", 98), "20260921-city-registry-inv98");
+  // The suffix is replaced, not stacked, so the tag does not grow with every bump.
+  assert.equal(nextCitiesTag("20260921-city-registry-inv98", 99), "20260921-city-registry-inv99");
+  assert.equal(nextCitiesTag("plain", 2), "plain-inv2");
+
+  // And what ships must actually agree: the tag on cities.js has to name the inventory it points at.
+  const cities = fsx.readFileSync(path2.join(ROOT, "public", "cities.js"), "utf8");
+  const index = fsx.readFileSync(path2.join(ROOT, "public", "index.html"), "utf8");
+  const inventory = cities.match(/denver-west-routes\.json\?v=(\d+)/)[1];
+  const tag = index.match(/cities\.js\?v=([^"']+)/)[1];
+  assert.match(
+    tag,
+    new RegExp(`-inv${inventory}$`),
+    `cities.js ships as ?v=${tag} but points at inventory ?v=${inventory}; installed clients would keep the old payload`
+  );
+});

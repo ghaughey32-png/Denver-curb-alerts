@@ -113,8 +113,25 @@ function writeAssetVersionLock(lock = buildAssetVersionLock()) {
 // sweep dates. Without this the refreshed payload ships under the version installed clients have
 // already cached, and the service worker answers it from Cache Storage forever -- a "?v=" URL is
 // immutable by contract, so a hit can never be revalidated.
+// cities.js holds the inventory URL, so bumping the inventory changes cities.js's own bytes -- and
+// an asset whose bytes move while its "?v=" stands still is one installed clients never fetch
+// again, because the service worker answers a versioned URL from Cache Storage without revalidating.
+// Shipped exactly that on 2026-09-21..23: cities.js carried "20260921-city-registry" across three
+// different inventory URLs (96, 97, 98), so every existing install would have kept pointing at 96
+// and never seen the refreshed dates. The asset lock is supposed to catch this and could not,
+// because bumpInventoryVersion rewrites the lock immediately after, re-recording the new hash at
+// the old version -- the guard overwriting its own evidence.
+//
+// So the inventory version is appended to cities.js's tag, which keeps the descriptive slug while
+// making the tag move whenever the bytes do. Any previous "-inv<N>" is stripped first so the tag
+// does not grow with every bump.
+function nextCitiesTag(currentTag, inventoryVersion) {
+  return `${String(currentTag).replace(/-inv\d+$/, "")}-inv${inventoryVersion}`;
+}
+
 function bumpInventoryVersion() {
   const cities = fs.readFileSync(CITIES_PATH, "utf8");
+  const index = fs.readFileSync(INDEX_PATH, "utf8");
   const serviceWorker = fs.readFileSync(SERVICE_WORKER_PATH, "utf8");
 
   const current = Number(cities.match(/denver-west-routes\.json\?v=(\d+)/)?.[1]);
@@ -123,7 +140,19 @@ function bumpInventoryVersion() {
     throw new Error("Could not read the current inventory or shell version out of public/; refusing to guess");
   }
 
+  const citiesTag = index.match(/cities\.js\?v=([^"']+)/)?.[1];
+  if (!citiesTag) {
+    throw new Error("Could not read the current cities.js tag out of public/index.html; refusing to guess");
+  }
+
   const next = current + 1;
+  const nextTag = nextCitiesTag(citiesTag, next);
+
+  fs.writeFileSync(
+    INDEX_PATH,
+    index.replaceAll(`cities.js?v=${citiesTag}`, `cities.js?v=${nextTag}`),
+    "utf8"
+  );
   fs.writeFileSync(
     CITIES_PATH,
     cities.replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next}`),
@@ -133,12 +162,17 @@ function bumpInventoryVersion() {
     SERVICE_WORKER_PATH,
     serviceWorker
       .replace(/denver-west-routes\.json\?v=\d+/g, `denver-west-routes.json?v=${next}`)
+      .replaceAll(`cities.js?v=${citiesTag}`, `cities.js?v=${nextTag}`)
       .replace(/curb-alerts-shell-v\d+/g, `curb-alerts-shell-v${shellVersion + 1}`),
     "utf8"
   );
   writeAssetVersionLock();
 
-  return { inventory: { previous: current, next }, shell: { previous: shellVersion, next: shellVersion + 1 } };
+  return {
+    inventory: { previous: current, next },
+    shell: { previous: shellVersion, next: shellVersion + 1 },
+    cities: { previous: citiesTag, next: nextTag }
+  };
 }
 
 function bumpAssetVersions(assetTag) {
@@ -201,6 +235,7 @@ module.exports = {
   readCurrentVersions,
   bumpAssetVersions,
   bumpInventoryVersion,
+  nextCitiesTag,
   buildAssetVersionLock,
   readAssetVersionLock,
   writeAssetVersionLock,
