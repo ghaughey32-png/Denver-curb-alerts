@@ -61,7 +61,7 @@ function readCheckpoint(maxAgeHours = 36) {
     const saved = JSON.parse(fs.readFileSync(CHECKPOINT_PATH, "utf8"));
     const ageHours = (Date.now() - new Date(saved.updatedAt).getTime()) / 3600000;
     if (!Number.isFinite(ageHours) || ageHours > maxAgeHours) return null;
-    return { ids: new Set(saved.refreshedIds || []), ageHours };
+    return { ids: new Set(saved.refreshedIds || []), unreachable: new Set(saved.unreachableIds || []), ageHours };
   } catch {
     return null;
   }
@@ -70,7 +70,7 @@ function readCheckpoint(maxAgeHours = 36) {
 function writeCheckpoint(state) {
   fs.writeFileSync(
     CHECKPOINT_PATH,
-    `${JSON.stringify({ updatedAt: new Date().toISOString(), refreshedIds: [...state.refreshedIds] }, null, 2)}\n`,
+    `${JSON.stringify({ updatedAt: new Date().toISOString(), refreshedIds: [...state.refreshedIds], unreachableIds: [...state.unreachable] }, null, 2)}\n`,
     "utf8"
   );
 }
@@ -100,16 +100,20 @@ function getLookupPoint(route) {
 
 // One point per still-stale route, deduplicated: neighbouring routes can share a midpoint, and
 // asking twice wastes a request against a service that is already rate-limiting us.
-function buildLookupPoints(routes, refreshedIds, roundSize = ROUND_SIZE) {
+// Skips routes already refreshed and routes whose own coordinate crashes Denver. Each point
+// carries the route that asked for it, so a crash can be attributed to something and never asked
+// about again -- without that the same broken coordinates come back every round forever.
+function buildLookupPoints(routes, refreshedIds, roundSize = ROUND_SIZE, unreachableIds = new Set()) {
   const seen = new Set();
   const points = [];
   for (const route of routes) {
-    if (refreshedIds.has(String(route.id))) continue;
+    const id = String(route.id);
+    if (refreshedIds.has(id) || unreachableIds.has(id)) continue;
     const [lat, lon] = getLookupPoint(route);
     const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    points.push({ lat, lon });
+    points.push({ lat, lon, routeId: id });
     if (points.length >= roundSize) break;
   }
   return points;
@@ -174,12 +178,13 @@ async function main() {
   console.log(`Dates now: ${rangeBefore.first} -> ${rangeBefore.last} (${rangeBefore.count} distinct)`);
   console.log(`Pace: ${concurrency} request(s) at a time, ${roundSize} per round, ${roundPauseMs / 1000}s between rounds.`);
 
-  const state = { refreshedIds: new Set(), changed: 0, sweepTypeDivergences: [] };
+  const state = { refreshedIds: new Set(), unreachable: new Set(), changed: 0, sweepTypeDivergences: [] };
 
   // Denver throttles before a full pass finishes, so a run is expected to be one of several.
   const resumed = noResume ? null : readCheckpoint();
   if (resumed) {
     for (const id of resumed.ids) if (byId.has(id)) state.refreshedIds.add(id);
+    for (const id of resumed.unreachable) if (byId.has(id)) state.unreachable.add(id);
     console.log(`Resuming: ${state.refreshedIds.size} route(s) already refreshed ${resumed.ageHours.toFixed(1)}h ago.`);
   }
   console.log("");
@@ -204,8 +209,8 @@ async function main() {
   let round = 0;
   let throttled = null;
 
-  while (state.refreshedIds.size < targets.length) {
-    const points = buildLookupPoints(targets, state.refreshedIds, roundSize);
+  while (state.refreshedIds.size + state.unreachable.size < targets.length) {
+    const points = buildLookupPoints(targets, state.refreshedIds, roundSize, state.unreachable);
     if (!points.length) break;
 
     round += 1;
@@ -215,7 +220,12 @@ async function main() {
 
     let summaries;
     try {
-      summaries = await runPool(urls, { concurrency });
+      summaries = await runPool(urls, {
+        concurrency,
+        // Denver crashes on this coordinate and always will. Record it so no future round, in this
+        // run or the next, spends another request on it.
+        onPermanentFailure: (index) => state.unreachable.add(points[index].routeId)
+      });
     } catch (error) {
       // The abort guard is doing its job. Everything refreshed so far is real and worth keeping,
       // so stop asking and fall through to the write rather than throwing it all away.
@@ -242,16 +252,17 @@ async function main() {
       break;
     }
 
-    if (state.refreshedIds.size < targets.length) await sleep(roundPauseMs);
+    if (state.refreshedIds.size + state.unreachable.size < targets.length) await sleep(roundPauseMs);
   }
 
-  const stale = targets.length - state.refreshedIds.size;
+  const stale = targets.length - state.refreshedIds.size - state.unreachable.size;
   const rangeAfter = describeDateRange(payload.routes);
 
   console.log("=== result ===");
   console.log(`routes refreshed      : ${state.refreshedIds.size} of ${targets.length}`);
   console.log(`  with changed dates  : ${state.changed}`);
   console.log(`left with old dates   : ${stale}`);
+  console.log(`Denver cannot look up : ${state.unreachable.size} (its lookup crashes on those coordinates)`);
   console.log(`dates after           : ${rangeAfter.first} -> ${rangeAfter.last} (${rangeAfter.count} distinct)`);
 
   if (state.sweepTypeDivergences.length) {
@@ -266,6 +277,9 @@ async function main() {
 
   if (!state.changed) {
     console.log("\nNo dates changed; leaving the payload and its version alone.");
+    // The unreachable list is still worth keeping even when nothing else moved, or the next run
+    // rediscovers the same broken coordinates one wasted request at a time.
+    if (!dryRun && state.unreachable.size) writeCheckpoint(state);
     return;
   }
 

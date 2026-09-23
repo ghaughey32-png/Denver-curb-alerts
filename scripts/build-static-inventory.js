@@ -310,6 +310,25 @@ function sampleRegion(region) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Denver's route lookup crashes on certain coordinates and always will: the service answers HTTP
+// 500 with " Object reference not set to an instance of an object.", an upstream null-reference
+// defect. AGENTS.md has recorded it for North Tennyson since 2026-08-24; measured 2026-09-23 it is
+// scattered across the city -- 31 of 170 consecutive lookups, on Lawrence, W 11th, W Byron,
+// N Decatur, N Josephine and E 42nd, each failing all three times it was re-asked with no other
+// traffic at all.
+//
+// `server.js` wraps any upstream failure as a 502, so these arrive looking exactly like a service
+// that is struggling. They are not. Retrying one is four wasted requests against a city API, and
+// counting the exhausted retries as failures is what made two runs abort with identical numbers --
+// 31 gave up, 124 502s -- at concurrency 3 and 1, twenty-one hours apart. Identical numbers across
+// different load is the tell that load was never the variable.
+//
+// So this is Denver answering definitively, like the 400 from its address endpoint: not retried,
+// not counted against the failure rate, and reported to the caller so it can stop asking.
+function isUpstreamCrashBody(body) {
+  return /status 500/.test(body) && /Object reference not set to an instance of an object/i.test(body);
+}
+
 // "Not now" rather than "no": worth asking again after a pause. Everything else Denver returns is
 // its real answer and is recorded as such.
 function isRetryableStatus(status) {
@@ -329,6 +348,13 @@ async function fetchWithRetry(url, stats, limits) {
 
       if (response.ok) {
         return { answered: true, data: await response.json() };
+      }
+
+      // The body is what tells an overloaded service apart from a coordinate that crashes it.
+      const body = await response.text().catch(() => "");
+      if (isUpstreamCrashBody(body)) {
+        stats.upstreamCrashes += 1;
+        return { answered: true, data: null, permanent: true };
       }
 
       if (!isRetryableStatus(response.status)) {
@@ -361,7 +387,7 @@ async function runPool(urls, options = {}) {
     maxFailureRate: options.maxFailureRate ?? MAX_FAILURE_RATE
   };
   const results = new Array(urls.length).fill(null);
-  const stats = { completed: 0, withRoutes: 0, failed: 0, retried: 0, threw: 0, byStatus: new Map() };
+  const stats = { completed: 0, withRoutes: 0, failed: 0, retried: 0, threw: 0, upstreamCrashes: 0, byStatus: new Map() };
   let nextIndex = 0;
   let abortReason = null;
 
@@ -372,6 +398,10 @@ async function runPool(urls, options = {}) {
 
       const outcome = await fetchWithRetry(urls[index], stats, limits);
       stats.completed += 1;
+
+      if (outcome.permanent && typeof options.onPermanentFailure === "function") {
+        options.onPermanentFailure(index);
+      }
 
       if (outcome.answered) {
         results[index] = outcome.data;
@@ -393,7 +423,7 @@ async function runPool(urls, options = {}) {
   const statuses = [...stats.byStatus.entries()].sort((a, b) => a[0] - b[0]).map(([code, n]) => `${code}:${n}`).join(" ");
   console.log(
     `Lookups: ${stats.completed} of ${urls.length} completed, ${stats.withRoutes} returned routes, ` +
-    `${stats.failed} gave up, ${stats.retried} retried, ${stats.threw} threw. HTTP ${statuses || "none"}.`
+    `${stats.failed} gave up, ${stats.retried} retried, ${stats.upstreamCrashes} crashed Denver. HTTP ${statuses || "none"}.`
   );
 
   if (abortReason) {
@@ -1168,6 +1198,7 @@ module.exports = {
   // rather than only through a run that takes twenty minutes and needs the live city API.
   assertNoCoverageCollapse,
   isRetryableStatus,
+  isUpstreamCrashBody,
   runPool,
   EXPECTED_BLOCKS_PATH,
   OUTPUT_PATH

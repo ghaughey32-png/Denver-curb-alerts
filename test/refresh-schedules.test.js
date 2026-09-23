@@ -47,9 +47,16 @@ test("lookup points skip refreshed routes, dedupe, and honour the round size", (
 
   // Routes 1 and 2 share a midpoint to five decimals, so one request answers both.
   assert.equal(buildLookupPoints(routes, new Set()).length, 2);
-  assert.deepEqual(buildLookupPoints(routes, new Set(["1", "2"])), [[39.81, -105.0]].map(([lat, lon]) => ({ lat, lon })));
+  assert.deepEqual(buildLookupPoints(routes, new Set(["1", "2"])), [{ lat: 39.81, lon: -105.0, routeId: "3" }]);
   assert.equal(buildLookupPoints(routes, new Set(), 1).length, 1);
   assert.equal(buildLookupPoints(routes, new Set(["1", "2", "3"])).length, 0);
+
+  // A point carries the route that asked for it, which is how a crash gets attributed.
+  assert.equal(buildLookupPoints(routes, new Set())[0].routeId, "1");
+
+  // Denver crashes on route 3s coordinate, so it must never be asked about again.
+  assert.equal(buildLookupPoints(routes, new Set(["1", "2"]), 600, new Set(["3"])).length, 0);
+  assert.equal(buildLookupPoints(routes, new Set(), 600, new Set(["1", "2"])).length, 1);
 });
 
 test("dates are replaced, and one lookup can refresh several routes", () => {
@@ -132,10 +139,13 @@ test("the checkpoint round-trips, and a stale one is ignored", () => {
   const had = fsx.existsSync(CHECKPOINT_PATH) ? fsx.readFileSync(CHECKPOINT_PATH) : null;
 
   try {
-    writeCheckpoint({ refreshedIds: new Set(["1", "2", "3"]) });
+    writeCheckpoint({ refreshedIds: new Set(["1", "2", "3"]), unreachable: new Set(["9"]) });
     const fresh = readCheckpoint();
     assert.equal(fresh.ids.size, 3);
     assert.ok(fresh.ids.has("2"));
+    // Coordinates Denver crashes on have to survive too, or the next run rediscovers each one at
+    // the cost of a wasted request.
+    assert.deepEqual([...fresh.unreachable], ["9"]);
 
     // A full refresh takes several runs, but picking up a week-old list would skip routes whose
     // dates have since expired -- exactly the staleness this script exists to remove.
@@ -145,6 +155,7 @@ test("the checkpoint round-trips, and a stale one is ignored", () => {
     );
     assert.equal(readCheckpoint(), null, "a checkpoint older than the window must be ignored");
     assert.equal(readCheckpoint(100).ids.size, 1, "and honoured when the caller widens the window");
+    assert.equal(readCheckpoint(100).unreachable.size, 0, "a checkpoint without the field still loads");
 
     fsx.writeFileSync(CHECKPOINT_PATH, "{ not json");
     assert.equal(readCheckpoint(), null, "a corrupt checkpoint must not take the run down");
@@ -168,5 +179,29 @@ test("a mistyped pace flag falls back to the gentle default instead of the profi
   // is the one way this flag could do harm.
   for (const junk of [[], ["--concurrency="], ["--concurrency=abc"], ["--concurrency=0"], ["--concurrency=-4"], ["--concurrencyx=9"]]) {
     assert.equal(readNumericFlag(junk, "concurrency", 1), 1, JSON.stringify(junk));
+  }
+});
+
+test("a coordinate that crashes Denver is an answer, not a failure to retry", () => {
+  const { isUpstreamCrashBody } = require("../scripts/build-static-inventory.js");
+
+  // What server.js wraps Denver's null-reference crash in. Measured 2026-09-23 on 31 of 170
+  // consecutive lookups, every one failing all three times it was re-asked with no other traffic.
+  const crash = JSON.stringify({
+    error: "Unable to reach the Denver street sweeping service right now.",
+    details: 'Request failed with status 500: " Object reference not set to an instance of an object."'
+  });
+  assert.equal(isUpstreamCrashBody(crash), true);
+
+  // A service that is genuinely struggling must still be retried, so it must not match.
+  for (const other of [
+    "",
+    "{}",
+    JSON.stringify({ details: "Request failed with status 500: Internal Server Error" }),
+    JSON.stringify({ details: "Request failed with status 503: Service Unavailable" }),
+    JSON.stringify({ details: "socket hang up" }),
+    JSON.stringify({ details: "Object reference not set to an instance of an object." })
+  ]) {
+    assert.equal(isUpstreamCrashBody(other), false, other.slice(0, 60));
   }
 });
