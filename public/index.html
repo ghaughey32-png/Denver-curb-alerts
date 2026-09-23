@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20260923-alarm" />
+    <link rel="stylesheet" href="./styles.css?v=20260923-nav-wordmark" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -31,6 +31,12 @@
              account is settings for a feature the app deliberately works without. A fourth tab
              beside Map would advertise a sign-up wall on every visit; a chip in the corner is where
              people look for an account anyway, and it says "Sign in" until there is a name to show. -->
+        <!-- Centred over the whole row, not placed between the tabs and the chip, so it sits on the
+             page's axis whatever the chip says. Hidden on narrow screens, where the tabs need the row. -->
+        <div class="app-tabs-logo">
+          <span>Curb Alerts</span>
+          <img src="./icon.svg?v=20260916-two-sides" alt="" width="40" height="40" />
+        </div>
         <button id="account-chip" class="account-chip" type="button" data-view-target="account">Sign in</button>
       </nav>
       <!-- The sweep-day check. Outside every view on purpose: on a sweep day the one question that

@@ -81,6 +81,34 @@ button {
   min-width: 0;
 }
 
+/* Taken out of the flex flow and centred on the nav itself; the sticky nav is its containing block. */
+.app-tabs-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translate(-50%, -50%);
+  color: var(--ink);
+  font-size: 1.2rem;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.app-tabs-logo img {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+}
+
+@media (max-width: 1000px) {
+  .app-tabs-logo {
+    display: none;
+  }
+}
+
 .app-tab {
   min-height: 44px;
   padding: 10px 16px;
