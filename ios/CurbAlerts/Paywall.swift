@@ -17,6 +17,9 @@ struct PaywallView: View {
     /// price is set in App Store Connect and can change, and a buyer may be paying in another currency.
     @State private var dailyCost: String?
 
+    /// The orange stripe in the app icon, #D37135, sampled from AppIcon-1024.png.
+    static let logoOrange = Color(red: 0xD3 / 255, green: 0x71 / 255, blue: 0x35 / 255)
+
     static let termsURL = URL(string: "https://www.curbalerts.co/#terms")!
     static let privacyURL = URL(string: "https://www.curbalerts.co/#privacy")!
 
@@ -41,7 +44,7 @@ struct PaywallView: View {
                     Text("A Denver street sweeping ticket costs $50.")
                     if let dailyCost {
                         Text("Curb Alerts costs about \(dailyCost) a day.")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Self.logoOrange)
                     }
                 }
                 .font(.subheadline.weight(.semibold))
