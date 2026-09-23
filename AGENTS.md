@@ -1520,6 +1520,36 @@ only way to get reminders inside a shell, which is wrong for the specific reason
 computes its jobs client-side with absolute times — that is what makes step 3 sufficient on its own.
 
 
+## Android, later
+
+Not started, and deliberately not now: decided 2026-09-23 to launch on the App Store alone. Selling
+to Android users is likely later, so this records what that will take while it is fresh.
+
+**Most of it is already shared.** The product is `public/`, and the page talks to a phone only
+through `window.DenverCurbAlertsNative`. An Android app is a `WebView` loading the same bundled
+`public/` and implementing the same bridge contract (see **The iOS project**), so the page needs no
+changes. Keep it that way: put new behaviour in the page rather than in Swift wherever a phone's own
+API is not required, and keep the page testing for capabilities (`typeof bridge.showPaywall`), never
+for which platform it is on.
+
+**What has to be written again in Kotlin:** the shell; reminder scheduling (alarms plus
+notifications — Android has no 64-notification cap, but exact-time alarms need the exact-alarm
+permission from Android 12, off by default on recent versions, and Google restricts the one granted
+automatically to alarm-clock and calendar apps, so it is a permission prompt in onboarding); Google
+Play Billing in place of StoreKit, which Google requires for digital subscriptions as Apple does;
+and a port of `ReminderAccess` and `AccessNoticePlanner`, since the never-stop-silently rule applies
+there too. The widget (Glance) and a lock-screen stand-in for the Live Activity can follow launch.
+Play Billing is a Google library, so the no-dependency rule bends for the Android project only.
+
+**Publish under Curb Alerts LLC as an organization account.** New personal Play accounts must run a
+closed test with about a dozen testers for two weeks before going public; organization accounts
+avoid that but need a D-U-N-S number, which takes a while to issue. Verify both against Google's
+current policy before relying on them.
+
+**A subscription does not cross stores.** Apple and Google share nothing, so an iPhone subscriber
+who moves to Android has to buy again unless the server verifies both stores against the account.
+Skip that at first; build it only if people ask.
+
 ## Email
 
 Added 2026-08-29. Address confirmation and password reset, which are the two things the account
