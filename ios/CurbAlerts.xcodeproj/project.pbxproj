@@ -37,6 +37,7 @@
 /* Begin PBXFileReference section */
 		CA0000000000000000000001 /* CurbAlerts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CurbAlerts.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA0000000000000000000021 /* CurbAlertsWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CurbAlertsWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA0000000000000000000040 /* CurbAlerts.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = CurbAlerts.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -104,6 +105,7 @@
 				CA0000000000000000000003 /* CurbAlerts */,
 				CA0000000000000000000022 /* CurbAlertsWidgets */,
 				CA0000000000000000000024 /* Shared */,
+				CA0000000000000000000041 /* StoreKit */,
 				CA0000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -115,6 +117,14 @@
 				CA0000000000000000000021 /* CurbAlertsWidgets.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		CA0000000000000000000041 /* StoreKit */ = {
+			isa = PBXGroup;
+			children = (
+				CA0000000000000000000040 /* CurbAlerts.storekit */,
+			);
+			path = StoreKit;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

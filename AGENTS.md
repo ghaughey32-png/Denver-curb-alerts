@@ -1472,7 +1472,11 @@ left alone.
 Prices are never written into the app or the page — they come from `Product.displayPrice`.
 `ios/StoreKit/CurbAlerts.storekit` mirrors the two products for local testing, with grace period on.
 It sits outside the synchronized folders on purpose, so it is not bundled, and the shared
-`CurbAlerts` scheme (now committed under `xcshareddata`) points Run at it. It only applies when the
+`CurbAlerts` scheme (now committed under `xcshareddata`) points Run at it. **The file also has to be
+in the project** — the `StoreKit` group in `project.pbxproj`, with no target membership. A scheme
+that names a StoreKit file the project does not contain is silently ignored: the paywall asks the
+real App Store and says *Subscription Unavailable*. Found and fixed 2026-09-23; the scheme's
+`../../StoreKit/CurbAlerts.storekit` was right all along. It only applies when the
 app is launched from Xcode; `simctl launch` and TestFlight use the real store. Keep its product ids
 equal to `SubscriptionManager.productIDs` and to App Store Connect.
 
