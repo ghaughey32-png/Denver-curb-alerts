@@ -1544,9 +1544,15 @@ computes its jobs client-side with absolute times — that is what makes step 3 
 Added 2026-09-23. App Store Connect reports the store half of the funnel (impressions, product page
 views, downloads, where they came from) and the subscription half (trials, conversions, renewals,
 cancellations, refunds) at no cost and with no code. What it cannot see is the path inside the app,
-so the app counts that itself: `app_open`, `curb_opened`, `remind_tapped`, `paywall_shown`, then one
-of `trial_started`, `subscription_started` or `paywall_closed`. `npm run events` prints the funnel
-with each step's share of the one before; it reads `GET /api/events`, behind the admin token like
+so the app counts that itself: `app_open`, `curb_opened`, `remind_tapped`, `paywall_shown`, then
+`trial_started` or `subscription_started`. **Each is sent at most once per session**, so every count
+is a count of sessions and each step's share of the one before stays at or under 100% — counting
+every tap made one person opening three curbs look like three, and read as 300%. A session is a page
+load, or a return after `SESSION_IDLE_MS` (30 minutes) away, because the app's web view can stay
+alive in the background for days. "Saw the plans and left" is not sent: it is worked out as the
+sessions that saw them less the ones that bought, because a session that closes the plans and buys a
+minute later would otherwise count as both. Counts before 2026-09-24 were per tap. `npm run events`
+prints the funnel with each step's share of the one before; it reads `GET /api/events`, behind the admin token like
 every bulk read, so `ISSUE_REPORT_ADMIN_TOKEN` has to be set on Render and in the shell running it.
 
 **Counts only, and that is the design, not a first version of something richer.** An event is a

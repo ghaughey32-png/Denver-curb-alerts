@@ -2178,10 +2178,34 @@ function getApiBaseOrigin() {
 // lib/events.js). A name, the platform and the app version, and nothing that identifies anyone - the
 // server adds one to a daily total. Fire and forget: a count that fails to send must never delay or
 // break the thing being counted.
-function trackEvent(event) {
-  if (typeof window.fetch !== "function") {
+//
+// Each step counts at most once per session, so the funnel reads as sessions: "of the sessions that
+// opened a curb, how many tapped Remind me". Counting every tap made one person opening three curbs
+// look like three, and a step's share of the one before ran past 100%. A session is a page load, or a
+// return after SESSION_IDLE_MS away - the app's web view can stay alive in the background for days,
+// and a driver coming back to it next week is a new visit.
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+const eventsThisSession = new Set();
+let pageHiddenAt = null;
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pageHiddenAt = Date.now();
     return;
   }
+
+  if (pageHiddenAt && Date.now() - pageHiddenAt > SESSION_IDLE_MS) {
+    eventsThisSession.clear();
+    trackEvent("app_open");
+  }
+  pageHiddenAt = null;
+});
+
+function trackEvent(event) {
+  if (typeof window.fetch !== "function" || eventsThisSession.has(event)) {
+    return;
+  }
+  eventsThisSession.add(event);
 
   const bridge = getNativeReminderBridge();
   try {
@@ -2422,12 +2446,10 @@ async function openReminderPaywall() {
     lookupStatus.textContent = error.message || "The App Store could not be reached. Try again in a moment.";
   }
 
-  if (!subscription?.entitled) {
-    trackEvent("paywall_closed");
-  } else if (subscription.status === "trial") {
-    trackEvent("trial_started");
-  } else {
-    trackEvent("subscription_started");
+  // Only a purchase is counted. "Saw the plans and left" is worked out from the totals instead,
+  // because a session that closes the plans and buys a minute later would otherwise count as both.
+  if (subscription?.entitled) {
+    trackEvent(subscription.status === "trial" ? "trial_started" : "subscription_started");
   }
 
   renderAll();

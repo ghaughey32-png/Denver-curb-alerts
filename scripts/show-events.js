@@ -33,11 +33,11 @@ async function main() {
 
   const { since, rows, funnel } = await response.json();
   console.log(`In-app funnel since ${since} (${origin})\n`);
-  console.log("Step                   Count   Of the step before");
+  console.log("Sessions that...        Count   Of the step before");
   for (const step of funnel.steps) {
     console.log(`${step.event.padEnd(22)} ${String(step.count).padStart(5)}   ${percent(step.ofPrevious)}`);
   }
-  console.log("\nEach time the plans were shown");
+  console.log("\nOf the sessions that saw the plans");
   for (const outcome of funnel.outcomes) {
     console.log(`${outcome.event.padEnd(22)} ${String(outcome.count).padStart(5)}   ${percent(outcome.ofShown)}`);
   }

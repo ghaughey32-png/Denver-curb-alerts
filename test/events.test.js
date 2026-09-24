@@ -19,6 +19,7 @@ test("only the known steps are counted, and a version is a label, not free text"
     appVersion: "1.0 (9)"
   });
   assert.equal(events.normalizeEvent({ event: "drop table" }), null);
+  assert.equal(events.normalizeEvent({ event: "paywall_closed" }), null, "worked out from the totals, never sent");
   assert.equal(events.normalizeEvent({}), null);
   assert.equal(events.normalizeEvent({ event: "app_open", platform: "android" }).platform, "web");
   assert.equal(events.normalizeAppVersion("<script>"), "unknown");
@@ -30,14 +31,14 @@ test("a count lands on the Denver day it happened, not the server's UTC one", ()
   assert.equal(events.denverDay(new Date("2026-09-24T03:00:00Z")), "2026-09-23");
 });
 
-test("the funnel shows each step's share of the one before, and each paywall outcome's share of views", () => {
+test("the funnel shows each step's share of the one before, and each outcome's share of the sessions that saw the plans", () => {
   const rows = [
     { day: "2026-10-01", event: "app_open", platform: "ios", appVersion: "1.0 (9)", count: 200 },
     { day: "2026-10-01", event: "curb_opened", platform: "ios", appVersion: "1.0 (9)", count: 120 },
     { day: "2026-10-01", event: "remind_tapped", platform: "ios", appVersion: "1.0 (9)", count: 60 },
     { day: "2026-10-01", event: "paywall_shown", platform: "ios", appVersion: "1.0 (9)", count: 50 },
     { day: "2026-10-01", event: "trial_started", platform: "ios", appVersion: "1.0 (9)", count: 10 },
-    { day: "2026-10-01", event: "paywall_closed", platform: "ios", appVersion: "1.0 (9)", count: 40 }
+    { day: "2026-10-01", event: "subscription_started", platform: "ios", appVersion: "1.0 (9)", count: 5 }
   ];
   const { steps, outcomes } = events.summarizeFunnel(rows);
 
@@ -48,7 +49,11 @@ test("the funnel shows each step's share of the one before, and each paywall out
     ["paywall_shown", 50, 50 / 60]
   ]);
   assert.equal(outcomes.find((outcome) => outcome.event === "trial_started").ofShown, 0.2);
-  assert.equal(outcomes.find((outcome) => outcome.event === "paywall_closed").ofShown, 0.8);
+  assert.equal(outcomes.find((outcome) => outcome.event === "subscription_started").ofShown, 0.1);
+  // Worked out, not sent: 50 saw the plans, 15 bought, so 35 left - and the three add up to 100%.
+  const left = outcomes.find((outcome) => outcome.event === "left_without_buying");
+  assert.equal(left.count, 35);
+  assert.equal(left.ofShown, 0.7);
 });
 
 test("pending counts merge into stored ones by day, step, platform and version", () => {
@@ -91,4 +96,12 @@ test("the server counts known steps, refuses the rest, and shows counts only to 
     },
     { ISSUE_REPORT_ADMIN_TOKEN: "test-admin-token" }
   );
+});
+
+test("the page counts each step once per session, and a return after a long absence is a new session", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  assert.match(source, /eventsThisSession\.has\(event\)/);
+  assert.match(source, /const SESSION_IDLE_MS = 30 \* 60 \* 1000;/);
+  assert.match(source, /eventsThisSession\.clear\(\);\s*trackEvent\("app_open"\);/);
+  assert.doesNotMatch(source, /trackEvent\("paywall_closed"\)/);
 });
