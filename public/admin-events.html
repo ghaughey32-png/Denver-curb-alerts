@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Curb Alerts — funnel</title>
+    <!--
+      An internal-only read of GET /api/events (lib/events.js / server.js handleEvents). Deliberately
+      not part of the PWA shell: no ?v= tag, not in sw.js APP_SHELL, not linked from index.html, so it
+      never touches the asset-version lock or the offline cache. It is a live page, not an installed
+      one — always fetched fresh (server.js sends every .html as no-store).
+
+      The admin token lives only in this browser's localStorage and is sent only as this page's own
+      Authorization header to /api/events on the same origin. The data itself is safe either way —
+      GET /api/events answers 403 with no token, and even authorized it is aggregate daily counts with
+      no IP, account or device id (see lib/events.js) — so this page needs no login of its own beyond
+      what the API already enforces.
+
+      Store/download/trial-conversion/revenue numbers live in App Store Connect, not here — this is
+      only the in-app funnel between opening the app and paying.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #1f2430;
+        --muted: #6b7280;
+        --line: #e3e6ea;
+        --card: #ffffff;
+        --bg: #f5f6f8;
+        --accent: #d37135;
+        --danger: #c0392b;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #eef0f3;
+          --muted: #9aa1ac;
+          --line: #2c313a;
+          --card: #1b1f27;
+          --bg: #121419;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        margin: 0 0 24px;
+        font-size: 13px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+      }
+
+      .card h2 {
+        font-size: 14px;
+        margin: 0 0 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .controls input[type="password"],
+      .controls select {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 14px;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      .controls input[type="password"] {
+        flex: 1;
+        min-width: 200px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 14px;
+        background: var(--card);
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        font-weight: 600;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 7px 4px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      td.num,
+      th.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        min-height: 18px;
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 10px 0 0;
+      }
+
+      .versions {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 10px;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>In-app funnel</h1>
+      <p class="subtitle">
+        The path from opening the app to paying. Store impressions, downloads and renewal revenue are in App Store
+        Connect, not here.
+      </p>
+
+      <div class="card">
+        <h2>Admin access</h2>
+        <div class="controls">
+          <input
+            id="token-input"
+            type="password"
+            placeholder="Admin token"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <select id="days-select">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="366">Last year</option>
+          </select>
+          <button id="refresh-button" class="primary" type="button">Refresh</button>
+          <button id="forget-button" type="button">Forget token</button>
+        </div>
+        <p class="hint">
+          The token is kept only in this browser (localStorage) and sent only to this site's own
+          <code>/api/events</code>. It has to match <code>ISSUE_REPORT_ADMIN_TOKEN</code> as set on Render.
+        </p>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="card">
+        <h2>Sessions that…</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th class="num">Count</th>
+              <th class="num">Of the step before</th>
+            </tr>
+          </thead>
+          <tbody id="funnel-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Of the sessions that saw the plans</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Outcome</th>
+              <th class="num">Count</th>
+              <th class="num">Of shown</th>
+            </tr>
+          </thead>
+          <tbody id="outcomes-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>By platform and version</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Platform / version</th>
+              <th class="num">app_open</th>
+              <th class="num">subscription_started</th>
+            </tr>
+          </thead>
+          <tbody id="versions-body"></tbody>
+        </table>
+        <p id="versions-empty" class="hint" hidden>Nothing yet for this window.</p>
+      </div>
+    </main>
+
+    <script>
+      // Same key namespace as the rest of the site's localStorage use, so it is recognizable in
+      // devtools next to everything else this app stores.
+      const TOKEN_KEY = "denver-curb-alerts-admin-token";
+
+      const STEP_LABELS = {
+        app_open: "Opened the app",
+        curb_opened: "Opened a curb",
+        remind_tapped: "Tapped “Remind me”",
+        paywall_shown: "Saw the plans"
+      };
+
+      const OUTCOME_LABELS = {
+        trial_started: "Started a trial",
+        subscription_started: "Subscribed",
+        left_without_buying: "Left without buying"
+      };
+
+      const tokenInput = document.querySelector("#token-input");
+      const daysSelect = document.querySelector("#days-select");
+      const refreshButton = document.querySelector("#refresh-button");
+      const forgetButton = document.querySelector("#forget-button");
+      const statusEl = document.querySelector("#status");
+      const funnelBody = document.querySelector("#funnel-body");
+      const outcomesBody = document.querySelector("#outcomes-body");
+      const versionsBody = document.querySelector("#versions-body");
+      const versionsEmpty = document.querySelector("#versions-empty");
+
+      function loadToken() {
+        try {
+          return window.localStorage.getItem(TOKEN_KEY) || "";
+        } catch {
+          return "";
+        }
+      }
+
+      function saveToken(value) {
+        try {
+          if (value) {
+            window.localStorage.setItem(TOKEN_KEY, value);
+          } else {
+            window.localStorage.removeItem(TOKEN_KEY);
+          }
+        } catch {
+          // Private browsing or a blocked store: the token just has to be retyped next time.
+        }
+      }
+
+      function percent(share) {
+        return share === null || share === undefined ? "—" : `${Math.round(share * 100)}%`;
+      }
+
+      function setStatus(text, isError) {
+        statusEl.textContent = text;
+        statusEl.classList.toggle("error", Boolean(isError));
+      }
+
+      function renderFunnel(funnel) {
+        funnelBody.innerHTML = "";
+        for (const step of funnel.steps) {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${STEP_LABELS[step.event] || step.event}</td><td class="num">${step.count}</td><td class="num">${percent(step.ofPrevious)}</td>`;
+          funnelBody.appendChild(row);
+        }
+
+        outcomesBody.innerHTML = "";
+        for (const outcome of funnel.outcomes) {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${OUTCOME_LABELS[outcome.event] || outcome.event}</td><td class="num">${outcome.count}</td><td class="num">${percent(outcome.ofShown)}</td>`;
+          outcomesBody.appendChild(row);
+        }
+      }
+
+      // rows are { day, event, platform, appVersion, count } — summed here per platform+version
+      // for the two numbers worth eyeballing per release: how many sessions, and how many paid.
+      function renderVersions(rows) {
+        const totals = new Map();
+        for (const row of rows) {
+          if (row.event !== "app_open" && row.event !== "subscription_started") continue;
+          const key = `${row.platform} ${row.appVersion}`;
+          const entry = totals.get(key) || { app_open: 0, subscription_started: 0 };
+          entry[row.event] += row.count;
+          totals.set(key, entry);
+        }
+
+        const keys = [...totals.keys()].sort();
+        versionsBody.innerHTML = "";
+        for (const key of keys) {
+          const entry = totals.get(key);
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${key}</td><td class="num">${entry.app_open}</td><td class="num">${entry.subscription_started}</td>`;
+          versionsBody.appendChild(row);
+        }
+        versionsEmpty.hidden = keys.length > 0;
+      }
+
+      async function refresh() {
+        const token = tokenInput.value.trim();
+        if (!token) {
+          setStatus("Enter the admin token to load data.", true);
+          return;
+        }
+
+        saveToken(token);
+        refreshButton.disabled = true;
+        setStatus("Loading…", false);
+
+        try {
+          const response = await fetch(`/api/events?days=${daysSelect.value}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (response.status === 403) {
+            setStatus("That token was refused. Check ISSUE_REPORT_ADMIN_TOKEN on Render.", true);
+            return;
+          }
+
+          if (!response.ok) {
+            setStatus(`The server answered ${response.status}.`, true);
+            return;
+          }
+
+          const data = await response.json();
+          renderFunnel(data.funnel);
+          renderVersions(data.rows);
+          setStatus(`Since ${data.since}. Last loaded ${new Date().toLocaleTimeString()}.`, false);
+        } catch (error) {
+          setStatus(error.message || "Could not reach the server.", true);
+        } finally {
+          refreshButton.disabled = false;
+        }
+      }
+
+      tokenInput.value = loadToken();
+      refreshButton.addEventListener("click", refresh);
+      daysSelect.addEventListener("change", refresh);
+      forgetButton.addEventListener("click", () => {
+        tokenInput.value = "";
+        saveToken("");
+        setStatus("Token forgotten on this device.", false);
+      });
+
+      if (tokenInput.value) {
+        refresh();
+      }
+    </script>
+  </body>
+</html>
