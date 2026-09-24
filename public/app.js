@@ -1762,6 +1762,7 @@ const savedSetsAccountText = document.querySelector("#saved-sets-account-text");
 const savedSetsAccountLink = document.querySelector("#saved-sets-account-link");
 const accountStatusChip = document.querySelector("#account-status-chip");
 const accountSignedOutCard = document.querySelector("#account-signed-out");
+const accountIntroText = document.querySelector("#account-intro-text");
 const accountSignedInCard = document.querySelector("#account-signed-in");
 const accountForm = document.querySelector("#account-form");
 const accountEmailInput = document.querySelector("#account-email-input");
@@ -8570,6 +8571,15 @@ function renderAccount() {
 
   accountSignedOutCard.hidden = resetting || Boolean(account);
   accountSignedInCard.hidden = resetting || !account;
+
+  // Reminders only run without an account inside the iPhone app - the website stopped sending them
+  // 2026-09-23 (see webReminders in cities.js). Saying "reminders work without an account" on the
+  // website itself would be a false claim about the very thing it no longer does.
+  if (accountIntroText) {
+    accountIntroText.textContent = canUseNativeReminders()
+      ? "Reminders work without an account. Sign in and your saved curb sets follow you to a new phone or a cleared browser."
+      : "Sign in and your saved curb sets follow you to a new phone or a cleared browser.";
+  }
 
   if (accountResetCard) {
     accountResetCard.hidden = !resetting;
