@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20260923-nav-wordmark" />
+    <link rel="stylesheet" href="./styles.css?v=20260930-city-switcher" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -37,6 +37,9 @@
           <span>Curb Alerts</span>
           <img src="./icon.svg?v=20260916-two-sides" alt="" width="40" height="40" />
         </div>
+        <!-- Filled from CityRegistry by app.js. Choosing saves the city and reloads the page, since the
+             client settles on its city once at load. -->
+        <select id="city-switcher" class="city-switcher" aria-label="City"></select>
         <button id="account-chip" class="account-chip" type="button" data-view-target="account">Sign in</button>
       </nav>
       <!-- The sweep-day check. Outside every view on purpose: on a sweep day the one question that
@@ -1124,7 +1127,7 @@
     <script src="./vendor/leaflet/leaflet.js?v=1.9.4"></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
-    <script src="./cities.js?v=20260923-map-only-inv98"></script>
-    <script src="./app.js?v=20260930-city-safe-saved-curbs"></script>
+    <script src="./cities.js?v=20260930-minneapolis-inv98"></script>
+    <script src="./app.js?v=20260930-snow-city-b"></script>
   </body>
 </html>

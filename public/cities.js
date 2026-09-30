@@ -150,12 +150,80 @@
     westGridNorthLatitude: 39.75
   };
 
-  const CITIES = [DENVER];
+  // The second city, and the first that is not about street sweeping: Minneapolis is snow
+  // emergencies only. When the city declares one, the Day 1/2/3 parking rules take effect within
+  // hours and a car on the wrong side is ticketed and towed, which is what a phone cannot schedule
+  // ahead and what Apple push is for. `kind: "snow"` is what the client branches on.
+  //
+  // The curbs come from public/minneapolis-snow.json, built by `npm run build:mpls-snow`. The rules
+  // below are the city's own wording of when each day takes effect; the curb file says which days a
+  // curb is banned on (1 = may park, 0 = may not).
+  const MINNEAPOLIS = {
+    id: "minneapolis",
+    name: "Minneapolis",
+    kind: "snow",
+    geocodeSuffix: "Minneapolis, MN",
+    // The bounding box of the published curbs, padded a little so the map is not jammed against the
+    // edge of the outermost street.
+    bounds: {
+      north: 45.0713,
+      south: 44.8697,
+      west: -93.3491,
+      east: -93.1781
+    },
+    minZoom: 11,
+    // Not in the service worker's precache (Denver installs should not pay 4.5 MB for a city they
+    // never open); the versioned URL is cached on first use like any other versioned asset. The
+    // "?v=" moves whenever the file does, and cities.js's own tag moves with it.
+    inventoryUrl: "./minneapolis-snow.json?v=1",
+    cityLimitsGlobal: null,
+    // No sweeping here, so no season; and no address grid yet, so search falls back to street names.
+    sweepSeason: null,
+    // Same split as Denver: the website is the map, the iPhone app sells the alerts.
+    webReminders: false,
+    appStoreUrl: null,
+    snowRules: {
+      authority: "City of Minneapolis",
+      // When each day's ban takes effect, local time.
+      day1Starts: "9 pm",
+      day2Starts: "8 am",
+      day3Starts: "8 am"
+    }
+  };
+
+  const CITIES = [DENVER, MINNEAPOLIS];
   const DEFAULT_CITY_ID = DENVER.id;
 
-  // A registry of one still has an "active city", because that is the seam a picker or a
-  // location-based choice plugs into later. Until there is a second city it never moves.
-  let activeCityId = DEFAULT_CITY_ID;
+  // The choice made with the header switcher. It is a per-device convenience, so it lives in
+  // localStorage and quietly falls back to Denver wherever storage is missing or blocked. The
+  // switcher saves it and reloads the page: the client resolves its city once at load, so every
+  // module-level value that hangs off it is simply correct after the reload.
+  const CITY_CHOICE_KEY = "curb-alerts-city";
+
+  function readStoredCityId() {
+    try {
+      const stored = typeof localStorage !== "undefined" ? localStorage.getItem(CITY_CHOICE_KEY) : null;
+      return CITIES.some((city) => city.id === stored) ? stored : DEFAULT_CITY_ID;
+    } catch (error) {
+      return DEFAULT_CITY_ID;
+    }
+  }
+
+  function saveCityChoice(id) {
+    const city = getCity(id);
+    if (!city) {
+      throw new Error(`Unknown city ${JSON.stringify(id)}`);
+    }
+
+    try {
+      localStorage.setItem(CITY_CHOICE_KEY, city.id);
+    } catch (error) {
+      return false;
+    }
+    return true;
+  }
+
+  let activeCityId = readStoredCityId();
 
   function listCities() {
     return CITIES.slice();
@@ -211,6 +279,7 @@
     getCity,
     getActiveCity,
     setActiveCity,
+    saveCityChoice,
     isWithinCityBounds,
     getCityForPoint,
     getCityLimits

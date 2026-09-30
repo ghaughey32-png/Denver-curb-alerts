@@ -1562,6 +1562,9 @@ const CITY_MAP_BOUNDS = ACTIVE_CITY.bounds;
 const CITY_NAME_PATTERN = new RegExp(`\\b${ACTIVE_CITY.name}\\b`, "i");
 const STATIC_ROUTE_INVENTORY_URL = ACTIVE_CITY.inventoryUrl;
 const CITY_SWEEP_SEASON = ACTIVE_CITY.sweepSeason || null;
+// A snow city sells alerts for snow emergencies, not sweeping: its curbs carry the days parking is
+// banned rather than a sweep schedule, and its data loads through loadSnowInventory.
+const IS_SNOW_CITY = ACTIVE_CITY.kind === "snow";
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const MOVED_SWEEPS_KEY = "denver-curb-alerts-moved-sweeps";
@@ -1607,13 +1610,26 @@ const colors = {
   // pink once deuteranopia is simulated, which would have made "you are fine here" and "we have no
   // data, be careful" the same colour for red-green colourblind users. Plum is the furthest from
   // all six in both normal vision (35.7) and simulated deuteranopia (31.3).
-  noRelocation: "#8e44ad"
+  noRelocation: "#8e44ad",
+  // Snow emergency rule classes. Chosen the way plum was, by CIELAB distance under simulated
+  // deuteranopia: these three sit at least 72 apart from each other in both normal vision and
+  // deuteranopia. The route is the most severe (banned first, Day 1) and so the strongest colour.
+  snowRoute: "#c2255c",
+  snowEven: "#2f6fed",
+  snowOdd: "#f2c200"
 };
 
 // Every curb colour is decided here so the live and embedded datasets cannot drift apart. Order
 // matters: the three schedule states each override the north/south/east/west side colour, because
 // what the curb *is* matters more to a parked driver than which side of the street it sits on.
+function getSnowCurbColor(schedule) {
+  return colors[schedule.snowClass === "route" ? "snowRoute" : schedule.snowClass === "even" ? "snowEven" : "snowOdd"];
+}
+
 function getCurbColor(schedule, sideColor) {
+  if (schedule?.sweepType === "Snow") {
+    return getSnowCurbColor(schedule);
+  }
   if (schedule?.sweepType === "NotMaintained") {
     return colors.notMaintained;
   }
@@ -4054,6 +4070,125 @@ function showInventoryProgress(routeMap, completedCount, totalCount) {
   }
 }
 
+// Which rule class a curb falls in, from the days parking is banned ([day1, day2, day3], 1 = may
+// park, 0 = may not). Day 1 is the snow emergency routes; Day 2 is the even side of everything else
+// and Day 3 the odd side. A curb banned on Day 1 is a route whatever else it is banned on.
+function getSnowClass(days) {
+  if (days[0] === 0) {
+    return "route";
+  }
+  return days[1] === 0 ? "even" : "odd";
+}
+
+// The plain-language list of the days a snow curb is banned on, with when each takes effect.
+function describeSnowBans(days) {
+  const rules = ACTIVE_CITY.snowRules || {};
+  const starts = [rules.day1Starts, rules.day2Starts, rules.day3Starts];
+  const bans = [];
+  days.forEach((may, index) => {
+    if (may === 0) {
+      bans.push(`Day ${index + 1} from ${starts[index]}`);
+    }
+  });
+  return bans;
+}
+
+function buildSnowSchedule(curb) {
+  const days = Array.isArray(curb.days) ? curb.days : [0, 0, 0];
+  return {
+    sweepType: "Snow",
+    snowClass: getSnowClass(days),
+    snowDays: days,
+    parity: curb.parity || null,
+    // The city's own two datasets disagreed about this curb; the stricter reading is what we show.
+    snowConflict: Array.isArray(curb.conflicts) && curb.conflicts.length > 0,
+    remindersAllowed: true,
+    relocationRequired: null,
+    // Nothing here is a sweep: no text for the monthly-rule projection to parse and no dates.
+    rule: "",
+    allDates: []
+  };
+}
+
+function buildSnowDataset(payload) {
+  const curbs = Array.isArray(payload.curbs) ? payload.curbs : [];
+  const streetWays = [];
+  const curbSegments = [];
+
+  curbs.forEach((curb) => {
+    if (!curb?.id || !Array.isArray(curb.geometry) || curb.geometry.length < 2) {
+      return;
+    }
+
+    const schedule = buildSnowSchedule(curb);
+    const name = curb.street || "Minneapolis street";
+    // The curb line is already on the curb's side of the street, so the way carries the same line.
+    // It exists for street search; renderStreetBases draws no underlay in a snow city.
+    streetWays.push({
+      id: curb.id,
+      name,
+      highway: "residential",
+      geometry: curb.geometry,
+      orientation: getStreetOrientation(curb.geometry)
+    });
+    curbSegments.push({
+      id: curb.id,
+      street: name,
+      sideKey: curb.sideKey,
+      sideLabel: `${capitalize(curb.sideKey)} curb`,
+      color: getSnowCurbColor(schedule),
+      geometry: curb.geometry,
+      highway: "residential",
+      schedule
+    });
+  });
+
+  return { streetWays, curbSegments };
+}
+
+async function loadSnowInventory() {
+  try {
+    const response = await fetch(STATIC_ROUTE_INVENTORY_URL);
+    if (!response.ok) {
+      throw new Error(`The saved ${ACTIVE_CITY.name} snow emergency map could not be loaded.`);
+    }
+    const payload = await response.json();
+    const { streetWays, curbSegments } = buildSnowDataset(payload);
+    if (!curbSegments.length) {
+      throw new Error(`The saved ${ACTIVE_CITY.name} snow emergency map is empty.`);
+    }
+
+    setMapDataset({
+      streetWays,
+      curbSegments,
+      areaLabel: `${ACTIVE_CITY.name} snow emergency parking rules`,
+      geometryLabel: `${ACTIVE_CITY.name} snow emergency curbs (${curbSegments.length})`,
+      mapTitleText: `All mapped ${ACTIVE_CITY.name} curbs`,
+      mapKickerText: "Ready to use",
+      sourceLabel: `Saved ${ACTIVE_CITY.name} snow emergency map`,
+      context: [],
+      mapNoteText: "Tap a colored curb to see which snow emergency days you cannot park on it."
+    });
+    refreshMapViewport();
+    renderAll();
+    hideMapLoadingOverlay();
+    if (lookupStatus) {
+      lookupStatus.textContent = "Tap the colored curb where you park to see when a snow emergency bans parking there.";
+    }
+    if (returnToPilotButton) {
+      returnToPilotButton.disabled = false;
+    }
+    if (lookupAddressButton) {
+      lookupAddressButton.disabled = false;
+    }
+    return true;
+  } catch (error) {
+    hideMapLoadingOverlay();
+    renderMapFailure(error.message);
+    return false;
+  }
+}
+
 async function loadStaticRouteInventory() {
   try {
     // The URL carries a "?v=" the build bumps whenever the payload moves, so the HTTP cache is
@@ -5295,6 +5430,36 @@ function renderParkSheet() {
   document.body.classList.add("curb-sheet-open");
 }
 
+// The header's city choice. Saving it and reloading is the whole mechanism: ACTIVE_CITY and
+// everything derived from it are resolved once at load, so a reload is what makes them all right.
+// A failed save (storage blocked) leaves the page as it is rather than reloading into the same city.
+function initializeCitySwitcher() {
+  const switcher = document.querySelector("#city-switcher");
+  const cities = window.CityRegistry.listCities();
+  if (!switcher || cities.length < 2) {
+    if (switcher) {
+      switcher.hidden = true;
+    }
+    return;
+  }
+
+  cities.forEach((city) => {
+    const option = document.createElement("option");
+    option.value = city.id;
+    option.textContent = city.name;
+    option.selected = city.id === ACTIVE_CITY.id;
+    switcher.appendChild(option);
+  });
+
+  switcher.addEventListener("change", () => {
+    if (window.CityRegistry.saveCityChoice(switcher.value)) {
+      window.location.reload();
+    } else {
+      switcher.value = ACTIVE_CITY.id;
+    }
+  });
+}
+
 function initializeMap() {
   if (!window.L) {
     throw new Error("Leaflet did not load.");
@@ -5337,6 +5502,14 @@ function initializeMap() {
   state.map.on("moveend zoomend", scheduleMapRender);
   attachCurbInteraction();
   loadCityBoundary();
+  if (IS_SNOW_CITY) {
+    // No built-in dataset to fit to while the city's file loads, and a Leaflet map with no view
+    // draws no tiles.
+    state.map.fitBounds([
+      [CITY_MAP_BOUNDS.south, CITY_MAP_BOUNDS.west],
+      [CITY_MAP_BOUNDS.north, CITY_MAP_BOUNDS.east]
+    ]);
+  }
   refreshMapViewport();
 }
 
@@ -5619,7 +5792,8 @@ function renderStreetBases() {
 
   state.baseLayerGroup.clearLayers();
 
-  if (isOverviewZoom()) {
+  // A snow curb's line is the whole drawing; its way is the same line and only exists for search.
+  if (isOverviewZoom() || IS_SNOW_CITY) {
     return;
   }
 
@@ -5841,6 +6015,13 @@ function renderSegments() {
 // every render -- a getNextSweepDate call and a string build each -- to answer a hover that lands on
 // one of them. It is built on demand now.
 function getSegmentHoverLabel(segment) {
+  if (segment.schedule?.sweepType === "Snow") {
+    const bans = describeSnowBans(segment.schedule.snowDays);
+    const banText = bans.length ? ` | No parking: ${bans.join(", ")}` : "";
+    return isCurbReminded(segment.id)
+      ? `Selected: ${segment.street} - ${segment.sideLabel}`
+      : `${segment.street} - ${segment.sideLabel}${banText}`;
+  }
   const nextSweepDate = getNextSweepDate(segment);
   const nextDateText = nextSweepDate ? ` | Next: ${formatDateObject(nextSweepDate)}` : "";
   const statusText = segment.schedule?.sweepType === "NotMaintained"
@@ -6068,8 +6249,39 @@ function closeCurbSheet() {
   }
 }
 
+// What a snow curb's sheet says. The rules are the city's; the copy only arranges them. A curb the
+// city's own datasets disagreed about says so, because it is shown under the stricter reading.
+function buildSnowCurbSheetCopy(segment) {
+  const schedule = segment.schedule;
+  const bans = describeSnowBans(schedule.snowDays);
+  const headline = schedule.snowClass === "route"
+    ? "Snow emergency route"
+    : schedule.snowClass === "even"
+      ? "Even-side parking ban"
+      : "Odd-side parking ban";
+  const rule = bans.length
+    ? `No parking here: ${bans.join(", ")}.`
+    : "No parking ban listed for this curb.";
+  const routeNote = schedule.snowClass === "route"
+    ? " Stays banned until the street is fully plowed."
+    : "";
+  const conflictNote = schedule.snowConflict
+    ? " The city's own maps disagree about this curb, so this is the stricter reading."
+    : "";
+  return {
+    headline,
+    rule,
+    notice: `These rules only apply once the city declares a snow emergency.${routeNote}${conflictNote} Follow posted signs and check minneapolismn.gov.`,
+    canRemind: true
+  };
+}
+
 function buildCurbSheetCopy(segment) {
   const schedule = segment.schedule;
+
+  if (schedule?.sweepType === "Snow") {
+    return buildSnowCurbSheetCopy(segment);
+  }
 
   if (!schedule || schedule.sweepType === "Unavailable") {
     return {
@@ -6157,14 +6369,16 @@ function renderCurbSheet() {
           : "Reminder on — tap to remove"
       : areWebRemindersOff()
         ? getAppReminderLabel()
-        : "Remind me about this curb";
+        : IS_SNOW_CITY
+          ? "Alert me in a snow emergency"
+          : "Remind me about this curb";
   curbSheetAction.classList.toggle("is-on", copy.canRemind && selected);
   renderCurbSheetStatus(segment, selected);
 
   if (curbSheetPark) {
     const parkedHere = getSegmentsForSavedSet(state.parkedCar || { segments: [] }).some((parked) => parked.id === segment.id);
     // A street Denver does not maintain has nothing for a pin to remind about.
-    curbSheetPark.hidden = !copy.canRemind;
+    curbSheetPark.hidden = !copy.canRemind || IS_SNOW_CITY;
     curbSheetPark.textContent = parkedHere ? "You're parked here — show the pin" : "I parked here";
     curbSheetPark.dataset.parkedHere = String(parkedHere);
   }
@@ -6341,6 +6555,11 @@ function renderRemindedCurbs() {
 }
 
 function buildSelectionMeta(segment) {
+  if (segment.schedule?.sweepType === "Snow") {
+    const bans = describeSnowBans(segment.schedule.snowDays);
+    return `${segment.sideLabel} of ${segment.street} | Snow emergency: no parking ${bans.join(", ") || "listed"}`;
+  }
+
   if (!segment.schedule) {
     return `${segment.sideLabel} of ${segment.street} | No Denver sweeping schedule found — check with Denver, and use caution`;
   }
@@ -9457,7 +9676,10 @@ function registerEvents() {
 purgeLegacyInventoryCache();
 
 try {
-  buildStreetData();
+  // The small built-in dataset is Denver's. A snow city draws nothing until its own file arrives.
+  if (!IS_SNOW_CITY) {
+    buildStreetData();
+  }
   showMapLoadingOverlay(
     "Loading the saved map",
     "Preparing the complete saved curb inventory. This does not run a live neighborhood scan."
@@ -9487,7 +9709,12 @@ loadEmailConfig();
 // The email links run after the account is loaded: confirming an address re-reads the account, and
 // doing that before the first load would race it.
 loadCurrentAccount().then(handleEmailLinks);
-loadStaticRouteInventory();
+initializeCitySwitcher();
+if (IS_SNOW_CITY) {
+  loadSnowInventory();
+} else {
+  loadStaticRouteInventory();
+}
 
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);

@@ -271,8 +271,13 @@ The curb data is done; the city record, map, server alerts and paywall are not y
   more than 5% of the time (2025–26 measured 1.0–2.9%). The curb count may not fall more than 10%
   (override with `ALLOW_COVERAGE_DROP=1`). Add each season's `Snow_Emergency_<Name>_Tags_<year>`
   services to `TICKET_SERVICES` as the city publishes them.
-- The file is not yet referenced by `index.html`, `sw.js` or `cities.js`. When it is, it follows
-  the same `?v=` rules as Denver's inventory.
+- **Minneapolis is a record in `public/cities.js` with `kind: "snow"`**; `inventoryUrl` names this
+  file and its `?v=` moves with it (and with `cities.js`'s own tag). It is deliberately not in
+  `sw.js`'s `APP_SHELL`, so Denver installs do not precache 4.5 MB. The header switcher saves the
+  choice under `curb-alerts-city` and reloads; `IS_SNOW_CITY` in `app.js` skips Denver's boot steps
+  and loads through `loadSnowInventory`. Snow curbs carry `schedule.sweepType: "Snow"`, never a sweep
+  date, so no local reminder jobs come from them. Phases 4–7 (server alerts, paywall audience, the
+  banner) are not built.
 
 ## Architecture and the data pipeline
 

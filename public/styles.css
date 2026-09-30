@@ -146,6 +146,26 @@ button {
   text-overflow: ellipsis;
 }
 
+.city-switcher {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(31, 47, 55, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+}
+
+.city-switcher + .account-chip {
+  margin-left: 8px;
+}
+
+.city-switcher[hidden] {
+  display: none;
+}
+
 .account-chip:hover {
   color: var(--ink);
   border-color: rgba(31, 47, 55, 0.32);
@@ -2118,6 +2138,12 @@ a.ghost-button {
     flex: 0 0 auto;
     min-height: 46px;
     padding: 10px 14px;
+  }
+
+  .city-switcher {
+    flex: 0 0 auto;
+    min-height: 46px;
+    padding: 10px 8px;
   }
 
   .account-chip {
