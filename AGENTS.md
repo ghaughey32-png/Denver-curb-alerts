@@ -1508,10 +1508,26 @@ the other host is refused as `BadDeviceToken`, which the broadcast treats as dea
 Debug build pointed at production is fine, and a Release build run from Xcode with development
 signing is the one combination that will register as the wrong environment.
 
-Sending is `POST /api/push/broadcast`, behind the admin token, and `npm run push -- "Title" "Body"`
-wraps it — **counting who would receive it by default and sending only with `--send`**, because it
-reaches every phone at once. `--urgent` makes it time sensitive, `--token=<hex>` narrows it to one
-phone for testing. It checks no subscription on purpose: whether a kind of alert is part of what is
+**Alerts are targeted by curb, and there is no default audience** (2026-09-30, at the author's
+request: alerts go only to people they are relevant to). The page adds `watchedCurbIds` to the
+`scheduleReminders` options — every curb in `getReminderSets()`, so the parked pin's curb is
+included, by segment id (`<way>:<side>`) and never by coordinates — and the shell sends them with
+its registration. They are part of the page's sync hash, so a change of curbs alone resyncs. An old
+page that omits the key leaves the phone's list alone; an empty list means every reminder is off.
+The server caps a phone's list at 1,000 and a target list at 100,000.
+
+This is the one place curb choices leave an iPhone, and it is deliberate. The alternative — push to
+every phone and let each decide silently whether to show it — keeps even the ids on the phone, but
+iOS delays and drops silent pushes and never delivers them to an app swiped away, which is not
+acceptable for *move your car tonight*. The Privacy page says the curbs are held and why; keep it
+true if this payload changes.
+
+Sending is `POST /api/push/broadcast`, behind the admin token, and it must name its audience:
+`curbIds` for the phones watching any of them, or `everyone: true` by name for the rare message
+that concerns everybody. Neither, or both, is a 400. `npm run push -- "Title" "Body"
+--curbs-file=<path>` (or `--curbs=`, or `--everyone`) wraps it, **counting who would receive it by
+default and sending only with `--send`**. `--urgent` makes it time sensitive, `--token=<hex>`
+narrows it to one phone for testing. It checks no subscription on purpose: whether a kind of alert is part of what is
 sold is decided when that kind exists, and a snow emergency will need that decision.
 
 `lib/apns.js` is no dependency: `node:http2` to Apple, `node:crypto` for the ES256 provider token,

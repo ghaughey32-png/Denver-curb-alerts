@@ -29,6 +29,8 @@ struct CurbAlertsApp: App {
                     try? await ReminderScheduler.shared.reschedule()
                     await WebShell.shared.refreshPermission()
                 }
+                // Cheap when nothing changed; it is how a registration that failed offline is retried.
+                PushRegistrar.shared.register()
             case .background:
                 ReminderScheduler.submitBackgroundRefresh()
             default:

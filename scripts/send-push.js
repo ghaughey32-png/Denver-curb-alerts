@@ -1,11 +1,16 @@
-// Sends one alert to every iPhone with the app installed, through Apple push. See lib/apns.js.
+// Sends one alert, through Apple push, to the iPhones it is relevant to. See lib/apns.js.
 //
-//   npm run push -- "Title" "Body"                   count who would get it, send nothing
-//   npm run push -- "Title" "Body" --send            send it
-//   npm run push -- "Title" "Body" --send --urgent   send it through Focus modes (time sensitive)
-//   npm run push -- "Title" "Body" --send --token=<hex>   one phone only, for testing
+// Every send names its audience; there is no default:
 //
-// Counting is the default because this reaches every user at once and cannot be taken back.
+//   --curbs=<id>,<id>        phones with a reminder on any of these curbs ("<way>:<side>")
+//   --curbs-file=<path>      the same, from a file of ids, one per line or a JSON array
+//   --everyone               every phone - only for a message that genuinely concerns everybody
+//
+//   npm run push -- "Title" "Body" --curbs-file=day1.txt           count who would get it, send nothing
+//   npm run push -- "Title" "Body" --curbs-file=day1.txt --send    send it
+//   add --urgent to send it through Focus modes (time sensitive), --token=<hex> for one phone only
+//
+// Counting is the default because a sent alert cannot be taken back.
 // Reads POST /api/push/broadcast, behind the admin token like every bulk operation, so
 // ISSUE_REPORT_ADMIN_TOKEN has to be set here to the same value it has on Render. APP_ORIGIN points
 // it somewhere else, e.g. http://127.0.0.1:3000 for a local server.
@@ -18,14 +23,28 @@ const [title, body] = process.argv.slice(2).filter((arg) => !arg.startsWith("--"
 const send = flags.includes("--send");
 const tokens = flags.filter((flag) => flag.startsWith("--token=")).map((flag) => flag.slice("--token=".length));
 const url = (flags.find((flag) => flag.startsWith("--url=")) || "--url=/").slice("--url=".length);
+const flagValue = (name) => (flags.find((flag) => flag.startsWith(`--${name}=`)) || "").slice(name.length + 3);
+
+function readCurbIds() {
+  const ids = flagValue("curbs").split(",");
+  const file = flagValue("curbs-file");
+  if (file) {
+    const text = require("node:fs").readFileSync(file, "utf8").trim();
+    ids.push(...(text.startsWith("[") ? JSON.parse(text) : text.split(/\r?\n/)));
+  }
+  return ids.map((id) => String(id).trim()).filter(Boolean);
+}
 
 async function main() {
   if (!adminToken) {
     console.error("Set ISSUE_REPORT_ADMIN_TOKEN to the admin token configured on the server.");
     process.exit(1);
   }
-  if (!title || !body) {
-    console.error('Usage: npm run push -- "Title" "Body" [--send] [--urgent] [--token=<hex>] [--url=/path]');
+  const curbIds = readCurbIds();
+  const everyone = flags.includes("--everyone");
+  if (!title || !body || everyone === Boolean(curbIds.length)) {
+    console.error('Usage: npm run push -- "Title" "Body" (--curbs=<ids> | --curbs-file=<path> | --everyone)');
+    console.error("       [--send] [--urgent] [--token=<hex>] [--url=/path]");
     process.exit(1);
   }
 
@@ -38,6 +57,7 @@ async function main() {
       url,
       timeSensitive: flags.includes("--urgent"),
       dryRun: !send,
+      ...(everyone ? { everyone: true } : { curbIds }),
       ...(tokens.length ? { tokens } : {})
     })
   });
@@ -48,7 +68,8 @@ async function main() {
   }
 
   if (result.dryRun) {
-    console.log(`Would send to ${result.deviceCount} iPhone(s) via ${origin}. Nothing sent; add --send to send it.`);
+    const audience = everyone ? "every iPhone" : `the phones watching any of ${curbIds.length} curb(s)`;
+    console.log(`Would send to ${result.deviceCount} iPhone(s), ${audience}, via ${origin}. Nothing sent; add --send.`);
     return;
   }
 

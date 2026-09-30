@@ -689,7 +689,8 @@
                   Your browser push subscription, or in the iPhone app the notification address Apple assigns it, so alerts
                   can reach the device you connected. The iPhone app schedules sweep reminders on the phone itself; the
                   address is how we can reach you with urgent news that could not be scheduled ahead, such as a parking
-                  emergency. If you are signed in, it is linked to your account.
+                  emergency. It is stored with the curb sides you have reminders on, so those alerts go only to people
+                  parked on the streets they concern. If you are signed in, it is linked to your account.
                 </li>
                 <li>
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
@@ -698,8 +699,8 @@
                 <li>Your approximate or precise location only when you tap Use my location, so the map can move to you.</li>
                 <li>
                   Where you parked, only when you tap Park here or I parked here. The pin is kept on your device and
-                  cleared when you move your car or clear it yourself. If reminders reach you by browser push, the schedule
-                  we hold names the street and side of the curb, never the pin's coordinates.
+                  cleared when you move your car or clear it yourself. The iPhone app tells us which curb the pin is on,
+                  so an urgent alert about that street can reach you; we hold the curb, never the pin's coordinates.
                 </li>
                 <li>Issue reports you choose to send, including your note and helpful app context.</li>
                 <li>
@@ -1124,6 +1125,6 @@
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./cities.js?v=20260923-map-only-inv98"></script>
-    <script src="./app.js?v=20260924-account-intro"></script>
+    <script src="./app.js?v=20260930-watched-curbs"></script>
   </body>
 </html>

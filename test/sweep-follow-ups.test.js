@@ -169,7 +169,7 @@ test("the native shell gets what its lock-screen button needs, and the page hear
   // shell never exercises them. See "The iOS project" in AGENTS.md.
   const app = fs.readFileSync(APP_PATH, "utf8");
   assert.match(app, /sweepKeys: Array\.isArray\(job\.sweepKeys\) \? \[\.\.\.job\.sweepKeys\] : \[\]/);
-  assert.match(app, /await bridge\.scheduleReminders\(jobs, \{ movedSweepKeys \}\)/);
+  assert.match(app, /await bridge\.scheduleReminders\(jobs, \{ movedSweepKeys, watchedCurbIds \}\)/);
   assert.match(app, /window\.DenverCurbAlertsNative\?\.movedSweepKeys/);
   assert.match(app, /window\.addEventListener\("curb-alerts-native"/);
   for (const type of ["open-url", "sweep-moved", "permission-changed"]) {

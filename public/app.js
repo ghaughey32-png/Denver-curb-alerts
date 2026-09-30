@@ -7434,13 +7434,20 @@ async function syncNativeReminderSchedule(options = {}) {
   // button can silence a sweep while this page is not running, and this list replacing that copy
   // is what lets Undo here bring a sweep's reminders back on the device too.
   const movedSweepKeys = [...state.movedSweepKeys];
-  const payloadHash = JSON.stringify({ jobs, movedSweepKeys });
+  // The curbs this phone has reminders on, the parked pin's curb included, by id and never by
+  // coordinates. The shell hands them to the server with its push registration so an urgent alert
+  // about a street - a snow emergency - goes only to the phones watching a curb on it. Sweep
+  // reminders themselves never leave the phone.
+  const watchedCurbIds = [
+    ...new Set(getReminderSets().flatMap((set) => getSegmentsForSavedSet(set).map((segment) => segment.id)))
+  ].sort();
+  const payloadHash = JSON.stringify({ jobs, movedSweepKeys, watchedCurbIds });
   if (!options.force && payloadHash === state.lastSyncedNativeReminderHash) {
     return;
   }
 
   try {
-    await bridge.scheduleReminders(jobs, { movedSweepKeys });
+    await bridge.scheduleReminders(jobs, { movedSweepKeys, watchedCurbIds });
     state.lastSyncedNativeReminderHash = payloadHash;
     state.nativeReminderError = "";
   } catch (error) {

@@ -163,7 +163,8 @@ final class WebShell: NSObject {
         scheduleReminders: function (jobs, options) {
           return call("scheduleReminders", {
             jobs: jobs || [],
-            movedSweepKeys: (options && options.movedSweepKeys) || []
+            movedSweepKeys: (options && options.movedSweepKeys) || [],
+            watchedCurbIds: (options && options.watchedCurbIds) || null
           });
         },
         showTestNotification: function (notification) {
@@ -216,6 +217,11 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                 let jobs = try JSONDecoder().decode([ReminderJob].self, from: data)
                 let movedSweepKeys = payload["movedSweepKeys"] as? [String] ?? []
                 try await ReminderScheduler.shared.replaceSchedule(jobs: jobs, movedSweepKeys: movedSweepKeys)
+                // Absent (not empty) from a page that predates targeting, so an old page cannot
+                // unwatch every curb by saying nothing about them.
+                if let watchedCurbIds = payload["watchedCurbIds"] as? [String] {
+                    PushRegistrar.shared.updateWatchedCurbs(watchedCurbIds)
+                }
                 return (jobs.count, nil)
 
             case "showTestNotification":

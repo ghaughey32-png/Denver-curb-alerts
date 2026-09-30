@@ -11,6 +11,8 @@ const crypto = require("node:crypto");
 const http2 = require("node:http2");
 
 const apns = require("../lib/apns.js");
+const fs = require("node:fs");
+const path = require("node:path");
 const { withServer } = require("./lib/with-server.js");
 
 const ADMIN_TOKEN = "test-admin-token";
@@ -138,14 +140,14 @@ test("registering, replacing a rotated token, and a broadcast that removes the t
         const broadcast = (json, headers = { Authorization: `Bearer ${ADMIN_TOKEN}` }) =>
           call("/api/push/broadcast", { method: "POST", json, headers });
 
-        assert.equal((await broadcast({ title: "T", body: "B" }, {})).status, 403, "never without the admin token");
+        assert.equal((await broadcast({ title: "T", body: "B", everyone: true }, {})).status, 403, "never without the admin token");
         assert.equal((await broadcast({ title: "T" })).status, 400);
 
-        const dry = await broadcast({ title: "T", body: "B", dryRun: true });
+        const dry = await broadcast({ title: "T", body: "B", everyone: true, dryRun: true });
         assert.deepEqual(dry.payload, { dryRun: true, deviceCount: 2 });
         assert.equal(fake.received.length, 0, "a dry run sends nothing");
 
-        const sent = await broadcast({ title: "Snow emergency", body: "Move your car", url: "/?snow=1" });
+        const sent = await broadcast({ title: "Snow emergency", body: "Move your car", url: "/?snow=1", everyone: true });
         assert.equal(sent.status, 200);
         assert.equal(sent.payload.sent, 1);
         assert.equal(sent.payload.removed, 1);
@@ -164,7 +166,7 @@ test("registering, replacing a rotated token, and a broadcast that removes the t
         assert.deepEqual(devices.map((device) => device.endpoint), [`apns://${TOKEN_C}`], "the refused token is gone");
 
         // Naming tokens narrows the send to them.
-        const narrowed = await broadcast({ title: "T", body: "B", tokens: [TOKEN_B], dryRun: true });
+        const narrowed = await broadcast({ title: "T", body: "B", everyone: true, tokens: [TOKEN_B], dryRun: true });
         assert.equal(narrowed.payload.deviceCount, 0);
       },
       {
@@ -186,7 +188,7 @@ test("with no credentials a broadcast says what is missing rather than pretendin
       await call("/api/push/apns", { method: "POST", json: { token: TOKEN_A } });
       const result = await call("/api/push/broadcast", {
         method: "POST",
-        json: { title: "T", body: "B" },
+        json: { title: "T", body: "B", everyone: true },
         headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
       });
       assert.equal(result.status, 503);
@@ -194,4 +196,53 @@ test("with no credentials a broadcast says what is missing rather than pretendin
     },
     { ISSUE_REPORT_ADMIN_TOKEN: ADMIN_TOKEN, APNS_KEY_ID: "", APNS_TEAM_ID: "", APNS_PRIVATE_KEY: "" }
   );
+});
+
+test("an alert reaches only the phones watching one of its curbs, and there is no default audience", async () => {
+  await withServer(
+    async ({ call, readCollection }) => {
+      const register = (json) => call("/api/push/apns", { method: "POST", json });
+      const count = async (json) =>
+        (
+          await call("/api/push/broadcast", {
+            method: "POST",
+            json: { title: "Snow emergency", body: "Move your car", dryRun: true, ...json },
+            headers: { Authorization: `Bearer ${ADMIN_TOKEN}` }
+          })
+        );
+
+      await register({ token: TOKEN_A, watchedCurbIds: ["101:north", "202:south", "101:north"] });
+      await register({ token: TOKEN_B, watchedCurbIds: ["303:east"] });
+      await register({ token: TOKEN_C });
+
+      assert.deepEqual(
+        readCollection("push-subscriptions").find((device) => device.endpoint.endsWith(TOKEN_A)).watchedCurbIds,
+        ["101:north", "202:south"]
+      );
+
+      assert.equal((await count({ curbIds: ["101:north"] })).payload.deviceCount, 1);
+      assert.equal((await count({ curbIds: ["101:south"] })).payload.deviceCount, 0, "the other side of the street is a different curb");
+      assert.equal((await count({ curbIds: ["202:south", "303:east"] })).payload.deviceCount, 2);
+      assert.equal((await count({ everyone: true })).payload.deviceCount, 3);
+
+      assert.equal((await count({})).status, 400, "an alert with no audience is refused, not sent to everyone");
+      assert.equal((await count({ curbIds: [] })).status, 400);
+      assert.equal((await count({ everyone: true, curbIds: ["101:north"] })).status, 400);
+
+      // A later registration that says nothing about curbs keeps the list; one that sends an empty
+      // list means the driver turned every reminder off, and the phone stops matching.
+      await register({ token: TOKEN_A });
+      assert.equal((await count({ curbIds: ["101:north"] })).payload.deviceCount, 1);
+      await register({ token: TOKEN_A, watchedCurbIds: [] });
+      assert.equal((await count({ curbIds: ["101:north"] })).payload.deviceCount, 0);
+    },
+    { ISSUE_REPORT_ADMIN_TOKEN: ADMIN_TOKEN }
+  );
+});
+
+test("the page hands the shell its watched curbs by id, the parked pin included, and never coordinates", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
+  assert.match(source, /getReminderSets\(\)\.flatMap\(\(set\) => getSegmentsForSavedSet\(set\)\.map\(\(segment\) => segment\.id\)\)/);
+  assert.match(source, /JSON\.stringify\(\{ jobs, movedSweepKeys, watchedCurbIds \}\)/, "a change of curbs alone must resync");
+  assert.match(source, /bridge\.scheduleReminders\(jobs, \{ movedSweepKeys, watchedCurbIds \}\)/);
 });

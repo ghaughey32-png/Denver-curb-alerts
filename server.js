@@ -2145,6 +2145,22 @@ function isApnsRegistrationRateLimited(request) {
   return entry.count > APNS_REGISTRATIONS_PER_MINUTE;
 }
 
+// A curb id is "<street way>:<side>" in the page's own terms. Capped and filtered rather than trusted,
+// since registration is open: an unbounded list would let one caller bloat every broadcast's filter.
+// A target list is allowed to be far longer: a snow emergency's Day 1 is every snow-route curb in a
+// city, thousands of them, and the only limit that matters there is the request body's.
+const MAX_WATCHED_CURBS = 1000;
+const MAX_TARGET_CURBS = 100000;
+
+function normalizeWatchedCurbIds(value, limit = MAX_WATCHED_CURBS) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const ids = value.map((id) => String(id || "").trim()).filter((id) => id && id.length <= 200);
+  return [...new Set(ids)].slice(0, limit);
+}
+
 // The account on the record is whichever one the app is signed into as it registers, including none:
 // the app registers again whenever its session changes, so signing out unlinks the phone.
 async function handleApnsRegistration(request, response) {
@@ -2189,6 +2205,9 @@ async function handleApnsRegistration(request, response) {
     apnsEnvironment: apns.normalizeEnvironment(body.environment),
     accountId: account?.id || null,
     appVersion: productEvents.normalizeAppVersion(body.appVersion),
+    // The curbs this phone has reminders on, by id - what a targeted alert is matched against. A
+    // registration that says nothing about them keeps the list already held.
+    watchedCurbIds: normalizeWatchedCurbIds(body.watchedCurbIds) || existing?.watchedCurbIds || [],
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };
@@ -2197,9 +2216,13 @@ async function handleApnsRegistration(request, response) {
   sendJson(response, 201, { ok: true });
 }
 
-// Sends one alert to every registered iPhone, or to the tokens named. Behind the admin token: this
-// reaches every user of the app at once, and there is no version of it a stranger should be able to
-// call. `dryRun` reports who would receive it without sending anything.
+// Sends one alert to the iPhones it is relevant to. Behind the admin token; there is no version of
+// this a stranger should be able to call. `dryRun` reports who would receive it without sending.
+//
+// Every send names its audience, and there is deliberately no default. `curbIds` reaches only the
+// phones watching at least one of those curbs - the normal case, and what a snow emergency will use.
+// `everyone: true` reaches every phone and has to be asked for by name, for the rare message that
+// genuinely concerns everybody. `tokens` narrows either to named phones, for testing.
 //
 // Nothing here checks a subscription. The only caller today is a person deciding to send something,
 // and whether a given kind of alert is part of what is sold is a decision to make when that kind of
@@ -2230,12 +2253,23 @@ async function handleApnsBroadcast(request, response) {
     return;
   }
 
+  const targetCurbIds = normalizeWatchedCurbIds(body.curbIds, MAX_TARGET_CURBS);
+  const everyone = body.everyone === true;
+  if (everyone === Boolean(targetCurbIds && targetCurbIds.length)) {
+    sendJson(response, 400, {
+      error: "Name the audience: curbIds for the phones watching those curbs, or everyone: true. Not both."
+    });
+    return;
+  }
+
+  const targetCurbs = everyone ? null : new Set(targetCurbIds);
   const onlyTokens = Array.isArray(body.tokens)
     ? new Set(body.tokens.map(apns.normalizeDeviceToken).filter(Boolean))
     : null;
   const devices = (await readPushSubscriptions()).filter(
     (item) =>
       item.transport === "apns" &&
+      (!targetCurbs || (item.watchedCurbIds || []).some((id) => targetCurbs.has(id))) &&
       (!onlyTokens || onlyTokens.has(item.endpoint.slice("apns://".length))) &&
       (!body.environment || item.apnsEnvironment === apns.normalizeEnvironment(body.environment))
   );
