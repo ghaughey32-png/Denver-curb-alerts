@@ -47,12 +47,15 @@ const CURB_FUNCTIONS = [
   "getSegmentsForSavedSet",
   "serializeSegment",
   "getSegmentById",
-  "hydrateSavedSet"
+  "hydrateSavedSet",
+  "getCurbIdCity",
+  "isCurbIdOfActiveCity"
 ];
 
-function loadCurbReminders({ curbs, savedSets = [], storage = {} }) {
+function loadCurbReminders({ curbs, savedSets = [], storage = {}, activeCity = "denver" }) {
   const store = new Map(Object.entries(storage).map(([key, value]) => [key, JSON.stringify(value)]));
   const sandbox = {
+    ACTIVE_CITY: { id: activeCity },
     state: { curbSegments: curbs, savedSets, activeSourceLabel: "Test", activeLookupAddress: "" },
     lookupStatus: { textContent: "" },
     persistCount: 0,
@@ -196,4 +199,29 @@ test("an account merge unions the curbs of a set both devices hold", async () =>
 test("the map page has no save step left to reach", () => {
   assert.doesNotMatch(INDEX_SOURCE, /id="save-set-button"|id="set-name-input"|id="readiness-set"|id="clear-map-selection"/);
   assert.doesNotMatch(APP_SOURCE, /currentSelectionIds|function saveCurrentAsSet/);
+});
+
+test("viewing one city does not prune another city's saved curbs", () => {
+  const validIds = new Set(["way-1:north"]);
+  const stored = {
+    id: "set-my-curbs",
+    name: "My curbs",
+    segmentIds: ["way-1:north", "way-gone:south", "mpls:abc123"],
+    segments: [curb("way-1:north"), curb("mpls:abc123", "LYNDALE AVE S")]
+  };
+
+  const denver = loadCurbReminders({ curbs: [curb("way-1:north")] });
+  assert.deepEqual(
+    [...denver.hydrateSavedSet(stored, validIds).segmentIds],
+    ["way-1:north", "mpls:abc123"],
+    "Denver drops its own stale id but keeps the Minneapolis one it cannot judge"
+  );
+
+  const minneapolis = loadCurbReminders({ curbs: [], activeCity: "minneapolis" });
+  assert.deepEqual(
+    [...minneapolis.hydrateSavedSet(stored, new Set(["mpls:abc123"])).segmentIds],
+    ["way-1:north", "way-gone:south", "mpls:abc123"],
+    "Minneapolis keeps every Denver id untouched"
+  );
+  assert.equal(minneapolis.hydrateSavedSet({ ...stored, segmentIds: ["mpls:gone"] }, new Set()).segmentIds.length, 0, "its own stale id is still pruned");
 });

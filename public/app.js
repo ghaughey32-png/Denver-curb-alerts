@@ -2801,6 +2801,19 @@ function getMissingEmbeddedWays(embeddedWays, officialWays) {
   });
 }
 
+// Denver ids are "<way>:<side>"; Minneapolis snow curbs are "mpls:<hash>". The prefix is how a saved
+// curb says which city's inventory can vouch for it.
+function getCurbIdCity(segmentId) {
+  return String(segmentId).startsWith("mpls:") ? "minneapolis" : "denver";
+}
+
+function isCurbIdOfActiveCity(segmentId) {
+  return getCurbIdCity(segmentId) === ACTIVE_CITY.id;
+}
+
+// Only the loaded inventory can say an id is stale, and it only knows its own city. An id from the
+// other city passes through untouched: pruning it would strip Denver's curbs from every set the
+// moment someone opens Minneapolis, and the account upload would carry that loss to the server.
 function hydrateSavedSet(set, validIds) {
   const fallbackSegments = Array.isArray(set.segmentIds)
     ? set.segmentIds
@@ -2816,8 +2829,8 @@ function hydrateSavedSet(set, validIds) {
     ? [...storedSegments, ...fallbackSegments.filter((segment) => !storedIds.has(segment.id))]
     : fallbackSegments;
   const nextSegmentIds = Array.isArray(set.segmentIds)
-    ? set.segmentIds.filter((id) => validIds.has(id))
-    : segments.map((segment) => segment.id).filter((id) => validIds.has(id));
+    ? set.segmentIds.filter((id) => validIds.has(id) || !isCurbIdOfActiveCity(id))
+    : segments.map((segment) => segment.id).filter((id) => validIds.has(id) || !isCurbIdOfActiveCity(id));
 
   if (!segments.length) {
     return null;
