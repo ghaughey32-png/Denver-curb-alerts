@@ -1545,8 +1545,9 @@ Certificates, Identifiers & Profiles → Keys, its contents and id in `APNS_PRIV
 `CurbAlerts.entitlements`; the next archive with `-allowProvisioningUpdates` should turn Push
 Notifications on for the App ID the way it registered the App Group — check the first archive
 succeeds before trusting that. The device token is declared in `PrivacyInfo.xcprivacy` as a Device
-ID, linked, for app functionality, and the Privacy page says what it is for; **the App Store
-Connect privacy answers must add Device ID before the build carrying this is submitted.** Not yet
+ID, linked, for app functionality, and the Privacy page says what it is for; the App Store
+Connect privacy answers carry Device ID (App Functionality, linked, not tracking), published
+2026-09-30. Not yet
 watched working end to end on a phone.
 
 ### The home-screen widget
