@@ -12,6 +12,7 @@ const accounts = require("./lib/accounts.js");
 const mailer = require("./lib/email.js");
 const productEvents = require("./lib/events.js");
 const apns = require("./lib/apns.js");
+const snow = require("./lib/snow.js");
 const cityRegistry = require("./public/cities.js");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -32,6 +33,8 @@ const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const EMAIL_TOKENS_FILE = path.join(DATA_DIR, "email-tokens.json");
 const SIGN_IN_ATTEMPTS_FILE = path.join(DATA_DIR, "sign-in-attempts.json");
 const EVENT_COUNTS_FILE = path.join(DATA_DIR, "event-counts.json");
+const SNOW_EMERGENCIES_FILE = path.join(DATA_DIR, "snow-emergencies.json");
+const SNOW_INVENTORY_FILE = path.join(PUBLIC_DIR, "minneapolis-snow.json");
 // Where a message goes when no provider is configured. Not a test fixture: it is how the whole
 // verification and reset flow is exercised locally, by opening the link out of the file.
 const EMAIL_OUTBOX_FILE = path.join(DATA_DIR, "outbox.json");
@@ -46,7 +49,8 @@ const COLLECTION_KEYS = {
   sessions: "sessions",
   emailTokens: "email-tokens",
   signInAttempts: "sign-in-attempts",
-  eventCounts: "event-counts"
+  eventCounts: "event-counts",
+  snowEmergencies: "snow-emergencies"
 };
 
 const MIME_TYPES = {
@@ -201,7 +205,8 @@ async function ensureDataFiles() {
     ensureJsonFile(SESSIONS_FILE),
     ensureJsonFile(EMAIL_TOKENS_FILE),
     ensureJsonFile(SIGN_IN_ATTEMPTS_FILE),
-    ensureJsonFile(EVENT_COUNTS_FILE)
+    ensureJsonFile(EVENT_COUNTS_FILE),
+    ensureJsonFile(SNOW_EMERGENCIES_FILE)
   ]);
 }
 
@@ -363,7 +368,8 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.sessions, SESSIONS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.emailTokens, EMAIL_TOKENS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.signInAttempts, SIGN_IN_ATTEMPTS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.eventCounts, EVENT_COUNTS_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.eventCounts, EVENT_COUNTS_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.snowEmergencies, SNOW_EMERGENCIES_FILE)
     ]);
     storageBackend = "database";
     await backfillAccountTrials();
@@ -453,6 +459,23 @@ async function writePushSubscriptions(subscriptions) {
   }
 
   await writeCollectionToFile(PUSH_SUBSCRIPTIONS_FILE, subscriptions);
+}
+
+async function readSnowEmergencies() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.snowEmergencies);
+  }
+
+  return readCollectionFromFile(SNOW_EMERGENCIES_FILE);
+}
+
+async function writeSnowEmergencies(records) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.snowEmergencies, records);
+    return;
+  }
+
+  await writeCollectionToFile(SNOW_EMERGENCIES_FILE, records);
 }
 
 async function readEventCounts() {
@@ -2216,6 +2239,47 @@ async function handleApnsRegistration(request, response) {
   sendJson(response, 201, { ok: true });
 }
 
+// Sends one payload per phone and tidies up after Apple: a token it calls dead is removed from the
+// collection. `payloadFor(device)` lets a caller word the message for each phone (a snow alert names
+// the street it is about). `sentEndpoints` is who it reached, for a later "cancelled".
+async function sendApnsToDevices(config, devices, payloadFor) {
+  const results = { deviceCount: devices.length, sent: 0, failed: 0, removed: 0, errors: {}, sentEndpoints: [] };
+  const deadEndpoints = new Set();
+
+  for (const device of devices) {
+    const result = await apns.sendApnsNotification({
+      config,
+      token: device.endpoint.slice("apns://".length),
+      environment: device.apnsEnvironment,
+      payload: payloadFor(device)
+    });
+
+    if (result.outcome === "sent") {
+      results.sent += 1;
+      results.sentEndpoints.push(device.endpoint);
+      continue;
+    }
+
+    if (result.outcome === "dead-token") {
+      deadEndpoints.add(device.endpoint);
+      results.removed += 1;
+    } else {
+      results.failed += 1;
+    }
+    const label = result.reason || `HTTP ${result.status}`;
+    results.errors[label] = (results.errors[label] || 0) + 1;
+  }
+
+  if (deadEndpoints.size) {
+    // Re-read rather than writing back the list read before the sends: a phone that registered while
+    // the sends ran must not be erased by them.
+    const current = await readPushSubscriptions();
+    await writePushSubscriptions(current.filter((item) => !deadEndpoints.has(item.endpoint)));
+  }
+
+  return results;
+}
+
 // Sends one alert to the iPhones it is relevant to. Behind the admin token; there is no version of
 // this a stranger should be able to call. `dryRun` reports who would receive it without sending.
 //
@@ -2291,40 +2355,280 @@ async function handleApnsBroadcast(request, response) {
     url: body.url,
     timeSensitive: body.timeSensitive === true
   });
-  const results = { deviceCount: devices.length, sent: 0, failed: 0, removed: 0, errors: {} };
-  const deadEndpoints = new Set();
+  const results = await sendApnsToDevices(config, devices, () => payload);
 
-  for (const device of devices) {
-    const result = await apns.sendApnsNotification({
-      config,
-      token: device.endpoint.slice("apns://".length),
-      environment: device.apnsEnvironment,
-      payload
+  const { sentEndpoints, ...publicResults } = results;
+  sendJson(response, 200, publicResults);
+}
+
+// Snow emergencies (lib/snow.js decides what to say and to whom; this stores, schedules and sends).
+//
+// Nothing here declares one on its own. A person confirms a declaration through the admin route
+// (`npm run snow`), and only then does the timeline start. The dispatcher sits on the same 60 second
+// tick as the reminder plans and writes a message's id down *before* sending it, so a restart or an
+// overlapping tick can never send one twice. The cost is that a crash mid-send loses the rest of that
+// one message rather than repeating the start of it, which is the right way round for an alert people
+// act on: a second "move your car" is noise, and the next message in the timeline still goes.
+let snowCurbIndexPromise = null;
+let snowDispatchRunning = false;
+
+// The published curbs, read once and held: 4.5 MB of JSON is not something to parse every minute.
+function getSnowCurbIndex() {
+  if (!snowCurbIndexPromise) {
+    snowCurbIndexPromise = fs
+      .readFile(SNOW_INVENTORY_FILE, "utf8")
+      .then((text) => snow.buildCurbIndex(JSON.parse(text)))
+      .catch((error) => {
+        snowCurbIndexPromise = null;
+        throw error;
+      });
+  }
+
+  return snowCurbIndexPromise;
+}
+
+function findActiveSnowEmergency(records, city) {
+  return records.find((record) => record.city === city && record.status === "active") || null;
+}
+
+// A phone reachable by Apple push, narrowed to named tokens when the emergency was declared for a
+// test (`--token=`), so the end-to-end check on a real phone cannot reach anyone else.
+function snowRecipients(devices, record) {
+  const only = Array.isArray(record.onlyTokens) && record.onlyTokens.length ? new Set(record.onlyTokens) : null;
+  return devices.filter(
+    (device) => device.transport === "apns" && (!only || only.has(device.endpoint.slice("apns://".length)))
+  );
+}
+
+function audienceForSnowMessage(message, devices, curbIndex) {
+  return devices
+    .map((device) => ({ device, matched: snow.matchedCurbIds(message, device.watchedCurbIds, curbIndex) }))
+    .filter((entry) => entry.matched.length > 0);
+}
+
+function describeSnowTimeline(record, devices, curbIndex, now = Date.now()) {
+  const sent = new Set(record.sentMessageIds || []);
+  const due = new Set(snow.dueMessages(record, now).map((message) => message.id));
+  return snow.buildTimeline(record).map((message) => ({
+    id: message.id,
+    at: message.at,
+    audienceCount: audienceForSnowMessage(message, devices, curbIndex).length,
+    state: sent.has(message.id) ? "sent" : due.has(message.id) ? "due" : new Date(message.at).getTime() > now ? "pending" : "stale"
+  }));
+}
+
+async function updateSnowEmergency(id, change) {
+  const records = await readSnowEmergencies();
+  const record = records.find((item) => item.id === id);
+  if (!record) {
+    return null;
+  }
+
+  change(record);
+  await writeSnowEmergencies(records);
+  return record;
+}
+
+async function sendSnowMessage(config, record, message, curbIndex) {
+  const devices = snowRecipients(await readPushSubscriptions(), record);
+  const audience = audienceForSnowMessage(message, devices, curbIndex);
+  const byEndpoint = new Map(audience.map((entry) => [entry.device.endpoint, entry.matched]));
+  const results = await sendApnsToDevices(
+    config,
+    audience.map((entry) => entry.device),
+    (device) => {
+      const copy = snow.composeMessage(message, {
+        street: snow.singleStreet(byEndpoint.get(device.endpoint), curbIndex),
+        declaredAt: record.declaredAt,
+        day1Date: record.day1Date
+      });
+      return apns.buildAlertPayload({ ...copy, url: snow.SNOW_URL, timeSensitive: true });
+    }
+  );
+
+  await updateSnowEmergency(record.id, (current) => {
+    current.notifiedEndpoints = [...new Set([...(current.notifiedEndpoints || []), ...results.sentEndpoints])];
+  });
+  return results;
+}
+
+async function dispatchDueSnowMessages() {
+  if (snowDispatchRunning) {
+    return [];
+  }
+
+  snowDispatchRunning = true;
+  const sentSummaries = [];
+  try {
+    const config = apns.getApnsConfig();
+    if (!config.enabled) {
+      return sentSummaries;
+    }
+
+    for (const record of await readSnowEmergencies()) {
+      const due = snow.dueMessages(record);
+      if (due.length === 0) {
+        continue;
+      }
+
+      const curbIndex = await getSnowCurbIndex();
+      for (const message of due) {
+        await updateSnowEmergency(record.id, (current) => {
+          current.sentMessageIds = [...(current.sentMessageIds || []), message.id];
+        });
+        const results = await sendSnowMessage(config, record, message, curbIndex);
+        const { sentEndpoints, ...summary } = results;
+        sentSummaries.push({ id: message.id, ...summary });
+      }
+    }
+  } finally {
+    snowDispatchRunning = false;
+  }
+
+  return sentSummaries;
+}
+
+function publicSnowEmergency(record) {
+  return {
+    id: record.id,
+    city: record.city,
+    day1Date: record.day1Date,
+    status: record.status,
+    declaredAt: record.declaredAt,
+    timeline: snow.buildTimeline(record).map(({ id, at }) => ({ id, at }))
+  };
+}
+
+// GET is public and carries no one's data: whether an emergency is active and when its days fall,
+// which is what the page's banner needs and what the city itself announces. POST is the admin's.
+async function handleSnowEmergency(request, response, url) {
+  if (request.method === "GET") {
+    const city = String(url.searchParams.get("city") || "minneapolis");
+    const active = findActiveSnowEmergency(await readSnowEmergencies(), city);
+    sendJson(response, 200, { city, active: Boolean(active), emergency: active ? publicSnowEmergency(active) : null });
+    return;
+  }
+
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (!hasAdminAccess(request)) {
+    sendJson(response, 403, { error: "Not authorized." });
+    return;
+  }
+
+  let body = null;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch {
+    sendJson(response, 400, { error: "Invalid snow emergency payload." });
+    return;
+  }
+
+  const city = String(body.city || "minneapolis");
+  if (cityRegistry.getCity(city)?.kind !== "snow") {
+    sendJson(response, 400, { error: `${city} is not a snow emergency city.` });
+    return;
+  }
+
+  const records = await readSnowEmergencies();
+  const active = findActiveSnowEmergency(records, city);
+  const curbIndex = await getSnowCurbIndex();
+  const config = apns.getApnsConfig();
+  const onlyTokens = Array.isArray(body.tokens) ? body.tokens.map(apns.normalizeDeviceToken).filter(Boolean) : [];
+
+  if (body.action === "declare") {
+    if (!snow.isDateText(body.day1Date)) {
+      sendJson(response, 400, { error: "day1Date must be a date, YYYY-MM-DD: the day Day 1 begins." });
+      return;
+    }
+
+    // Day 1 is today or within a couple of days. Further off is a typo, and a sent alert cannot be
+    // taken back.
+    const today = snow.localDateText(new Date());
+    if (body.day1Date < snow.addDays(today, -1) || body.day1Date > snow.addDays(today, 3)) {
+      sendJson(response, 400, { error: `day1Date ${body.day1Date} is not within a few days of today (${today}).` });
+      return;
+    }
+
+    if (active && active.day1Date !== body.day1Date) {
+      sendJson(response, 409, { error: `An emergency for ${active.day1Date} is already active. Cancel it first.` });
+      return;
+    }
+
+    if (active) {
+      sendJson(response, 200, { alreadyActive: true, emergency: publicSnowEmergency(active) });
+      return;
+    }
+
+    const record = {
+      id: `snow_${crypto.randomBytes(8).toString("hex")}`,
+      city,
+      day1Date: body.day1Date,
+      status: "active",
+      declaredAt: new Date().toISOString(),
+      sentMessageIds: [],
+      notifiedEndpoints: [],
+      ...(onlyTokens.length ? { onlyTokens } : {})
+    };
+
+    if (body.dryRun) {
+      const devices = snowRecipients(await readPushSubscriptions(), record);
+      sendJson(response, 200, { dryRun: true, deviceCount: devices.length, timeline: describeSnowTimeline(record, devices, curbIndex) });
+      return;
+    }
+
+    if (!config.enabled) {
+      sendJson(response, 503, { error: "Apple push is not configured.", details: config.reason });
+      return;
+    }
+
+    await writeSnowEmergencies([record, ...records]);
+    // The declaration message goes now rather than on the next tick: the person who confirmed it is
+    // watching for it.
+    const sent = await dispatchDueSnowMessages();
+    const saved = findActiveSnowEmergency(await readSnowEmergencies(), city);
+    const devices = snowRecipients(await readPushSubscriptions(), saved);
+    sendJson(response, 201, { emergency: publicSnowEmergency(saved), sent, timeline: describeSnowTimeline(saved, devices, curbIndex) });
+    return;
+  }
+
+  if (body.action === "cancel") {
+    if (!active) {
+      sendJson(response, 404, { error: `No active snow emergency for ${city}.` });
+      return;
+    }
+
+    const registered = new Set((await readPushSubscriptions()).map((device) => device.endpoint));
+    const told = (active.notifiedEndpoints || []).filter((endpoint) => registered.has(endpoint));
+    if (body.dryRun) {
+      sendJson(response, 200, { dryRun: true, deviceCount: told.length, emergency: publicSnowEmergency(active) });
+      return;
+    }
+
+    if (!config.enabled) {
+      sendJson(response, 503, { error: "Apple push is not configured.", details: config.reason });
+      return;
+    }
+
+    await updateSnowEmergency(active.id, (current) => {
+      current.status = "cancelled";
+      current.cancelledAt = new Date().toISOString();
     });
-
-    if (result.outcome === "sent") {
-      results.sent += 1;
-      continue;
-    }
-
-    if (result.outcome === "dead-token") {
-      deadEndpoints.add(device.endpoint);
-      results.removed += 1;
-    } else {
-      results.failed += 1;
-    }
-    const label = result.reason || `HTTP ${result.status}`;
-    results.errors[label] = (results.errors[label] || 0) + 1;
+    // One message, to the phones that were told there was an emergency and to nobody else.
+    const devices = (await readPushSubscriptions()).filter((device) => told.includes(device.endpoint));
+    const message = { id: "cancelled", audience: "any" };
+    const results = await sendApnsToDevices(config, devices, () =>
+      apns.buildAlertPayload({ ...snow.composeMessage(message), url: snow.SNOW_URL, timeSensitive: true })
+    );
+    const { sentEndpoints, ...summary } = results;
+    sendJson(response, 200, { cancelled: true, ...summary });
+    return;
   }
 
-  if (deadEndpoints.size) {
-    // Re-read rather than writing back the list read before the sends: a phone that registered while
-    // the broadcast ran must not be erased by it.
-    const current = await readPushSubscriptions();
-    await writePushSubscriptions(current.filter((item) => !deadEndpoints.has(item.endpoint)));
-  }
-
-  sendJson(response, 200, results);
+  sendJson(response, 400, { error: 'action must be "declare" or "cancel".' });
 }
 
 // Anonymous funnel counts (lib/events.js). Increments are held here and written once a minute, so a
@@ -2705,6 +3009,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (url.pathname === "/api/snow-emergency") {
+    await handleSnowEmergency(request, response, url);
+    return;
+  }
+
   if (url.pathname === "/api/reminder-plans") {
     await handleReminderPlans(request, response, url);
     return;
@@ -2740,9 +3049,15 @@ server.listen(PORT, HOST, async () => {
   dispatchDueReminderPlans().catch((error) => {
     console.error(`Reminder dispatch failed during startup: ${error.message}`);
   });
+  dispatchDueSnowMessages().catch((error) => {
+    console.error(`Snow emergency dispatch failed during startup: ${error.message}`);
+  });
   setInterval(() => {
     dispatchDueReminderPlans().catch((error) => {
       console.error(`Reminder dispatch failed: ${error.message}`);
+    });
+    dispatchDueSnowMessages().catch((error) => {
+      console.error(`Snow emergency dispatch failed: ${error.message}`);
     });
     flushEventCounts();
   }, REMINDER_DISPATCH_INTERVAL_MS);

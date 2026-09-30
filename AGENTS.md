@@ -60,6 +60,7 @@ in [IDEAS.md](IDEAS.md), which is a backlog, not instructions.
 | `npm run check:city-limits` | Audits our city line against Denver's own boundary. Reports only. Network on first run. |
 | `npm run events` | Prints the analytics funnel. Needs `ISSUE_REPORT_ADMIN_TOKEN`. |
 | `npm run push -- "Title" "Body" …` | Apple push broadcast. Dry run unless `--send`. |
+| `npm run snow -- declare\|cancel\|status` | Declares or cancels a snow emergency through the admin route. Dry run unless `--send`; `--token=<hex>` limits it to one phone. **Outward-facing.** |
 | `npm run build:mpls-snow` | Builds `public/minneapolis-snow.json` from the city's open data, cached in `data/mpls-snow-cache/`. `--refresh` refetches, `--dry-run` writes nothing to `public/`. |
 
 Not wired to npm: `node scripts/import-osm-expected-blocks.js <map.osm> <area-id> <south> <west> <north> <east>`.
@@ -276,8 +277,16 @@ The curb data is done; the city record, map, server alerts and paywall are not y
   `sw.js`'s `APP_SHELL`, so Denver installs do not precache 4.5 MB. The header switcher saves the
   choice under `curb-alerts-city` and reloads; `IS_SNOW_CITY` in `app.js` skips Denver's boot steps
   and loads through `loadSnowInventory`. Snow curbs carry `schedule.sweepType: "Snow"`, never a sweep
-  date, so no local reminder jobs come from them. Phases 4–7 (server alerts, paywall audience, the
-  banner) are not built.
+  date, so no local reminder jobs come from them. Phase 4 (server alerts) is built; phases 5–7 (paywall audience, poller, banner) are not.
+- **A snow emergency starts only when a person declares it** (`POST /api/snow-emergency`, behind the
+  admin token, or `npm run snow`). [lib/snow.js](lib/snow.js) is pure: it turns `day1Date` into a
+  timeline in `America/Chicago` (declaration now; Day 1 at 7:30 pm; Days 2 and 3 at 8 pm the evening
+  before and 7 am) and picks each message's audience from the curbs' `days` flags. A message is sent
+  only to phones whose `watchedCurbIds` include a curb banned that day, never to a Denver-only phone,
+  and is skipped, not sent late, once it is over 2 hours stale.
+- **The dispatcher writes a message id into `sentMessageIds` before it sends** (at most once, across
+  restarts and overlapping ticks). Cancelling messages only the phones in `notifiedEndpoints`.
+  `GET /api/snow-emergency` is public and carries no phone data.
 
 ## Architecture and the data pipeline
 
