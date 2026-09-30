@@ -1386,7 +1386,10 @@ first to sign with the App Group, and `-allowProvisioningUpdates` registered
 `group.co.curbalerts.app` on both App IDs. Build 7, uploaded 2026-09-19, is build 6 plus the
 widget's dark appearance, and replaces it as the submission candidate. Build 8, uploaded
 2026-09-23, is build 7 plus the sweep-season fix below, exported without the internal-only key, and
-replaces it as the submission candidate. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
+replaces it as the submission candidate. Build 9, uploaded 2026-09-30, adds Apple push
+registration and the watched-curb list; its archive was the first signed with `aps-environment`, and
+`-allowProvisioningUpdates` accepted it, so Push Notifications is on for the App ID. It was exported
+without the internal-only key. **Every upload needs a higher `CURRENT_PROJECT_VERSION`, and the app and the widget
 extension must carry the same one** or the upload is refused. Raise it in all four build
 configurations and commit it, or the next archive from a clean checkout reuses a spent number.
 `MARKETING_VERSION` stays `1.0` until a real release. A build expires 90 days after upload, and a web
