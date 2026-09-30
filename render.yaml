@@ -53,6 +53,17 @@ services:
       - key: VAPID_SUBJECT
         sync: false
 
+      # Apple push to the iPhone app (lib/apns.js), for news the phone could not have scheduled ahead
+      # such as a snow emergency. All three are required or `npm run push` answers 503. The key is a
+      # .p8 from Certificates, Identifiers & Profiles > Keys, pasted whole; APNS_KEY_ID is the id shown
+      # beside it and APNS_TEAM_ID is XLGGMG362T. APNS_TOPIC defaults to co.curbalerts.app.
+      - key: APNS_KEY_ID
+        sync: false
+      - key: APNS_TEAM_ID
+        sync: false
+      - key: APNS_PRIVATE_KEY
+        sync: false
+
       # The canonical origin this app is served from. It is what verify and reset links are built
       # from, and — via buildCredentialedOrigins in server.js — what the API will accept a session
       # cookie from. Setting this is how a real domain is adopted; forgetting it is how sign-in

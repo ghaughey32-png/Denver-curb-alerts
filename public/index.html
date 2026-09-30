@@ -685,7 +685,12 @@
               <h2>Information the app may use</h2>
               <ul>
                 <li>The curb sides you turn reminders on for, and reminder times, so the app can build your alert schedule.</li>
-                <li>Your browser push subscription, so reminders can be delivered to the device you connected.</li>
+                <li>
+                  Your browser push subscription, or in the iPhone app the notification address Apple assigns it, so alerts
+                  can reach the device you connected. The iPhone app schedules sweep reminders on the phone itself; the
+                  address is how we can reach you with urgent news that could not be scheduled ahead, such as a parking
+                  emergency. If you are signed in, it is linked to your account.
+                </li>
                 <li>
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
                   account, so your saved curb sets can follow you to another device. We never store your actual password.
@@ -714,7 +719,7 @@
               <h2>Services involved</h2>
               <p>
                 The app is hosted on Render, which also hosts the database holding accounts and reminder schedules. It uses
-                browser push services operated by your browser vendor, map tiles and street data from OpenStreetMap, and
+                browser push services operated by your browser vendor, Apple's push notification service for the iPhone app, map tiles and street data from OpenStreetMap, and
                 street sweeping data published by the City and County of Denver. Those services may process basic technical
                 information needed to load maps, routes, and notifications.
               </p>

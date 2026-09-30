@@ -61,6 +61,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             await SubscriptionManager.shared.start()
             await SubscriptionManager.shared.refresh()
         }
+        // Every launch: iOS hands back the same token cheaply, and a changed one is how the server
+        // keeps reaching a phone that was restored or reinstalled.
+        PushRegistrar.shared.register()
         return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        PushRegistrar.shared.didRegister(deviceToken: deviceToken)
+    }
+
+    // Nothing to do but try again next launch; the phone's own reminders are unaffected.
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("Push registration failed: \(error.localizedDescription)")
     }
 }

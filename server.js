@@ -1,3 +1,4 @@
+const crypto = require("node:crypto");
 const http = require("node:http");
 const https = require("node:https");
 const fs = require("node:fs/promises");
@@ -10,6 +11,7 @@ const accounts = require("./lib/accounts.js");
 // which shadowed the module and made every call on it a TypeError inside those handlers.
 const mailer = require("./lib/email.js");
 const productEvents = require("./lib/events.js");
+const apns = require("./lib/apns.js");
 const cityRegistry = require("./public/cities.js");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -2114,6 +2116,183 @@ function refuseWebReminders(response) {
   return true;
 }
 
+// iPhone devices reachable by Apple push (lib/apns.js). Stored in the push-subscriptions collection
+// as `apns://<token>` so the account join and the deletion cascade treat them like any device; they
+// never carry a reminder plan, so the web-push dispatcher passes over them. Sweep reminders stay on
+// the phone. This is for news the phone could not have scheduled in advance, such as a snow
+// emergency.
+//
+// Registration is open, like the web-push one it sits beside: a device token is per install and the
+// app registers before anyone signs in. A caller inventing tokens gains nothing, since Apple refuses
+// them on the first send and the broadcast deletes them. The rate limit only keeps the collection
+// from being flooded between sends.
+const apnsRegistrationRateWindow = new Map();
+const APNS_REGISTRATIONS_PER_MINUTE = 20;
+
+function isApnsRegistrationRateLimited(request) {
+  const minute = Math.floor(Date.now() / 60000);
+  const address = getRequestIp(request);
+  const entry = apnsRegistrationRateWindow.get(address);
+  if (!entry || entry.minute !== minute) {
+    if (apnsRegistrationRateWindow.size > 10000) {
+      apnsRegistrationRateWindow.clear();
+    }
+    apnsRegistrationRateWindow.set(address, { minute, count: 1 });
+    return false;
+  }
+
+  entry.count += 1;
+  return entry.count > APNS_REGISTRATIONS_PER_MINUTE;
+}
+
+// The account on the record is whichever one the app is signed into as it registers, including none:
+// the app registers again whenever its session changes, so signing out unlinks the phone.
+async function handleApnsRegistration(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (isApnsRegistrationRateLimited(request)) {
+    sendJson(response, 429, { error: "Too many registrations. Try again in a minute." });
+    return;
+  }
+
+  let body = null;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch {
+    sendJson(response, 400, { error: "Invalid registration payload." });
+    return;
+  }
+
+  const token = apns.normalizeDeviceToken(body.token);
+  if (!token) {
+    sendJson(response, 400, { error: "A valid APNs device token is required." });
+    return;
+  }
+
+  // iOS can hand the same install a new token. Replacing the old record rather than adding beside it
+  // keeps one phone from receiving every broadcast twice until Apple retires the old token.
+  const previousToken = apns.normalizeDeviceToken(body.previousToken);
+  const endpoint = apns.buildApnsEndpoint(token);
+  const retired = new Set([endpoint, previousToken ? apns.buildApnsEndpoint(previousToken) : ""]);
+
+  const { account } = await resolveSession(request);
+  const subscriptions = await readPushSubscriptions();
+  const existing = subscriptions.find((item) => retired.has(item.endpoint));
+  const now = new Date().toISOString();
+  const record = {
+    id: existing?.id || `apns_${crypto.randomBytes(8).toString("hex")}`,
+    transport: "apns",
+    endpoint,
+    apnsEnvironment: apns.normalizeEnvironment(body.environment),
+    accountId: account?.id || null,
+    appVersion: productEvents.normalizeAppVersion(body.appVersion),
+    createdAt: existing?.createdAt || now,
+    updatedAt: now
+  };
+
+  await writePushSubscriptions([record, ...subscriptions.filter((item) => !retired.has(item.endpoint))]);
+  sendJson(response, 201, { ok: true });
+}
+
+// Sends one alert to every registered iPhone, or to the tokens named. Behind the admin token: this
+// reaches every user of the app at once, and there is no version of it a stranger should be able to
+// call. `dryRun` reports who would receive it without sending anything.
+//
+// Nothing here checks a subscription. The only caller today is a person deciding to send something,
+// and whether a given kind of alert is part of what is sold is a decision to make when that kind of
+// alert exists.
+async function handleApnsBroadcast(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  if (!hasAdminAccess(request)) {
+    sendJson(response, 403, { error: "Not authorized." });
+    return;
+  }
+
+  let body = null;
+  try {
+    body = JSON.parse(await readRequestBody(request));
+  } catch {
+    sendJson(response, 400, { error: "Invalid broadcast payload." });
+    return;
+  }
+
+  const title = String(body.title || "").trim();
+  const message = String(body.body || "").trim();
+  if (!title || !message) {
+    sendJson(response, 400, { error: "A title and a body are both required." });
+    return;
+  }
+
+  const onlyTokens = Array.isArray(body.tokens)
+    ? new Set(body.tokens.map(apns.normalizeDeviceToken).filter(Boolean))
+    : null;
+  const devices = (await readPushSubscriptions()).filter(
+    (item) =>
+      item.transport === "apns" &&
+      (!onlyTokens || onlyTokens.has(item.endpoint.slice("apns://".length))) &&
+      (!body.environment || item.apnsEnvironment === apns.normalizeEnvironment(body.environment))
+  );
+
+  if (body.dryRun) {
+    sendJson(response, 200, { dryRun: true, deviceCount: devices.length });
+    return;
+  }
+
+  const config = apns.getApnsConfig();
+  if (!config.enabled) {
+    sendJson(response, 503, { error: "Apple push is not configured.", details: config.reason });
+    return;
+  }
+
+  const payload = apns.buildAlertPayload({
+    title,
+    body: message,
+    url: body.url,
+    timeSensitive: body.timeSensitive === true
+  });
+  const results = { deviceCount: devices.length, sent: 0, failed: 0, removed: 0, errors: {} };
+  const deadEndpoints = new Set();
+
+  for (const device of devices) {
+    const result = await apns.sendApnsNotification({
+      config,
+      token: device.endpoint.slice("apns://".length),
+      environment: device.apnsEnvironment,
+      payload
+    });
+
+    if (result.outcome === "sent") {
+      results.sent += 1;
+      continue;
+    }
+
+    if (result.outcome === "dead-token") {
+      deadEndpoints.add(device.endpoint);
+      results.removed += 1;
+    } else {
+      results.failed += 1;
+    }
+    const label = result.reason || `HTTP ${result.status}`;
+    results.errors[label] = (results.errors[label] || 0) + 1;
+  }
+
+  if (deadEndpoints.size) {
+    // Re-read rather than writing back the list read before the sends: a phone that registered while
+    // the broadcast ran must not be erased by it.
+    const current = await readPushSubscriptions();
+    await writePushSubscriptions(current.filter((item) => !deadEndpoints.has(item.endpoint)));
+  }
+
+  sendJson(response, 200, results);
+}
+
 // Anonymous funnel counts (lib/events.js). Increments are held here and written once a minute, so a
 // busy evening does not rewrite the collection on every tap. A crash loses at most a minute of
 // counts, which analytics can afford and a reminder could not.
@@ -2479,6 +2658,16 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/push/subscriptions") {
     await handlePushSubscriptions(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/push/apns") {
+    await handleApnsRegistration(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/push/broadcast") {
+    await handleApnsBroadcast(request, response);
     return;
   }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "curb-alerts-shell-v220";
+const CACHE_NAME = "curb-alerts-shell-v221";
 const APP_SHELL = [
   "/",
   "/index.html",

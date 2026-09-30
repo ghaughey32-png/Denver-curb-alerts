@@ -12,8 +12,8 @@ sweeping rules, and schedules web-push reminders.
 Deliberately minimal stack:
 
 - `server.js` — a zero-framework `node:http` server. Static files + `/api/*`. No Express.
-- `lib/accounts.js` and `lib/email.js` — the only things outside `server.js` that are server
-  runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
+- `lib/accounts.js`, `lib/email.js`, `lib/events.js` and `lib/apns.js` — the only things outside
+  `server.js` that are server runtime rather than pipeline tooling, which is why they are not under `scripts/lib/`.
   `accounts.js` is pure, no I/O. `email.js` is pure apart from `sendEmail`, deliberately the one
   function touching the outside world, so everything above it can be tested without a key or a
   network. There was a `lib/billing.js` in the same shape until 2026-09-03; see **Payments —
@@ -1252,7 +1252,8 @@ are defects in the web app's assumptions rather than shell scaffolding.
 4. Geofencing and the widget — the 4.2 answer. The pin geofencing would watch landed on
    2026-09-15 (see **The parking pin**); what is left is noticing the car leave it. The widget
    landed on 2026-09-19 (see **The home-screen widget**).
-5. The APNs dispatcher.
+5. ~~The APNs dispatcher.~~ **Transport done 2026-09-30**; see **Apple push** below. Nothing sends
+   automatically yet.
 
 ### The iOS project
 
@@ -1482,7 +1483,52 @@ equal to `SubscriptionManager.productIDs` and to App Store Connect.
 
 **Not done yet, in the order they matter:**
 
-- Geofencing and APNs (steps 4 and 5).
+- Geofencing (step 4).
+- Anything that sends Apple push on its own. The transport exists; see **Apple push**.
+
+### Apple push
+
+Added 2026-09-30, as the transport for alerts the phone cannot schedule in advance — the snow
+emergency is the motivating case: declared hours before it bites, so a phone that has not opened
+the app that day would never hear of it. **Sweep reminders do not use it and must not start to.**
+They stay local notifications, which fire with no connection and no server; a push copy of them
+would only arrive twice.
+
+`ios/CurbAlerts/PushRegistrar.swift` registers on every launch (no prompt — the token is issued
+whether or not alerts are allowed) and posts the token to `POST /api/push/apns` with the keychain
+session as a bearer token when there is one. It re-posts when the token changes (sending
+`previousToken`, so the server replaces rather than duplicates), when the bridge's
+`setSessionToken`/`clearSessionToken` run, and weekly. The record lives in `push-subscriptions` as
+`apns://<token>` with `transport: "apns"` and `apnsEnvironment`, so the account-deletion cascade
+covers it unchanged and the web-push dispatcher, which only walks reminder plans, never touches it.
+`accountId` is whichever account the phone is signed into as it registers, including none.
+
+**Debug builds are sandbox, everything else production**, and the device says which: a token sent to
+the other host is refused as `BadDeviceToken`, which the broadcast treats as dead and deletes. So a
+Debug build pointed at production is fine, and a Release build run from Xcode with development
+signing is the one combination that will register as the wrong environment.
+
+Sending is `POST /api/push/broadcast`, behind the admin token, and `npm run push -- "Title" "Body"`
+wraps it — **counting who would receive it by default and sending only with `--send`**, because it
+reaches every phone at once. `--urgent` makes it time sensitive, `--token=<hex>` narrows it to one
+phone for testing. It checks no subscription on purpose: whether a kind of alert is part of what is
+sold is decided when that kind exists, and a snow emergency will need that decision.
+
+`lib/apns.js` is no dependency: `node:http2` to Apple, `node:crypto` for the ES256 provider token,
+signed with `dsaEncoding: "ieee-p1363"` so there is no DER to convert. The token is cached fifty
+minutes (Apple refuses one over an hour old and throttles fresher refreshes). `APNS_ORIGIN` replaces
+Apple's hosts and exists only for `test/apns.test.js`, which runs a fake APNs over plain HTTP/2 and
+checks what went over the wire.
+
+**What it needs outside the code, none of which exists yet:** an APNs key (`.p8`) created under
+Certificates, Identifiers & Profiles → Keys, its contents and id in `APNS_PRIVATE_KEY` and
+`APNS_KEY_ID` on Render, and `APNS_TEAM_ID`. The `aps-environment` entitlement is in
+`CurbAlerts.entitlements`; the next archive with `-allowProvisioningUpdates` should turn Push
+Notifications on for the App ID the way it registered the App Group — check the first archive
+succeeds before trusting that. The device token is declared in `PrivacyInfo.xcprivacy` as a Device
+ID, linked, for app functionality, and the Privacy page says what it is for; **the App Store
+Connect privacy answers must add Device ID before the build carrying this is submitted.** Not yet
+watched working end to end on a phone.
 
 ### The home-screen widget
 
@@ -1859,6 +1905,8 @@ way: an unset variable here is never an error, it is a feature that silently ans
 does nothing at all (push), which is much harder to notice than a crash. Worth knowing
 beyond the file:
 
+- `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` — Apple push to the iPhone app. All three or
+  push is off and `npm run push` answers 503. See **Apple push**.
 - `ISSUE_REPORT_ADMIN_TOKEN` — gates every bulk read that returns other people's data, not just
   issue reports, via `Authorization: Bearer <token>`. Unset by default, which closes them.
 - `DATA_DIR` — where the JSON collections live. Unset everywhere except `test/accounts.test.js`,

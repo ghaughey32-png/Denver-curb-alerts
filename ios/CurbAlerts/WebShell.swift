@@ -250,10 +250,12 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                     return (nil, "No session token to save.")
                 }
                 try SessionKeychain.write(token)
+                PushRegistrar.shared.sessionChanged()
                 return (true, nil)
 
             case "clearSessionToken":
                 SessionKeychain.delete()
+                PushRegistrar.shared.sessionChanged()
                 return (true, nil)
 
             case "getCurrentPosition":

@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v220",
+    "cacheName": "curb-alerts-shell-v221",
     "files": {
-      "index.html": "230eaaebfdc37c3db35380df9967bb944c44aaea8267e083ed00f765ed69f93d",
-      "sw.js": "6bf73810548c6b4a3d401742ad8f2814a3695659e08f1b851ea5bfd245020c68"
+      "index.html": "2c498f683b54809fa3155781e65292868e9c499208ea58e411618ed39b3f02d0",
+      "sw.js": "00181279971c4049594ace4b30e20d4dc8eaac953535e4f97e556659bfebcd72"
     }
   },
   "assets": {
