@@ -1547,8 +1547,14 @@ Notifications on for the App ID the way it registered the App Group — check th
 succeeds before trusting that. The device token is declared in `PrivacyInfo.xcprivacy` as a Device
 ID, linked, for app functionality, and the Privacy page says what it is for; the App Store
 Connect privacy answers carry Device ID (App Functionality, linked, not tracking), published
-2026-09-30. Not yet
-watched working end to end on a phone.
+2026-09-30.
+
+**Verified end to end on 2026-09-30**: TestFlight build 9 on the author's iPhone registered, the
+dry run counted it, and `npm run push -- ... --everyone --send` delivered the alert. The first key
+answered `BadEnvironmentKeyInToken`, because a key's APNs environment is chosen once at creation
+and cannot be changed afterwards, and that one had been saved as Sandbox only — while TestFlight and
+App Store builds are production. **A key for this app must be created as Sandbox & Production,
+Team Scoped.** The server holds one key for both environments on purpose.
 
 ### The home-screen widget
 

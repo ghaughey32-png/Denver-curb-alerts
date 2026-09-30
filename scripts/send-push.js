@@ -77,6 +77,11 @@ async function main() {
   for (const [reason, count] of Object.entries(result.errors || {})) {
     console.log(`  ${reason}: ${count}`);
   }
+  // The one refusal that has already cost a day: a key's environment is fixed when it is created.
+  if (result.errors?.BadEnvironmentKeyInToken) {
+    console.log("\nThe APNs key on the server is not enabled for this environment. A key's environment cannot be");
+    console.log("changed after it is created: make a new one as Sandbox & Production, Team Scoped, and put it on Render.");
+  }
 }
 
 main().catch((error) => {
