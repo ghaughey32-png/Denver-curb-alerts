@@ -18,7 +18,8 @@
     "test": "node --test test/*.test.js",
     "refresh:schedules": "node scripts/refresh-route-schedules.js",
     "events": "node scripts/show-events.js",
-    "push": "node scripts/send-push.js"
+    "push": "node scripts/send-push.js",
+    "build:mpls-snow": "node scripts/build-minneapolis-snow.js"
   },
   "dependencies": {
     "pg": "^8.13.1",

@@ -2121,3 +2121,54 @@ Do not take a payment before the blueprint is actually applied.
   city-wide and east-Denver data. Don't infer scope from the names.
 - `data/` is ~360 MB, and `data/inventory-expected-blocks.json` alone is 36 MB across 97,827 blocks.
   Grep with care, and never read these files whole.
+
+## Minneapolis snow emergencies
+
+Investigated 2026-09-30, when the curb data was built.
+
+**What the city publishes.** The rules are the ArcGIS layer `Snow_Emergency_Routes`: 21,644 polygons,
+CC0, with `DAY1`, `DAY2`, `DAY3` and `WINTERRULES` and no street names or documentation. Each
+polygon is half of one block of one street, running from the centreline out about 14 m to one side
+(measured on 300 samples: nearest vertex a median 0.2 m from the centreline, farthest 14.1 m).
+Street names and a second route flag come from `PW_Street_Centerline`, whose `SNOW_EMERGENCY_ROUTE`
+field is independent of the polygons; its address ranges are empty. House numbers come from
+`EAS_Addresses` (149,421 active). Page sizes differ by service — 2,000, 1,000 and 16,000 — and
+asking for more than a service allows silently returns less: the first centreline download got
+7,000 of 13,021. Declarations have no feed at all; the closest thing is the JSON behind the site-wide
+banner on minneapolismn.gov, which was empty when checked.
+
+**How the flags were confirmed.** The city publishes every ticket written in each snow emergency,
+one service per emergency (`Snow_Emergency_<Name>_Tags_<year>`), with the day, the rule broken and a
+location. Of the 10,806 tickets from the two 2025–26 emergencies, 97% of Day 1 route tickets fell
+inside a strip flagged `DAY1 = 0`. For Days 2 and 3, 97% fell on or within 12 m of a strip flagged 0
+for that day. So 0 means *no parking that day*. The rest were mostly imprecise locations near
+corners.
+
+**Where the city disagrees with itself.** About 2% of tickets did not fit, and they failed in the
+dangerous direction: even- and odd-side tickets on strips the polygons call snow emergency routes,
+which the polygons say are fine on Days 2 and 3. The centreline says most of those streets are not
+routes (Colfax Ave S and 6th St SE entirely, much of Emerson Ave S and 10th Ave S), and the tickets
+side with the centreline. The build therefore cross-checks every curb:
+- The polygon says route and the centreline says not: the curb also loses its even/odd day, taken
+  from the house numbers on its side, or both days when there are none (205 curbs).
+- The centreline says route and the polygon does not: the curb loses Day 1 (171 curbs).
+- The polygon's even/odd reading contradicts the house numbers on that side: both days go (307).
+
+**Two things that looked like errors and were not.** The city places a ticket it could not geocode
+at one stand-in point per street. Dozens of Emerson Ave S tickets, 3105 to 3537, share one
+coordinate by Lake St, which is a route. Tickets whose coordinate is shared by three or more
+different addresses are counted apart (537 of them). After that, the placed tickets the published
+curbs call legal came to 2.9% on Day 1 and 1.2% and 1.0% on Days 2 and 3.
+
+**What is left.** About 30 Day 1 tickets land 0–3 m from curbs both datasets call non-routes, on
+10th Ave S, 41st Ave S, Elliot Ave S and Upton Ave N. Either both datasets are stale there or the
+city enforces more than it publishes. A curb repeatedly ticketed for a day could be marked banned
+from the ticket history itself. That was considered and not done yet: it would make the ticket gate
+partly grade its own homework, so it wants a held-out season to check against.
+
+About 37% of curbs have no house numbers on their side within reach (parks, commercial frontage,
+corner lots). That only matters where the sources disagree, and there the rule falls back to banning
+both days.
+
+The payload is 4.56 MB raw and about 975 KB gzipped, so it can be bundled into the iOS app beside
+Denver's. Per-city on-demand fetching is deferred until a third city.
