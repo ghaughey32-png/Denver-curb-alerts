@@ -17,6 +17,7 @@ const cityRegistry = require("../public/cities.js");
 const { withServer } = require("./lib/with-server.js");
 
 const ADMIN = { Authorization: "Bearer test-admin-token" };
+const PAID = { entitled: true, endsAt: null };
 const TOKEN_A = "a".repeat(64);
 const TOKEN_B = "b".repeat(64);
 const TOKEN_C = "c".repeat(64);
@@ -185,7 +186,7 @@ test("declaring sends the first alert to Minneapolis watchers, dry runs send not
         const register = (json) => call("/api/push/apns", { method: "POST", json });
         const declare = (json, headers = ADMIN) => call("/api/snow-emergency", { method: "POST", json: { action: "declare", ...json }, headers });
 
-        await register({ token: TOKEN_A, watchedCurbIds: [routeCurb.id, "den:1:north"] });
+        await register({ token: TOKEN_A, watchedCurbIds: [routeCurb.id, "den:1:north"], reminderAccess: PAID });
         await register({ token: TOKEN_B, watchedCurbIds: ["den:1:north"] });
         await register({ token: TOKEN_C });
 
@@ -239,6 +240,69 @@ test("declaring sends the first alert to Minneapolis watchers, dry runs send not
   }
 });
 
+test("only phones whose subscription covers a message are in its audience", () => {
+  const route = { id: "day1-evening", audience: "day1", at: "2026-12-10T01:30:00.000Z" };
+  const device = (reminderAccess) => ({ endpoint: "apns://x", watchedCurbIds: ["mpls:route1"], reminderAccess });
+  const audience = (reminderAccess) => snow.isCoveredAt(reminderAccess, route.at);
+
+  assert.equal(audience(snow.normalizeReminderAccess({ entitled: true })), true);
+  assert.equal(audience(snow.normalizeReminderAccess({ entitled: false })), false);
+  assert.equal(audience(null), false, "a phone that never said is not covered");
+  assert.equal(audience(snow.normalizeReminderAccess({ entitled: true, endsAt: "2026-12-10T00:00:00Z" })), false, "coverage that ended before the message");
+  assert.equal(audience(snow.normalizeReminderAccess({ entitled: true, endsAt: "2026-12-11T00:00:00Z" })), true, "coverage that outlasts it");
+  assert.deepEqual(snow.normalizeReminderAccess({ entitled: true, endsAt: "garbage" }), { entitled: true, endsAt: null });
+  assert.equal(snow.normalizeReminderAccess({ entitled: "yes" }), null, "only a real boolean counts");
+  assert.equal(snow.normalizeReminderAccess("paid"), null);
+  assert.ok(device(null));
+});
+
+test("a snow alert reaches only entitled phones, a test declaration reaches the named phone regardless, and a lapse is picked up on re-registering", async () => {
+  const fake = await startFakeApns();
+  const day1Date = farDay1();
+  const snowCurbs = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "public", "minneapolis-snow.json"), "utf8")).curbs;
+  const watched = [snowCurbs[0].id];
+
+  try {
+    await withServer(
+      async ({ call, readCollection }) => {
+        const register = (json) => call("/api/push/apns", { method: "POST", json });
+        const post = (json) => call("/api/snow-emergency", { method: "POST", json, headers: ADMIN });
+
+        await register({ token: TOKEN_A, watchedCurbIds: watched, reminderAccess: PAID });
+        await register({ token: TOKEN_B, watchedCurbIds: watched, reminderAccess: { entitled: false, endsAt: null } });
+        await register({ token: TOKEN_C, watchedCurbIds: watched });
+        // A later registration that says nothing about access keeps what was held.
+        await register({ token: TOKEN_A, watchedCurbIds: watched });
+        assert.deepEqual(readCollection("push-subscriptions").find((item) => item.endpoint.endsWith(TOKEN_A)).reminderAccess, PAID);
+
+        const dry = await post({ action: "declare", day1Date, dryRun: true });
+        assert.equal(dry.payload.deviceCount, 3);
+        assert.equal(dry.payload.timeline.find((step) => step.id === "declared").audienceCount, 1, "unpaid and silent phones are not counted");
+
+        // A test declaration for the unsubscribed phone still reaches it.
+        const tryOut = await post({ action: "declare", day1Date, tokens: [TOKEN_B] });
+        assert.equal(tryOut.status, 201);
+        assert.deepEqual(fake.received.map((message) => message.token), [TOKEN_B]);
+        await post({ action: "cancel" });
+        fake.received.length = 0;
+
+        await post({ action: "declare", day1Date });
+        assert.deepEqual(fake.received.map((message) => message.token), [TOKEN_A], "only the paid phone");
+        await post({ action: "cancel" });
+        fake.received.length = 0;
+
+        // The phone lapses and tells the server; the next emergency leaves it out.
+        await register({ token: TOKEN_A, watchedCurbIds: watched, reminderAccess: { entitled: false, endsAt: null } });
+        await post({ action: "declare", day1Date });
+        assert.equal(fake.received.length, 0);
+      },
+      serverEnv(fake, fs.mkdtempSync(path.join(os.tmpdir(), "curb-snow-")))
+    );
+  } finally {
+    fake.close();
+  }
+});
+
 test("cancelling tells only the phones that were told, once, and ends the timeline", async () => {
   const fake = await startFakeApns();
   const day1Date = farDay1();
@@ -248,7 +312,7 @@ test("cancelling tells only the phones that were told, once, and ends the timeli
     await withServer(
       async ({ call, readCollection }) => {
         const post = (json) => call("/api/snow-emergency", { method: "POST", json, headers: ADMIN });
-        await call("/api/push/apns", { method: "POST", json: { token: TOKEN_A, watchedCurbIds: [snowCurbs[0].id] } });
+        await call("/api/push/apns", { method: "POST", json: { token: TOKEN_A, watchedCurbIds: [snowCurbs[0].id], reminderAccess: PAID } });
         await call("/api/push/apns", { method: "POST", json: { token: TOKEN_B, watchedCurbIds: ["den:1:north"] } });
 
         assert.equal((await post({ action: "cancel" })).status, 404, "nothing to cancel yet");

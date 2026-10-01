@@ -35,6 +35,7 @@ final class PushRegistrar {
         static let registeredAt = "push.registeredAt"
         static let registeredCurbs = "push.registeredCurbIds"
         static let watchedCurbs = "push.watchedCurbIds"
+        static let registeredAccess = "push.registeredAccess"
     }
 
     /// Re-sent weekly even when nothing changed, so the server's copy of a quiet phone stays fresh.
@@ -62,6 +63,12 @@ final class PushRegistrar {
         Task { await upload(force: true) }
     }
 
+    /// The subscription started, lapsed or moved: the server decides who hears a snow alert from what
+    /// it was last told, so it is told straight away.
+    func accessChanged() {
+        Task { await upload(force: false) }
+    }
+
     /// Called with every schedule the page hands over. Kept on the phone as well, so a launch that
     /// registers before the page has rendered still sends the last known list rather than none.
     func updateWatchedCurbs(_ curbIds: [String]) {
@@ -87,9 +94,12 @@ final class PushRegistrar {
         let signedIn = sessionToken != nil
         let registeredAt = defaults.object(forKey: Keys.registeredAt) as? Date ?? .distantPast
         let curbIds = watchedCurbIds
+        let access = ReminderStore().access.pushValue
+        let accessKey = Self.signature(of: access)
         let unchanged = previousToken == token
             && defaults.bool(forKey: Keys.signedIn) == signedIn
             && defaults.stringArray(forKey: Keys.registeredCurbs) == curbIds
+            && defaults.string(forKey: Keys.registeredAccess) == accessKey
             && Date().timeIntervalSince(registeredAt) < Self.refreshInterval
         if unchanged && !force { return }
 
@@ -116,6 +126,9 @@ final class PushRegistrar {
             "appVersion": version,
             "watchedCurbIds": curbIds
         ]
+        if let access {
+            body["reminderAccess"] = access
+        }
         if let previousToken, previousToken != token {
             body["previousToken"] = previousToken
         }
@@ -129,6 +142,12 @@ final class PushRegistrar {
         defaults.set(token, forKey: Keys.token)
         defaults.set(signedIn, forKey: Keys.signedIn)
         defaults.set(curbIds, forKey: Keys.registeredCurbs)
+        defaults.set(accessKey, forKey: Keys.registeredAccess)
         defaults.set(Date(), forKey: Keys.registeredAt)
+    }
+
+    private static func signature(of access: [String: Any]?) -> String {
+        guard let access else { return "unknown" }
+        return "\(access["entitled"] ?? "")|\(access["endsAt"] ?? "")"
     }
 }

@@ -61,6 +61,9 @@ actor SubscriptionManager {
         // hears about it too, so it never says reminders are on when the device has stopped them.
         if !previous.describesSameState(as: access) {
             try? await ReminderScheduler.shared.reschedule()
+            // The server only sends a snow alert to a phone whose subscription covers it, so a
+            // start or a lapse has to reach it now, not at the next weekly refresh.
+            await PushRegistrar.shared.accessChanged()
             let subscription = access.bridgeValue
             await MainActor.run {
                 WebShell.shared.dispatch(["type": "subscription-changed", "subscription": subscription])
@@ -168,6 +171,20 @@ extension ReminderAccess {
     func describesSameState(as other: ReminderAccess) -> Bool {
         status == other.status && endsAt == other.endsAt && productID == other.productID
             && willRenew == other.willRenew && (checkedAt == .distantPast) == (other.checkedAt == .distantPast)
+    }
+
+    /// What the server is told with the push registration, or nil until StoreKit has answered (the
+    /// server then keeps what it already holds rather than hearing "not subscribed" from a phone that
+    /// simply has not asked yet). `endsAt` is sent only where coverage really ends: a cancelled or
+    /// failing plan. On a plan that renews it is the next charge, and a phone that renewed while the
+    /// app stayed closed would otherwise look lapsed and lose its alerts without a word.
+    var pushValue: [String: Any]? {
+        guard checkedAt != .distantPast else { return nil }
+        let ends = (status == .cancelling || status == .billingIssue) ? endsAt : nil
+        return [
+            "entitled": isEntitled(),
+            "endsAt": ends.map { ISO8601DateFormatter().string(from: $0) } ?? NSNull()
+        ]
     }
 
     /// What the page reads as `DenverCurbAlertsNative.subscription`. `entitled` is computed here, so

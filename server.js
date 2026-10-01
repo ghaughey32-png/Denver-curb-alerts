@@ -2231,6 +2231,9 @@ async function handleApnsRegistration(request, response) {
     // The curbs this phone has reminders on, by id - what a targeted alert is matched against. A
     // registration that says nothing about them keeps the list already held.
     watchedCurbIds: normalizeWatchedCurbIds(body.watchedCurbIds) || existing?.watchedCurbIds || [],
+    // Whether this phone's reminders are paid for (lib/snow.js decides what that means for an alert).
+    // A registration that says nothing keeps what was held, so an older build cannot erase it.
+    reminderAccess: snow.normalizeReminderAccess(body.reminderAccess) || existing?.reminderAccess || null,
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };
@@ -2400,8 +2403,13 @@ function snowRecipients(devices, record) {
   );
 }
 
-function audienceForSnowMessage(message, devices, curbIndex) {
+// Snow alerts are part of what is sold, so a message goes to a phone only if its subscription covers
+// the moment the message is due. A declaration limited to named tokens skips that check: the person
+// who typed `--token=` chose the phone, and the end-to-end test has to work on an unsubscribed one.
+function audienceForSnowMessage(message, devices, curbIndex, record = {}) {
+  const testing = Array.isArray(record.onlyTokens) && record.onlyTokens.length > 0;
   return devices
+    .filter((device) => testing || snow.isCoveredAt(device.reminderAccess, message.at))
     .map((device) => ({ device, matched: snow.matchedCurbIds(message, device.watchedCurbIds, curbIndex) }))
     .filter((entry) => entry.matched.length > 0);
 }
@@ -2412,7 +2420,7 @@ function describeSnowTimeline(record, devices, curbIndex, now = Date.now()) {
   return snow.buildTimeline(record).map((message) => ({
     id: message.id,
     at: message.at,
-    audienceCount: audienceForSnowMessage(message, devices, curbIndex).length,
+    audienceCount: audienceForSnowMessage(message, devices, curbIndex, record).length,
     state: sent.has(message.id) ? "sent" : due.has(message.id) ? "due" : new Date(message.at).getTime() > now ? "pending" : "stale"
   }));
 }
@@ -2431,7 +2439,7 @@ async function updateSnowEmergency(id, change) {
 
 async function sendSnowMessage(config, record, message, curbIndex) {
   const devices = snowRecipients(await readPushSubscriptions(), record);
-  const audience = audienceForSnowMessage(message, devices, curbIndex);
+  const audience = audienceForSnowMessage(message, devices, curbIndex, record);
   const byEndpoint = new Map(audience.map((entry) => [entry.device.endpoint, entry.matched]));
   const results = await sendApnsToDevices(
     config,
