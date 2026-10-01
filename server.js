@@ -2439,6 +2439,7 @@ async function sendSnowMessage(config, record, message, curbIndex) {
     (device) => {
       const copy = snow.composeMessage(message, {
         street: snow.singleStreet(byEndpoint.get(device.endpoint), curbIndex),
+        curbs: byEndpoint.get(device.endpoint).map((id) => curbIndex.get(id)).filter(Boolean),
         declaredAt: record.declaredAt,
         day1Date: record.day1Date
       });

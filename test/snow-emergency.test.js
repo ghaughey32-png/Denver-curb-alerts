@@ -81,11 +81,33 @@ test("a street is named only when the matching curbs share one", () => {
   assert.doesNotMatch(snow.composeMessage({ id: "day1-evening" }).body, /undefined|\s{2}/);
 });
 
-test("the declaration copy knows whether Day 1 has already started", () => {
-  const before = snow.composeMessage({ id: "declared" }, { declaredAt: "2026-12-10T18:00:00Z", day1Date: "2026-12-10" });
-  const after = snow.composeMessage({ id: "declared" }, { declaredAt: "2026-12-11T04:00:00Z", day1Date: "2026-12-10" });
-  assert.match(before.body, /start at 9 pm/);
-  assert.match(after.body, /in effect now/);
+test("the declaration tells each phone when its own curbs must be cleared", () => {
+  const curb = (id) => index.get(id);
+  const declare = (ids, declaredAt, day1Date = "2026-12-10") =>
+    snow.composeMessage({ id: "declared" }, { curbs: ids.map(curb).filter(Boolean), declaredAt, day1Date });
+
+  // Declared Thursday 2026-12-10 noon, Central.
+  const noon = "2026-12-10T18:00:00Z";
+  assert.equal(declare(["mpls:route1"], noon).body, "Move your car off Lyndale Ave S by 9 pm tonight.");
+  assert.equal(declare(["mpls:even1"], noon).body, "Move your car off Emerson Ave S by 8 am tomorrow.");
+  assert.equal(declare(["mpls:odd1"], noon).body, "Move your car off Emerson Ave S by 8 am Saturday.");
+  assert.equal(declare(["mpls:odd1"], noon).title, "Snow emergency declared");
+
+  // Several curbs: the earliest deadline leads, the rest are counted, not listed.
+  assert.equal(
+    declare(["mpls:odd2", "mpls:route1", "mpls:even1"], noon).body,
+    "Move your car off Lyndale Ave S by 9 pm tonight. 2 more of your curbs are affected later; open the app."
+  );
+  assert.match(declare(["mpls:odd1", "mpls:odd2"], noon).body, /off your saved curbs by 8 am Saturday\.$/);
+
+  // Declared at 10:30 pm Day 1: the route ban has already started.
+  assert.match(declare(["mpls:route1"], "2026-12-11T04:30:00Z").body, /in effect now on Lyndale Ave S/);
+  // Declared the day before Day 1: a weekday, not "tonight".
+  assert.equal(declare(["mpls:route1"], "2026-12-09T18:00:00Z").body, "Move your car off Lyndale Ave S by 9 pm tomorrow.");
+
+  // A phone whose curbs are unknown or never banned still hears that an emergency exists.
+  assert.match(declare([], noon).body, /Open Curb Alerts/);
+  assert.match(declare(["mpls:gone"], noon).title, /declared in Minneapolis/);
 });
 
 test("a message is due once, on time, and never sent late or after a cancellation", () => {
