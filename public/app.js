@@ -5651,7 +5651,7 @@ function loadCityBoundary() {
   // The mask is the city line pushed out by the same buffer the exclusion
   // allows, so no curb the pipeline published can fall under the wash. The
   // outline stays on the true line, which is the boundary worth showing.
-  const maskRings = cityLimits.getDenverMaskRings();
+  const maskRings = (cityLimits.getMaskRings || cityLimits.getDenverMaskRings)();
   const outsideRing = [
     [CITY_MAP_BOUNDS.south - 1, CITY_MAP_BOUNDS.west - 1],
     [CITY_MAP_BOUNDS.north + 1, CITY_MAP_BOUNDS.west - 1],
@@ -5669,7 +5669,7 @@ function loadCityBoundary() {
     interactive: false
   }).addTo(state.boundaryLayerGroup);
 
-  L.polygon(cityLimits.DENVER_CITY_LIMITS, {
+  L.polygon(cityLimits.CITY_LIMITS || cityLimits.DENVER_CITY_LIMITS, {
     pane: "denverBoundaryOutline",
     interactive: false,
     color: "#9f1d2f",

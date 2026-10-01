@@ -176,7 +176,7 @@
     // never open); the versioned URL is cached on first use like any other versioned asset. The
     // "?v=" moves whenever the file does, and cities.js's own tag moves with it.
     inventoryUrl: "./minneapolis-snow.json?v=1",
-    cityLimitsGlobal: null,
+    cityLimitsGlobal: "MinneapolisCityLimits",
     // No sweeping here, so no season; and no address grid yet, so search falls back to street names.
     sweepSeason: null,
     // Same split as Denver: the website is the map, the iPhone app sells the alerts.
