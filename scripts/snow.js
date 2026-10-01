@@ -24,7 +24,7 @@ const tokens = flags.filter((flag) => flag.startsWith("--token=")).map((flag) =>
 function printTimeline(timeline) {
   for (const step of timeline) {
     const local = new Date(step.at).toLocaleString("en-US", { timeZone: "America/Chicago", dateStyle: "medium", timeStyle: "short" });
-    console.log(`  ${step.state.padEnd(8)} ${local}  ${step.id.padEnd(13)} ${step.audienceCount} phone(s)`);
+    console.log(`  ${step.state.padEnd(8)} ${local}  ${step.id.padEnd(13)} ${step.audienceCount} phone(s)${step.lapsedCount ? `, plus ${step.lapsedCount} told their alerts are off` : ""}`);
   }
 }
 

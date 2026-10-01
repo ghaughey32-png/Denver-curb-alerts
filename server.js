@@ -2414,6 +2414,13 @@ function audienceForSnowMessage(message, devices, curbIndex, record = {}) {
     .filter((entry) => entry.matched.length > 0);
 }
 
+// A declaration for named test tokens is one the author chose to send to a phone whatever its
+// subscription, so it never adds a "your alerts are off" notice for anyone.
+function lapsedSnowWatchers(devices, record, message, curbIndex) {
+  const testing = Array.isArray(record.onlyTokens) && record.onlyTokens.length > 0;
+  return testing ? [] : devices.filter((device) => snow.isLapsedWatcher(device, message.at, curbIndex));
+}
+
 function describeSnowTimeline(record, devices, curbIndex, now = Date.now()) {
   const sent = new Set(record.sentMessageIds || []);
   const due = new Set(snow.dueMessages(record, now).map((message) => message.id));
@@ -2421,6 +2428,7 @@ function describeSnowTimeline(record, devices, curbIndex, now = Date.now()) {
     id: message.id,
     at: message.at,
     audienceCount: audienceForSnowMessage(message, devices, curbIndex, record).length,
+    ...(message.id === "declared" ? { lapsedCount: lapsedSnowWatchers(devices, record, message, curbIndex).length } : {}),
     state: sent.has(message.id) ? "sent" : due.has(message.id) ? "due" : new Date(message.at).getTime() > now ? "pending" : "stale"
   }));
 }
@@ -2458,6 +2466,17 @@ async function sendSnowMessage(config, record, message, curbIndex) {
   await updateSnowEmergency(record.id, (current) => {
     current.notifiedEndpoints = [...new Set([...(current.notifiedEndpoints || []), ...results.sentEndpoints])];
   });
+
+  // Watchers whose subscription has lapsed are told once, with the declaration, that their alerts are
+  // off. They are not added to `notifiedEndpoints`: a later cancellation has nothing to say to them.
+  if (message.id === "declared") {
+    const lapsed = lapsedSnowWatchers(devices, record, message, curbIndex);
+    const lapsedResults = await sendApnsToDevices(config, lapsed, () =>
+      apns.buildAlertPayload({ ...snow.composeLapsedNotice(), url: snow.SNOW_URL, timeSensitive: true })
+    );
+    results.lapsed = lapsedResults.sent;
+    results.failed += lapsedResults.failed;
+  }
   return results;
 }
 

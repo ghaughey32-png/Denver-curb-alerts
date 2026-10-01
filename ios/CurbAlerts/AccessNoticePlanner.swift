@@ -48,11 +48,15 @@ enum AccessNoticePlanner {
     /// - Parameter alreadySent: ids of notices already scheduled or sent. Only the one-offs that
     ///   fire now consult it; a future notice is re-added on every pass because the scheduler
     ///   clears pending notices first.
+    /// - Parameter watchesSnow: the phone watches a snow-emergency curb. Those alerts are sold with
+    ///   the reminders, so a driver who only watches snow curbs has no sweep jobs yet is just as
+    ///   entitled to hear that their alerts have stopped.
     static func plan(
         access: ReminderAccess,
         jobs: [ReminderJob],
         moved: Set<String>,
         alreadySent: Set<String>,
+        watchesSnow: Bool = false,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> [Notice] {
@@ -63,7 +67,11 @@ enum AccessNoticePlanner {
 
         // Nothing is set up to remind, so nothing is being taken away.
         let jobs = jobs.filter { (SweepCalendar.parseDate($0.scheduledAt) ?? .distantPast) > now }
-        guard !jobs.isEmpty else { return [] }
+        guard !jobs.isEmpty || watchesSnow else { return [] }
+
+        // What the driver is losing, named the way they set it up.
+        let subject = jobs.isEmpty ? "Snow alerts" : watchesSnow ? "Sweep and snow alerts" : "Sweep reminders"
+        let lowerSubject = subject.lowercased()
 
         let stamp = access.endsAt.map { String(Int($0.timeIntervalSince1970)) } ?? "none"
         var notices: [Notice] = []
@@ -84,7 +92,7 @@ enum AccessNoticePlanner {
             let missed = missedSweepLine(readAt: max(date ?? now, now))
             return Notice(
                 id: identifierPrefix + "stopped|" + stamp,
-                title: alarm + "Sweep reminders have stopped",
+                title: alarm + "\(subject) have stopped",
                 body: [missed, "Open Curb Alerts to turn them back on."].compactMap { $0 }.joined(separator: " "),
                 fireAt: date.flatMap { $0 > now ? $0 : nil },
                 action: .subscribe
@@ -110,8 +118,8 @@ enum AccessNoticePlanner {
             let missed = missedSweepLine(readAt: now)
             once(Notice(
                 id: identifierPrefix + "needs-subscription",
-                title: alarm + "Sweep reminders need a subscription",
-                body: ["Your curbs are saved, but reminders are off.", missed, "Open Curb Alerts to turn them back on."]
+                title: alarm + "\(subject) need a subscription",
+                body: ["Your curbs are saved, but alerts are off.", missed, "Open Curb Alerts to turn them back on."]
                     .compactMap { $0 }.joined(separator: " "),
                 fireAt: nil,
                 action: .subscribe
@@ -130,10 +138,10 @@ enum AccessNoticePlanner {
                 let endDay = dayName(endsAt, now: readAt, calendar: calendar)
                 return Notice(
                     id: identifierPrefix + id + "|" + stamp,
-                    title: isBilling ? alarm + "Payment failed: sweep reminders stop \(endDay)" : cancelledAlarm + "Sweep reminders end \(endDay)",
+                    title: isBilling ? alarm + "Payment failed: \(lowerSubject) stop \(endDay)" : cancelledAlarm + "\(subject) end \(endDay)",
                     body: isBilling
-                        ? "Apple couldn't renew your Curb Alerts subscription. Update your payment method to keep your reminders."
-                        : "Your subscription is cancelled, so reminders stop \(endDay). Turn it back on to keep them.",
+                        ? "Apple couldn't renew your Curb Alerts subscription. Update your payment method to keep your alerts."
+                        : "Your subscription is cancelled, so alerts stop \(endDay). Turn it back on to keep them.",
                     fireAt: fireAt,
                     action: action
                 )

@@ -216,12 +216,14 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                 let data = try JSONSerialization.data(withJSONObject: payload["jobs"] ?? [])
                 let jobs = try JSONDecoder().decode([ReminderJob].self, from: data)
                 let movedSweepKeys = payload["movedSweepKeys"] as? [String] ?? []
-                try await ReminderScheduler.shared.replaceSchedule(jobs: jobs, movedSweepKeys: movedSweepKeys)
-                // Absent (not empty) from a page that predates targeting, so an old page cannot
-                // unwatch every curb by saying nothing about them.
+                // Recorded before the schedule is replaced: the lapse warnings planned inside it
+                // need to know whether this phone watches snow curbs. Absent (not empty) from a
+                // page that predates targeting, so an old page cannot unwatch every curb by saying
+                // nothing about them.
                 if let watchedCurbIds = payload["watchedCurbIds"] as? [String] {
                     PushRegistrar.shared.updateWatchedCurbs(watchedCurbIds)
                 }
+                try await ReminderScheduler.shared.replaceSchedule(jobs: jobs, movedSweepKeys: movedSweepKeys)
                 return (jobs.count, nil)
 
             case "showTestNotification":

@@ -134,6 +134,7 @@ actor ReminderScheduler {
             jobs: store.jobs,
             moved: moved,
             alreadySent: Set(sent),
+            watchesSnow: PushRegistrar.watchesSnowCurbs(),
             now: now
         )
         for notice in notices {

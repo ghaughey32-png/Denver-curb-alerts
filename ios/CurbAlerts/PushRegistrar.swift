@@ -42,6 +42,13 @@ final class PushRegistrar {
     private static let refreshInterval: TimeInterval = 7 * 24 * 60 * 60
 
     private let defaults = UserDefaults.standard
+
+    /// Whether this phone watches a snow-emergency curb (Minneapolis ids start `mpls:`), which is
+    /// what makes a lapsed subscription worth announcing even with no sweep reminder set up.
+    nonisolated static func watchesSnowCurbs() -> Bool {
+        (UserDefaults.standard.stringArray(forKey: "push.watchedCurbIds") ?? []).contains { $0.hasPrefix("mpls:") }
+    }
+
     private var currentToken: String?
     private var uploading = false
     // A change that arrives while an upload is in flight is sent straight after it, rather than

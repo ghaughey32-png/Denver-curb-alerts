@@ -277,7 +277,9 @@ test("a snow alert reaches only entitled phones, a test declaration reaches the 
 
         const dry = await post({ action: "declare", day1Date, dryRun: true });
         assert.equal(dry.payload.deviceCount, 3);
-        assert.equal(dry.payload.timeline.find((step) => step.id === "declared").audienceCount, 1, "unpaid and silent phones are not counted");
+        const declaredStep = dry.payload.timeline.find((step) => step.id === "declared");
+        assert.equal(declaredStep.audienceCount, 1, "unpaid and silent phones get no alert");
+        assert.equal(declaredStep.lapsedCount, 1, "but the phone that said it is unpaid is told its alerts are off");
 
         // A test declaration for the unsubscribed phone still reaches it.
         const tryOut = await post({ action: "declare", day1Date, tokens: [TOKEN_B] });
@@ -286,15 +288,22 @@ test("a snow alert reaches only entitled phones, a test declaration reaches the 
         await post({ action: "cancel" });
         fake.received.length = 0;
 
-        await post({ action: "declare", day1Date });
-        assert.deepEqual(fake.received.map((message) => message.token), [TOKEN_A], "only the paid phone");
+        const live = await post({ action: "declare", day1Date });
+        assert.deepEqual(
+          fake.received.map((message) => [message.token, /alerts are off/.test(message.body.aps.alert.title)]),
+          [[TOKEN_A, false], [TOKEN_B, true]],
+          "the paid phone gets the declaration, the unpaid one is told its alerts are off, the silent one hears nothing"
+        );
+        assert.equal(live.payload.sent[0].lapsed, 1);
+        fake.received.length = 0;
         await post({ action: "cancel" });
+        assert.deepEqual(fake.received.map((message) => message.token), [TOKEN_A], "a cancellation reaches only those who were sent the declaration");
         fake.received.length = 0;
 
         // The phone lapses and tells the server; the next emergency leaves it out.
         await register({ token: TOKEN_A, watchedCurbIds: watched, reminderAccess: { entitled: false, endsAt: null } });
         await post({ action: "declare", day1Date });
-        assert.equal(fake.received.length, 0);
+        assert.deepEqual(fake.received.map((message) => /alerts are off/.test(message.body.aps.alert.title)), [true, true]);
       },
       serverEnv(fake, fs.mkdtempSync(path.join(os.tmpdir(), "curb-snow-")))
     );
