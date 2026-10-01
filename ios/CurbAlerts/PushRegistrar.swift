@@ -155,6 +155,6 @@ final class PushRegistrar {
 
     private static func signature(of access: [String: Any]?) -> String {
         guard let access else { return "unknown" }
-        return "\(access["entitled"] ?? "")|\(access["endsAt"] ?? "")"
+        return "\(access["entitled"] ?? "")|\(access["endsAt"] ?? "")|\(access["originalTransactionId"] ?? "")"
     }
 }

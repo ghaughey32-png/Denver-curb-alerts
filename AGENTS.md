@@ -357,6 +357,23 @@ Accounts are **optional and always will be**: every screen works signed out, and
   single decider and counts `past_due` as entitled. `buildDefaultBilling()` is the floor and must stay
   unentitled, and no key in it may name a processor (`test/entitlement.test.js`). `TRIAL_DAYS` is in
   `lib/accounts.js`. Never gate anything before there is a way to pay; no endpoint answers 402.
+  **The one server-side gate is the snow-alert audience**: a phone reports `reminderAccess`
+  (`entitled`, `endsAt` only where coverage really ends, and Apple's `originalTransactionId`) with its
+  push registration, and a snow message goes only to phones it covers (`isCoveredAt` in
+  [lib/snow.js](lib/snow.js); silence counts as uncovered). A declaration limited to `--token=` phones
+  skips it so the end-to-end test works on an unsubscribed phone.
+- **Apple tells the server when a subscription's payment fails or ends** at
+  `POST /api/apple/notifications` (App Store Server Notifications v2; set the URL in App Store
+  Connect for Production and Sandbox). [lib/app-store-notifications.js](lib/app-store-notifications.js)
+  trusts nothing until the JWS chain ends at the **pinned Apple Root CA - G3 fingerprint** with
+  Apple's two marker OIDs and the signature checks out. Verified events correct the matching phones'
+  `reminderAccess` (matched by `originalTransactionId`, ordered by `signedDate`, deduped by
+  `notificationUUID`) and push a warning for payment failure, lapse and refund — never for a recovery
+  or a driver's own cancel. Never loosen the pin or accept an unverified body; tests sign with the
+  throwaway chain in `test/fixtures/fake-apple-chain`, named through `APP_STORE_TEST_ROOT_SHA256`.
+- **Every way alerts stop is announced.** On the phone, `AccessNoticePlanner` covers snow-only
+  watchers as well as sweep reminders; at a declaration the server sends lapsed Minneapolis watchers
+  one "your alerts are off" push (not added to `notifiedEndpoints`).
 - **The reminders are what gets sold; the map stays free.** Decided 2026-09-23 by the app's author —
   do not re-argue it. **Reminders never stop silently**: before a lapse stops one, the driver gets
   blatant warnings in the app and on the device, and a billing retry still counts as entitled.
@@ -541,6 +558,7 @@ Every variable is listed in [.env.example](.env.example) and declared in [render
 `sync: false`; keep both complete — an unset variable silently answers 503 or does nothing.
 
 - `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` — all three or Apple push is off.
+- `APP_STORE_TEST_ROOT_SHA256` — set only by tests; the server pins Apple's root otherwise.
 - `ISSUE_REPORT_ADMIN_TOKEN` — gates every bulk read of other people's data. Unset closes them.
 - `DATA_DIR` — JSON collection location; set only by tests.
 - `APP_ORIGIN` — **overloaded**: which server pipeline scripts query (localhost for

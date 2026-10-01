@@ -111,6 +111,12 @@ actor SubscriptionManager {
     }
 
     private static func describe(_ transaction: Transaction, now: Date) async -> ReminderAccess {
+        var access = await describeStatus(transaction, now: now)
+        access.originalTransactionID = String(transaction.originalID)
+        return access
+    }
+
+    private static func describeStatus(_ transaction: Transaction, now: Date) async -> ReminderAccess {
         let productID = transaction.productID
 
         if transaction.revocationDate != nil {
@@ -183,7 +189,8 @@ extension ReminderAccess {
         let ends = (status == .cancelling || status == .billingIssue) ? endsAt : nil
         return [
             "entitled": isEntitled(),
-            "endsAt": ends.map { ISO8601DateFormatter().string(from: $0) } ?? NSNull()
+            "endsAt": ends.map { ISO8601DateFormatter().string(from: $0) } ?? NSNull(),
+            "originalTransactionId": originalTransactionID ?? NSNull()
         ]
     }
 

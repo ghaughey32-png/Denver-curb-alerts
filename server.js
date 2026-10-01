@@ -13,6 +13,7 @@ const mailer = require("./lib/email.js");
 const productEvents = require("./lib/events.js");
 const apns = require("./lib/apns.js");
 const snow = require("./lib/snow.js");
+const appStoreNotifications = require("./lib/app-store-notifications.js");
 const cityRegistry = require("./public/cities.js");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -2234,6 +2235,13 @@ async function handleApnsRegistration(request, response) {
     // Whether this phone's reminders are paid for (lib/snow.js decides what that means for an alert).
     // A registration that says nothing keeps what was held, so an older build cannot erase it.
     reminderAccess: snow.normalizeReminderAccess(body.reminderAccess) || existing?.reminderAccess || null,
+    // Apple's id for this phone's subscription: what a notification from Apple is matched to. Like
+    // `reminderAccess`, a registration that omits it keeps the one already held.
+    appleOriginalTransactionId:
+      appStoreNotifications.normalizeOriginalTransactionId(body.reminderAccess?.originalTransactionId) ||
+      existing?.appleOriginalTransactionId ||
+      "",
+    lastAppleNotification: existing?.lastAppleNotification || null,
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };
@@ -2241,6 +2249,79 @@ async function handleApnsRegistration(request, response) {
   await writePushSubscriptions([record, ...subscriptions.filter((item) => !retired.has(item.endpoint))]);
   sendJson(response, 201, { ok: true });
 }
+
+// App Store Server Notifications: Apple tells us the moment a subscription's payment fails, lapses or
+// is refunded, which a closed app never learns. The body is trusted only after lib/app-store-
+// notifications.js has checked Apple's signature chain. Each phone holding that subscription has its
+// access corrected from Apple's own account of it, and is pushed a warning where the change is one
+// the driver did not choose. Always answers 200 for a message that verified, even if no phone matches
+// it (Apple retries anything else), and 400 for one that did not.
+//
+// Configure the URL in App Store Connect (App Information > App Store Server Notifications) for both
+// Production and Sandbox: https://www.curbalerts.co/api/apple/notifications
+async function handleAppleNotification(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  let notification;
+  try {
+    const body = JSON.parse(await readRequestBody(request));
+    notification = appStoreNotifications.parseNotification(body.signedPayload, appStoreNotificationOptions);
+  } catch (error) {
+    console.warn(`Refused an App Store notification: ${error.message}`);
+    sendJson(response, 400, { error: "Invalid notification." });
+    return;
+  }
+
+  const { access, notice } = appStoreNotifications.interpretNotification(notification);
+  if (!notification.originalTransactionId || (!access && !notice)) {
+    sendJson(response, 200, { ok: true, matched: 0, notified: 0 });
+    return;
+  }
+
+  const subscriptions = await readPushSubscriptions();
+  const matched = subscriptions.filter(
+    (device) => device.transport === "apns" && device.appleOriginalTransactionId === notification.originalTransactionId
+  );
+  // Apple can redeliver, and deliveries can arrive out of order: an event no newer than the last one
+  // applied to a phone changes nothing and sends nothing.
+  const fresh = matched.filter((device) => {
+    const last = device.lastAppleNotification;
+    if (!last) {
+      return true;
+    }
+    return last.uuid !== notification.uuid && (!last.signedAt || !notification.signedAt || notification.signedAt > last.signedAt);
+  });
+
+  for (const device of fresh) {
+    if (access) {
+      device.reminderAccess = access;
+    }
+    device.lastAppleNotification = { uuid: notification.uuid, type: notification.type, signedAt: notification.signedAt };
+  }
+  if (fresh.length > 0) {
+    await writePushSubscriptions(subscriptions);
+  }
+
+  let notified = 0;
+  const config = apns.getApnsConfig();
+  if (notice && fresh.length > 0 && config.enabled) {
+    const results = await sendApnsToDevices(config, fresh, () =>
+      apns.buildAlertPayload({ ...notice, url: "/", timeSensitive: true })
+    );
+    notified = results.sent;
+  }
+
+  sendJson(response, 200, { ok: true, matched: fresh.length, notified });
+}
+
+// The server pins Apple's root. A test signs with a throwaway chain, so it names that chain's root
+// here; the variable is set only by tests, like DATA_DIR, and nothing deploys it.
+const appStoreNotificationOptions = process.env.APP_STORE_TEST_ROOT_SHA256
+  ? { rootFingerprints: [process.env.APP_STORE_TEST_ROOT_SHA256.toLowerCase()] }
+  : {};
 
 // Sends one payload per phone and tidies up after Apple: a token it calls dead is removed from the
 // collection. `payloadFor(device)` lets a caller word the message for each phone (a snow alert names
@@ -3034,6 +3115,11 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/push/broadcast") {
     await handleApnsBroadcast(request, response);
+    return;
+  }
+
+  if (url.pathname === "/api/apple/notifications") {
+    await handleAppleNotification(request, response);
     return;
   }
 

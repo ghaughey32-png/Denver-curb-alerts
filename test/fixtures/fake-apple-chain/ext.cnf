@@ -1,0 +1,17 @@
+[req]
+distinguished_name = dn
+[dn]
+[v3_root]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+[v3_int]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+1.2.840.113635.100.6.2.1 = ASN1:NULL
+[v3_leaf]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature
+1.2.840.113635.100.6.11.1 = ASN1:NULL
+[v3_plain]
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature

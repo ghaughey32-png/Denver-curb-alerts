@@ -29,6 +29,10 @@ struct ReminderAccess: Codable, Equatable {
     var endsAt: Date?
     var willRenew: Bool
     var checkedAt: Date
+    /// Apple's id for this subscription, the same for its whole life. It goes to the server with the
+    /// push registration so that Apple's own notifications about the subscription (a failed payment,
+    /// a refund) can be matched to this phone. Nil for a reading with no transaction behind it.
+    var originalTransactionID: String? = nil
 
     static let unknown = ReminderAccess(status: .none, productID: nil, endsAt: nil, willRenew: false, checkedAt: .distantPast)
 
