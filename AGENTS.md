@@ -456,7 +456,7 @@ Accounts are **optional and always will be**: every screen works signed out, and
 - **Each target's `PrivacyInfo.xcprivacy` must stay true to the Privacy page.** A new `UserDefaults`
   call, file-timestamp or uptime read needs its reason added in the same commit. If the server starts
   storing a lookup or a new payload leaves the phone, update the manifest and the App Store answers.
-- **TestFlight uploads** (currently build 9): archive with the **CurbAlerts** scheme via
+- **TestFlight uploads** (currently build 10): archive with the **CurbAlerts** scheme via
   `xcodebuild archive -allowProvisioningUpdates`, export with `method` `app-store-connect`,
   `destination` `upload`, team `XLGGMG362T`. **Raise `CURRENT_PROJECT_VERSION` in all four build
   configurations, equal for app and widget, and commit it.** `testFlightInternalTestingOnly` makes a

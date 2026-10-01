@@ -2178,3 +2178,5 @@ banner could not be driven by `npm run snow` locally because declaring needs App
 it was checked by writing an active record into a scratch `DATA_DIR` and opening `/?snow=1` as a
 Denver page, which switched to Minneapolis and showed the Day 1 announcement. Not yet seen against a
 real declaration: the day-in-force wording for Days 2 and 3 (read only from the `bans` timestamps).
+
+**Build 10, uploaded 2026-10-01,** carries the Minneapolis snow alerts and was exported with `testFlightInternalTestingOnly`, at the author's request, so it can never join an external group. Both subscription products, the yearly 14-day free trial, the 16-day Billing Grace Period and both server-notification URLs were confirmed in App Store Connect first.
