@@ -4691,7 +4691,8 @@ function findNearestSearchApproach(streetGroup, crossGroup) {
 // public/cities.js with the prose explaining how it was derived. The names are kept here
 // because everything below reads them, and because test/address-search.test.js lifts this
 // section out of the file as source text.
-const SEARCH_NAMED_STREET_HUNDREDS = ACTIVE_CITY.addressGrid;
+// A city with no grid (Minneapolis) searches by street name and cross streets alone.
+const SEARCH_NAMED_STREET_HUNDREDS = ACTIVE_CITY.addressGrid || {};
 const SEARCH_WEST_GRID_NORTH_LATITUDE = ACTIVE_CITY.westGridNorthLatitude;
 
 let searchNamedStreetIndex = null;
@@ -4948,6 +4949,15 @@ function focusMapOnSearchedLocation() {
 // Denver's lookup is down, so the status line has to be straight about how the
 // map got where it is: a placed house number, a corner, or just the street.
 function buildLocalMatchStatusText(localMatch) {
+  // Minneapolis has no address service to be down; its search is the curb map's own street names.
+  if (IS_SNOW_CITY) {
+    if (localMatch.kind === "street") {
+      return `I could only match the street, not the number. The map is centered on ${localMatch.matchedStreet} — scroll along it to find your block.`;
+    }
+
+    return `I matched this to ${localMatch.matchedStreet} on the curb map. Tap a colored curb nearby to see its snow emergency rules.`;
+  }
+
   if (localMatch.kind === "street") {
     return `Denver's address lookup is down and I could only match the street, not the number. The map is centered on ${localMatch.matchedStreet} — scroll along it to find your block.`;
   }
