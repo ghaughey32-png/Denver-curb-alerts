@@ -277,7 +277,12 @@ The curb data is done; the city record, map, server alerts and paywall are not y
   `sw.js`'s `APP_SHELL`, so Denver installs do not precache 4.5 MB. The header switcher saves the
   choice under `curb-alerts-city` and reloads; `IS_SNOW_CITY` in `app.js` skips Denver's boot steps
   and loads through `loadSnowInventory`. Snow curbs carry `schedule.sweepType: "Snow"`, never a sweep
-  date, so no local reminder jobs come from them. Phases 4–6 (server alerts, paywall audience, poller) are built; phase 7 (page banner, copy, TestFlight) is not.
+  date, so no local reminder jobs come from them. Phases 4–7 are built except the TestFlight upload, which waits for the user's go-ahead.
+  The page banner (`#snow-banner`, `renderSnowBanner`) shows only in Minneapolis while
+  `GET /api/snow-emergency` reports an active emergency; it reads each day's ban time from the
+  server's `bans` rather than doing time-zone maths, keeps the last answer when a refresh fails, and
+  hides itself 24 h after Day 3 begins in case a cancel was forgotten. A push's `/?snow=1` link
+  switches a Denver page to Minneapolis first. Terms, Privacy and Disclaimer name the snow alerts.
 - **A snow emergency starts only when a person declares it** (`POST /api/snow-emergency`, behind the
   admin token, or `npm run snow`). [lib/snow.js](lib/snow.js) is pure: it turns `day1Date` into a
   timeline in `America/Chicago` (declaration now; Day 1 at 7:30 pm; Days 2 and 3 at 8 pm the evening

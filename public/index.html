@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20260930-city-switcher" />
+    <link rel="stylesheet" href="./styles.css?v=20261001-snow-banner" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -65,6 +65,15 @@
         <div class="sweep-check-actions">
           <button id="subscription-banner-action" class="primary-button" type="button"></button>
         </div>
+      </section>
+      <!-- A declared snow emergency, in Minneapolis only. Outside every view for the same reason as the
+           sweep check: while one is running, whether your curb is banned today is the first thing a
+           driver needs, whichever tab is open. -->
+      <section id="snow-banner" class="sweep-check snow-banner" aria-live="polite" hidden>
+        <p id="snow-banner-kicker" class="sweep-check-kicker">Snow emergency</p>
+        <strong id="snow-banner-title"></strong>
+        <p id="snow-banner-body"></p>
+        <p id="snow-banner-yours"></p>
       </section>
       <section class="app-view landing-view is-active" data-view="landing">
         <header class="hero">
@@ -598,6 +607,11 @@
 
             <div class="legal-copy">
               <p>
+                Curb Alerts also covers snow emergencies in Minneapolis: the map shows which side of each street the
+                city bans parking on, on each day of a declared snow emergency, and the iPhone app can alert you when
+                one is declared. Everything below applies to those alerts as it does to street sweeping reminders.
+              </p>
+              <p>
                 Denver Curb Alerts is a reminder tool built to help drivers remember posted Denver street sweeping
                 restrictions. It is operated by Curb Alerts LLC ("we" and "us" in these terms). By using the app, you
                 agree to use it as an extra reminder and not as a replacement for checking posted signs, city rules, or
@@ -618,7 +632,7 @@
               <h2>What it costs</h2>
               <p>
                 The map, address search, curb colors, and saved curbs are free. In the Curb Alerts iPhone app, street sweeping
-                reminders need a subscription, sold by Apple through the App Store. The plans and their prices are shown in
+                reminders and Minneapolis snow emergency alerts need a subscription, sold by Apple through the App Store. The plans and their prices are shown in
                 the app and on the App Store before you buy, and a free trial is offered on the yearly plan to people who have
                 not had one.
               </p>
@@ -630,7 +644,13 @@
               <p>
                 Your reminders will not stop without warning. If a payment fails, or your subscription is cancelled or ends,
                 the app tells you ahead of time and again when your reminders stop, so that a billing problem is never the
-                reason you get a ticket.
+                reason you get a ticket. The same goes for snow emergency alerts: if one is declared while your alerts are
+                off, we send you a single notice saying so.
+              </p>
+              <p>
+                A snow emergency alert is sent only after a person at Curb Alerts has confirmed the city's declaration, so
+                it can reach you later than the city's own announcement, or not at all. The City of Minneapolis announcement,
+                posted signs and the city's own parking map always control.
               </p>
 
               <h2>Changes to the app</h2>
@@ -673,7 +693,7 @@
           <article class="legal-card">
             <p class="section-kicker">Privacy</p>
             <h1>Privacy for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated September 23, 2026</p>
+            <p class="legal-updated">Last updated October 1, 2026</p>
 
             <div class="legal-copy">
               <p>
@@ -692,7 +712,7 @@
                   Your browser push subscription, or in the iPhone app the notification address Apple assigns it, so alerts
                   can reach the device you connected. The iPhone app schedules sweep reminders on the phone itself; the
                   address is how we can reach you with urgent news that could not be scheduled ahead, such as a parking
-                  emergency. It is stored with the curb sides you have reminders on, so those alerts go only to people
+                  emergency or a Minneapolis snow emergency. It is stored with the curb sides you have reminders on, so those alerts go only to people
                   parked on the streets they concern. If you are signed in, it is linked to your account.
                 </li>
                 <li>
@@ -731,7 +751,8 @@
               <p>
                 The app is hosted on Render, which also hosts the database holding accounts and reminder schedules. It uses
                 browser push services operated by your browser vendor, Apple's push notification service for the iPhone app, map tiles and street data from OpenStreetMap, and
-                street sweeping data published by the City and County of Denver. Those services may process basic technical
+                street sweeping data published by the City and County of Denver, and snow emergency parking data published
+                by the City of Minneapolis. Those services may process basic technical
                 information needed to load maps, routes, and notifications.
               </p>
               <p>
@@ -785,12 +806,18 @@
           <article class="legal-card">
             <p class="section-kicker">Disclaimer</p>
             <h1>Important parking disclaimer</h1>
-            <p class="legal-updated">Last updated August 4, 2026</p>
+            <p class="legal-updated">Last updated October 1, 2026</p>
 
             <div class="legal-copy">
               <p>
                 Denver Curb Alerts is an informational reminder app. It is not legal advice, not an official City and County
                 of Denver service, and not a guarantee that you will avoid a parking ticket.
+              </p>
+              <p>
+                The same is true of the Minneapolis snow emergency map and alerts: they are not an official City of
+                Minneapolis service. The map is built from the city's published open data, where the city's own datasets
+                sometimes disagree, and a snow emergency alert is sent only after we have confirmed the city's declaration.
+                The city's announcement and the posted signs always control.
               </p>
 
               <h2>Always check the signs</h2>
@@ -1136,6 +1163,6 @@
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./cities.js?v=20260930-minneapolis-inv98"></script>
-    <script src="./app.js?v=20260930-snow-city-d"></script>
+    <script src="./app.js?v=20261001-snow-banner"></script>
   </body>
 </html>

@@ -2719,7 +2719,10 @@ function publicSnowEmergency(record) {
     day1Date: record.day1Date,
     status: record.status,
     declaredAt: record.declaredAt,
-    timeline: snow.buildTimeline(record).map(({ id, at }) => ({ id, at }))
+    timeline: snow.buildTimeline(record).map(({ id, at }) => ({ id, at })),
+    // When each day's parking ban takes effect. The page's banner reads these rather than doing
+    // time-zone arithmetic of its own.
+    bans: [1, 2, 3].map((day) => ({ day, at: snow.banInstant(record.day1Date, day).toISOString() }))
   };
 }
 

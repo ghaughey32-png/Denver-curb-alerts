@@ -220,6 +220,11 @@ test("declaring sends the first alert to Minneapolis watchers, dry runs send not
         assert.equal(publicView.active, true);
         assert.equal(publicView.emergency.day1Date, day1Date);
         assert.equal(JSON.stringify(publicView).includes(TOKEN_A), false, "the public view carries no phone");
+        // The page's banner reads when each day's ban begins from here, not from its own clock maths.
+        assert.deepEqual(
+          publicView.emergency.bans.map((ban) => [ban.day, ban.at]),
+          [1, 2, 3].map((day) => [day, snow.banInstant(day1Date, day).toISOString()])
+        );
 
         assert.deepEqual(readCollection("snow-emergencies")[0].sentMessageIds, ["declared"]);
       },

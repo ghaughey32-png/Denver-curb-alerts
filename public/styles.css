@@ -2874,6 +2874,26 @@ a.ghost-button {
   display: none;
 }
 
+/* A declared snow emergency, in the red of the urgent subscription banner. The [hidden] rule is
+   .sweep-check's. */
+.snow-banner {
+  background: linear-gradient(180deg, rgba(214, 48, 39, 0.2), rgba(214, 48, 39, 0.1));
+  border: 2px solid #d63027;
+}
+
+.snow-banner .sweep-check-kicker {
+  color: #c0271d;
+}
+
+.snow-banner #snow-banner-yours {
+  color: inherit;
+  font-weight: 700;
+}
+
+.snow-banner #snow-banner-yours:empty {
+  display: none;
+}
+
 /* Reminders off, or about to be over a payment. Red on purpose, and loud on purpose: this is the
    banner standing between a driver and a ticket they think they are covered for. */
 .subscription-banner.is-urgent {

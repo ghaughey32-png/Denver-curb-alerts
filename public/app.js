@@ -1822,6 +1822,10 @@ const subscriptionBannerKicker = document.querySelector("#subscription-banner-ki
 const subscriptionBannerTitle = document.querySelector("#subscription-banner-title");
 const subscriptionBannerBody = document.querySelector("#subscription-banner-body");
 const subscriptionBannerAction = document.querySelector("#subscription-banner-action");
+const snowBanner = document.querySelector("#snow-banner");
+const snowBannerTitle = document.querySelector("#snow-banner-title");
+const snowBannerBody = document.querySelector("#snow-banner-body");
+const snowBannerYours = document.querySelector("#snow-banner-yours");
 const subscriptionRow = document.querySelector("#subscription-row");
 const subscriptionStatus = document.querySelector("#subscription-status");
 const subscriptionManageButton = document.querySelector("#subscription-manage-button");
@@ -4091,6 +4095,112 @@ function describeSnowBans(days) {
     }
   });
   return bans;
+}
+
+// The declared snow emergency, as GET /api/snow-emergency describes it, or null when none is active
+// or the server could not be reached. A failed fetch keeps what the page already knew: a banner that
+// vanished because the phone lost signal in the snow would be the worst moment for it to.
+const SNOW_EMERGENCY_REFRESH_MS = 5 * 60 * 1000;
+// The server only stops an emergency when the author cancels it. If that is forgotten, the banner
+// still goes away a day after Day 3 begins instead of nagging until someone remembers.
+const SNOW_BANNER_GRACE_MS = 24 * 60 * 60 * 1000;
+let snowEmergency = null;
+
+async function refreshSnowEmergency() {
+  if (!IS_SNOW_CITY || typeof window.fetch !== "function") {
+    return;
+  }
+
+  try {
+    const response = await window.fetch(buildApiUrl(`/api/snow-emergency?city=${encodeURIComponent(ACTIVE_CITY.id)}`), {
+      credentials: "omit"
+    });
+    if (!response.ok) {
+      return;
+    }
+    const payload = await response.json();
+    snowEmergency = payload.active && Array.isArray(payload.emergency?.bans) ? payload.emergency : null;
+    renderSnowBanner();
+  } catch {
+    // Offline or the server is restarting; the next refresh tries again.
+  }
+}
+
+function formatSnowInstant(isoText, now) {
+  const options = { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" };
+  const at = new Date(isoText);
+  const sameDay = at.toLocaleDateString("en-US", { timeZone: options.timeZone }) === now.toLocaleDateString("en-US", { timeZone: options.timeZone });
+  const clock = at.toLocaleTimeString("en-US", options).replace(":00", "").toLowerCase();
+  return sameDay ? `${clock} today` : `${at.toLocaleDateString("en-US", { timeZone: options.timeZone, weekday: "long" })} at ${clock}`;
+}
+
+// Which of the saved curbs a day's ban reaches, as street names. `day` is 1 to 3.
+function getSnowBannedSavedStreets(day) {
+  const streets = [];
+  for (const id of getRemindedSegmentIds()) {
+    const segment = getSegmentById(id);
+    if (segment?.schedule?.sweepType === "Snow" && segment.schedule.snowDays[day - 1] === 0) {
+      streets.push(segment.street);
+    }
+  }
+  return streets;
+}
+
+// What the banner says now. Before Day 1's ban begins it announces the declaration; from then on it
+// names the day in force and the one coming. `bans` is the server's: when each day takes effect.
+function describeSnowBanner(emergency, now) {
+  const bans = emergency.bans.map((ban) => ({ day: ban.day, at: new Date(ban.at) }));
+  if (now.getTime() > bans[2].at.getTime() + SNOW_BANNER_GRACE_MS) {
+    return null;
+  }
+
+  const who = {
+    1: "snow emergency routes",
+    2: "the even-numbered side of other streets",
+    3: "the odd-numbered side of other streets"
+  };
+  const inForce = bans.filter((ban) => ban.at <= now).pop();
+  const next = bans.find((ban) => ban.at > now);
+
+  if (!inForce) {
+    return {
+      title: "Snow emergency declared",
+      body: `Day 1 parking ban on ${who[1]} begins ${formatSnowInstant(next.at, now)}. Move your car before then.`,
+      day: 1
+    };
+  }
+
+  const lead = `Day ${inForce.day}: no parking on ${who[inForce.day]}.`;
+  const after = next ? ` Day ${next.day}, ${who[next.day]}, begins ${formatSnowInstant(next.at, now)}.` : "";
+  return { title: `Snow emergency: Day ${inForce.day}`, body: `${lead}${after}`, day: inForce.day };
+}
+
+function renderSnowBanner() {
+  if (!snowBanner) {
+    return;
+  }
+
+  const now = new Date();
+  const copy = IS_SNOW_CITY && snowEmergency ? describeSnowBanner(snowEmergency, now) : null;
+  snowBanner.hidden = !copy;
+  if (!copy) {
+    return;
+  }
+
+  snowBannerTitle.textContent = copy.title;
+  snowBannerBody.textContent = `${copy.body} Follow posted signs and check minneapolismn.gov.`;
+
+  const banned = getSnowBannedSavedStreets(copy.day);
+  const saved = getRemindedSegmentIds().size;
+  if (banned.length) {
+    const names = [...new Set(banned)].slice(0, 2).join(" and ");
+    const more = banned.length > 2 ? ` and ${banned.length - 2} more` : "";
+    snowBannerYours.textContent = `${banned.length === 1 ? "A saved curb is" : `${banned.length} saved curbs are`} banned on Day ${copy.day}: ${names}${more}.`;
+  } else if (saved) {
+    snowBannerYours.textContent = `None of your saved curbs are banned on Day ${copy.day}.`;
+  } else {
+    snowBannerYours.textContent = "Tap the colored curb where you park to see if it is banned.";
+  }
 }
 
 function buildSnowSchedule(curb) {
@@ -7443,6 +7553,22 @@ function handleSweepCheckLink(targetUrl) {
     return;
   }
 
+  // A snow emergency push opens "/?snow=1". It is about Minneapolis, so a page showing another city
+  // switches to it first; the reload lands back here with the banner already in the right city.
+  const snowLink = params.get("snow");
+  if (snowLink && !IS_SNOW_CITY && window.CityRegistry.saveCityChoice("minneapolis")) {
+    window.location.reload();
+    return;
+  }
+
+  if (snowLink && IS_SNOW_CITY) {
+    if (!targetUrl) {
+      clearQueryParams(params, ["snow"]);
+    }
+    refreshSnowEmergency();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   const sweepKey = params.get("moved");
   if (!sweepKey) {
     return;
@@ -9478,6 +9604,7 @@ function renderAll() {
   renderPushPrimer();
   renderSweepCheck();
   renderSubscriptionBanner();
+  renderSnowBanner();
   renderSubscriptionRow();
   renderParkSheet();
   renderReminderReadiness();
@@ -9722,6 +9849,13 @@ loadCurrentAccount().then(handleEmailLinks);
 initializeCitySwitcher();
 if (IS_SNOW_CITY) {
   loadSnowInventory();
+  refreshSnowEmergency();
+  setInterval(refreshSnowEmergency, SNOW_EMERGENCY_REFRESH_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      refreshSnowEmergency();
+    }
+  });
 } else {
   loadStaticRouteInventory();
 }

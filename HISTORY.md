@@ -2172,3 +2172,9 @@ both days.
 
 The payload is 4.56 MB raw and about 975 KB gzipped, so it can be bundled into the iOS app beside
 Denver's. Per-city on-demand fetching is deferred until a third city.
+
+**Phase 7, 2026-10-01.** The page banner, the Terms/Privacy/Disclaimer wording and the docs. The
+banner could not be driven by `npm run snow` locally because declaring needs Apple push configured;
+it was checked by writing an active record into a scratch `DATA_DIR` and opening `/?snow=1` as a
+Denver page, which switched to Minneapolis and showed the Day 1 announcement. Not yet seen against a
+real declaration: the day-in-force wording for Days 2 and 3 (read only from the `bans` timestamps).
