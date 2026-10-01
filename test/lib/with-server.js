@@ -26,7 +26,7 @@ const PORT_ATTEMPTS = 8;
 function startServer(dataDir, extraEnv) {
   const port = 39000 + Math.floor(Math.random() * 900);
   const child = spawn(process.execPath, [SERVER_PATH], {
-    env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", DATA_DIR: dataDir, DATABASE_URL: "", ...extraEnv },
+    env: { ...process.env, PORT: String(port), HOST: "127.0.0.1", DATA_DIR: dataDir, DATABASE_URL: "", SNOW_NOTICE_URL: "off", ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"]
   });
 

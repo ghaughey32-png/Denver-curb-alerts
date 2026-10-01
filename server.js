@@ -13,6 +13,7 @@ const mailer = require("./lib/email.js");
 const productEvents = require("./lib/events.js");
 const apns = require("./lib/apns.js");
 const snow = require("./lib/snow.js");
+const snowNotices = require("./lib/snow-notices.js");
 const appStoreNotifications = require("./lib/app-store-notifications.js");
 const cityRegistry = require("./public/cities.js");
 
@@ -35,6 +36,7 @@ const EMAIL_TOKENS_FILE = path.join(DATA_DIR, "email-tokens.json");
 const SIGN_IN_ATTEMPTS_FILE = path.join(DATA_DIR, "sign-in-attempts.json");
 const EVENT_COUNTS_FILE = path.join(DATA_DIR, "event-counts.json");
 const SNOW_EMERGENCIES_FILE = path.join(DATA_DIR, "snow-emergencies.json");
+const SNOW_NOTICES_FILE = path.join(DATA_DIR, "snow-notices.json");
 const SNOW_INVENTORY_FILE = path.join(PUBLIC_DIR, "minneapolis-snow.json");
 // Where a message goes when no provider is configured. Not a test fixture: it is how the whole
 // verification and reset flow is exercised locally, by opening the link out of the file.
@@ -51,7 +53,8 @@ const COLLECTION_KEYS = {
   emailTokens: "email-tokens",
   signInAttempts: "sign-in-attempts",
   eventCounts: "event-counts",
-  snowEmergencies: "snow-emergencies"
+  snowEmergencies: "snow-emergencies",
+  snowNotices: "snow-notices"
 };
 
 const MIME_TYPES = {
@@ -207,7 +210,8 @@ async function ensureDataFiles() {
     ensureJsonFile(EMAIL_TOKENS_FILE),
     ensureJsonFile(SIGN_IN_ATTEMPTS_FILE),
     ensureJsonFile(EVENT_COUNTS_FILE),
-    ensureJsonFile(SNOW_EMERGENCIES_FILE)
+    ensureJsonFile(SNOW_EMERGENCIES_FILE),
+    ensureJsonFile(SNOW_NOTICES_FILE)
   ]);
 }
 
@@ -370,7 +374,8 @@ async function initStorage() {
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.emailTokens, EMAIL_TOKENS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.signInAttempts, SIGN_IN_ATTEMPTS_FILE),
       maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.eventCounts, EVENT_COUNTS_FILE),
-      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.snowEmergencies, SNOW_EMERGENCIES_FILE)
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.snowEmergencies, SNOW_EMERGENCIES_FILE),
+      maybeMigrateFileCollectionToDatabase(COLLECTION_KEYS.snowNotices, SNOW_NOTICES_FILE)
     ]);
     storageBackend = "database";
     await backfillAccountTrials();
@@ -477,6 +482,23 @@ async function writeSnowEmergencies(records) {
   }
 
   await writeCollectionToFile(SNOW_EMERGENCIES_FILE, records);
+}
+
+async function readSnowNotices() {
+  if (isDatabaseConfigured()) {
+    return readCollectionFromDatabase(COLLECTION_KEYS.snowNotices);
+  }
+
+  return readCollectionFromFile(SNOW_NOTICES_FILE);
+}
+
+async function writeSnowNotices(records) {
+  if (isDatabaseConfigured()) {
+    await writeCollectionToDatabase(COLLECTION_KEYS.snowNotices, records);
+    return;
+  }
+
+  await writeCollectionToFile(SNOW_NOTICES_FILE, records);
 }
 
 async function readEventCounts() {
@@ -2597,6 +2619,99 @@ async function dispatchDueSnowMessages() {
   return sentSummaries;
 }
 
+// Watching the city's notice banner for a snow emergency (lib/snow-notices.js). Every five minutes the
+// file is fetched; a notice that mentions one and has not been seen before is emailed to the author
+// with the command that confirms it. It never declares anything. A notice is remembered only once
+// the email has been handed on, so a failed send is tried again rather than lost, and a failed fetch
+// only logs, once, and once more when it recovers. `SNOW_NOTICE_URL=off` turns it off (the tests).
+const SNOW_NOTICE_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const SNOW_NOTICE_RECIPIENT = "support@curbalerts.co";
+const SNOW_NOTICE_USER_AGENT = "CurbAlerts/1.0 (+https://www.curbalerts.co; support@curbalerts.co)";
+let snowNoticePollRunning = false;
+let snowNoticeFeedFailing = false;
+let snowNoticeLastSignature = "";
+
+function getSnowNoticeUrl() {
+  const configured = process.env.SNOW_NOTICE_URL;
+  return configured === undefined || configured === "" ? snowNotices.NOTICE_FEED_URL : configured;
+}
+
+async function pollSnowNotices() {
+  const feedUrl = getSnowNoticeUrl();
+  if (feedUrl === "off" || snowNoticePollRunning) {
+    return { checked: false };
+  }
+
+  snowNoticePollRunning = true;
+  try {
+    let feed;
+    let raw;
+    try {
+      const reply = await fetch(feedUrl, {
+        headers: { "User-Agent": SNOW_NOTICE_USER_AGENT, Accept: "application/json" },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!reply.ok) {
+        throw new Error(`HTTP ${reply.status}`);
+      }
+      raw = await reply.text();
+      feed = JSON.parse(raw);
+    } catch (error) {
+      if (!snowNoticeFeedFailing) {
+        console.warn(`Could not read the Minneapolis notice banner: ${error.message}`);
+      }
+      snowNoticeFeedFailing = true;
+      return { checked: false };
+    }
+
+    if (snowNoticeFeedFailing) {
+      console.log("The Minneapolis notice banner is readable again.");
+      snowNoticeFeedFailing = false;
+    }
+
+    // Record the banner's real shape the first time it carries anything, since it was empty when this
+    // was written and nobody knows what an emergency looks like in it.
+    const texts = snowNotices.extractNoticeTexts(feed);
+    const signature = texts.join("\n");
+    if (signature !== snowNoticeLastSignature) {
+      snowNoticeLastSignature = signature;
+      if (texts.length > 0) {
+        console.log(`Minneapolis notice banner now reads: ${raw.slice(0, 1500)}`);
+      }
+    }
+
+    const mentions = snowNotices.findSnowEmergencyNotices(feed);
+    const seen = new Set((await readSnowNotices()).map((record) => record.key));
+    const fresh = mentions.filter((text) => !seen.has(snowNotices.noticeKey(text)));
+    if (fresh.length === 0) {
+      return { checked: true, emailed: false };
+    }
+
+    const result = await mailer.sendEmail(
+      mailer.buildSnowNoticeEmail({
+        to: SNOW_NOTICE_RECIPIENT,
+        notices: fresh,
+        command: snowNotices.buildDeclareCommand(),
+        rawSample: raw.slice(0, 1500)
+      }),
+      { outboxPath: EMAIL_OUTBOX_FILE }
+    );
+    if (result.via === "discarded") {
+      console.warn("A Minneapolis snow emergency notice was seen but email is not configured, so nobody was told.");
+      return { checked: true, emailed: false };
+    }
+
+    const at = new Date().toISOString();
+    await writeSnowNotices([
+      ...(await readSnowNotices()),
+      ...fresh.map((text) => ({ key: snowNotices.noticeKey(text), text, firstSeenAt: at }))
+    ]);
+    return { checked: true, emailed: true };
+  } finally {
+    snowNoticePollRunning = false;
+  }
+}
+
 function publicSnowEmergency(record) {
   return {
     id: record.id,
@@ -3166,6 +3281,12 @@ server.listen(PORT, HOST, async () => {
   dispatchDueSnowMessages().catch((error) => {
     console.error(`Snow emergency dispatch failed during startup: ${error.message}`);
   });
+  const pollNotices = () =>
+    pollSnowNotices().catch((error) => {
+      console.error(`Snow notice check failed: ${error.message}`);
+    });
+  pollNotices();
+  setInterval(pollNotices, SNOW_NOTICE_POLL_INTERVAL_MS);
   setInterval(() => {
     dispatchDueReminderPlans().catch((error) => {
       console.error(`Reminder dispatch failed: ${error.message}`);

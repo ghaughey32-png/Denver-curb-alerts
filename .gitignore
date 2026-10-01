@@ -29,3 +29,5 @@ data/mpls-snow-cache/
 data/mpls-snow-report.json
 # Live snow emergency declarations; written at runtime, the live copy is in Postgres.
 data/snow-emergencies.json
+# Snow emergency banner notices already emailed; written at runtime, the live copy is in Postgres.
+data/snow-notices.json
