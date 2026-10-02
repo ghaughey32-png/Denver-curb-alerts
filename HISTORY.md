@@ -2180,3 +2180,5 @@ Denver page, which switched to Minneapolis and showed the Day 1 announcement. No
 real declaration: the day-in-force wording for Days 2 and 3 (read only from the `bans` timestamps).
 
 **Build 10, uploaded 2026-10-01,** carries the Minneapolis snow alerts and was exported with `testFlightInternalTestingOnly`, at the author's request, so it can never join an external group. Both subscription products, the yearly 14-day free trial, the 16-day Billing Grace Period and both server-notification URLs were confirmed in App Store Connect first.
+
+**Build 11, uploaded 2026-10-02,** is build 10 plus the paywall fix (the purchase callback dismissed the sheet off the main thread and crashed a Debug run under the Main Thread Checker). Exported **without** the internal-only key, so it can go to App Review; it replaces build 8, which predates the paywall, as the submission candidate. Build 10 stays internal-only.
