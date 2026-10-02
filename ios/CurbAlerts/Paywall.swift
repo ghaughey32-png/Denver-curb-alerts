@@ -7,8 +7,9 @@ import UIKit
 /// links exactly the way App Review expects a subscription screen to, so the part of the app most
 /// likely to be rejected is the part written least by us.
 struct PaywallView: View {
-    /// Closes the sheet, after a purchase.
-    let close: () -> Void
+    /// Closes the sheet, after a purchase. Main-actor, because the purchase callback below resumes
+    /// off the main thread after its awaits and dismissing a view controller must not happen there.
+    let close: @MainActor () -> Void
     /// Called however the sheet went away - Apple's own close button, a swipe down, or `close` -
     /// so the page's promise always settles.
     let gone: () -> Void
@@ -67,7 +68,7 @@ struct PaywallView: View {
                 await transaction.finish()
             }
             await SubscriptionManager.shared.refresh()
-            close()
+            await close()
         }
         // SubscriptionStoreView draws its own close button in a sheet; a second one of ours
         // sat beside it on a device and was removed.
