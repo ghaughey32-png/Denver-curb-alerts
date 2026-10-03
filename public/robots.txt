@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin-events.html
+
+Sitemap: https://www.curbalerts.co/sitemap.xml
