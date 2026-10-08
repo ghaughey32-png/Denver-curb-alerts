@@ -446,6 +446,13 @@ Accounts are **optional and always will be**: every screen works signed out, and
 - `ios/CurbAlerts.xcodeproj`, SwiftUI, iOS 17+, `co.curbalerts.app`, **no Swift packages**.
   File-system-synchronized groups pick up new files. Build:
   `xcodebuild -project ios/CurbAlerts.xcodeproj -scheme CurbAlerts -destination "platform=iOS Simulator,name=iPhone 17 Pro" build`
+- **The app runs natively on iPad** (`TARGETED_DEVICE_FAMILY` `1,2` on both targets; all four iPad
+  orientations, iPhone stays portrait). Build 11 was iPhone-only, and App Review ran it in an
+  iPhone-sized window on an iPad Air and rejected it under Guideline 4 (2026-10-08). `WebShellController`
+  pins the page below iPadOS 26's window controls with `layoutGuide(for: .margins(cornerAdaptation: .vertical))`;
+  without it they sit on top of the first tab. `.app-shell` and `.app-view` use `minmax(0, 1fr)`
+  columns so a wide child (the tab row) can never stretch the page past a narrow window. Live
+  Activities do not exist on iPad; the widget does.
 - **The app serves `public/` from its own bundle** (the "Bundle web app" phase, `vendor/` included,
   `sw.js` not), so a web change reaches the app only in a new build.
 - `ReminderScheduler` schedules the next 21 days, capped at 60, refilled on foreground and

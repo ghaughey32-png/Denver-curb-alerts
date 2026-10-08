@@ -2,12 +2,41 @@ import SwiftUI
 import UIKit
 import WebKit
 
-struct WebShellView: UIViewRepresentable {
-    func makeUIView(context: Context) -> WKWebView {
-        WebShell.shared.webView
+struct WebShellView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> WebShellController {
+        WebShellController()
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIViewController(_ controller: WebShellController, context: Context) {}
+}
+
+/// Holds the one web view. On iPad, windowed apps get window controls drawn over the top-left of
+/// the content, and iPadOS 26 reports that room through a corner-adapted layout region rather than the safe area,
+/// so the page is pinned below that region there. The iPhone keeps pinning to the safe area, which
+/// is what it has always done.
+final class WebShellController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(red: 0.957, green: 0.937, blue: 0.902, alpha: 1)
+        let webView = WebShell.shared.webView
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(webView)
+        let top: NSLayoutYAxisAnchor
+        if traitCollection.userInterfaceIdiom != .pad {
+            top = view.safeAreaLayoutGuide.topAnchor
+        } else if #available(iOS 26.0, *) {
+            // Moves content below the window controls instead of sliding it sideways.
+            top = view.layoutGuide(for: .margins(cornerAdaptation: .vertical)).topAnchor
+        } else {
+            top = view.layoutMarginsGuide.topAnchor
+        }
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: top),
+            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+        ])
+    }
 }
 
 /// The one web view, and both directions of the bridge to the page inside it.
