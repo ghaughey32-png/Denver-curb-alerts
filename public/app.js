@@ -5542,7 +5542,7 @@ function renderParkSheet() {
 
   const accuracy = parked.pin.accuracy;
   parkSheetHint.textContent = Number.isFinite(accuracy) && accuracy > 25
-    ? `Your phone placed you within about ${accuracy} m, so check the pin. Wrong block? Drag it onto your curb.`
+    ? `Your device placed you within about ${accuracy} m, so check the pin. Wrong block? Drag it onto your curb.`
     : "Wrong block? Drag the pin onto your curb.";
 
   parkSheet.hidden = false;
@@ -8547,7 +8547,7 @@ function renderNotificationJobs() {
   const statusText = hasRemotePushReady()
     ? "Subscribed device ready"
     : canUseNativeReminders() && getNativeReminderPermission() === "granted"
-      ? "Scheduled on this phone"
+      ? "Scheduled on this device"
       : canUseBrowserNotifications() && window.Notification.permission === "granted"
         ? "Local preview ready"
         : "Push-ready";
@@ -8621,8 +8621,8 @@ function renderReminderReadiness() {
   setReadinessItem(
     readinessItems.push,
     hasPush,
-    hasNativeReminders ? "Notifications are allowed on this phone." : "This device is connected for push alerts.",
-    "Turn on push notifications for this phone."
+    hasNativeReminders ? "Notifications are allowed on this device." : "This device is connected for push alerts.",
+    "Turn on push notifications for this device."
   );
   setReadinessItem(
     readinessItems.jobs,
@@ -8952,8 +8952,8 @@ function renderAccount() {
   // website itself would be a false claim about the very thing it no longer does.
   if (accountIntroText) {
     accountIntroText.textContent = canUseNativeReminders()
-      ? "Reminders work without an account. Sign in and your saved curb sets follow you to a new phone or a cleared browser."
-      : "Sign in and your saved curb sets follow you to a new phone or a cleared browser.";
+      ? "Reminders work without an account. Sign in and your saved curb sets follow you to a new device or a cleared browser."
+      : "Sign in and your saved curb sets follow you to a new device or a cleared browser.";
   }
 
   if (accountResetCard) {
@@ -8992,7 +8992,7 @@ function renderAccount() {
   // someone whose sets are already syncing that they are stranded in this browser.
   if (savedSetsAccountText) {
     savedSetsAccountText.textContent = account
-      ? "These are synced to your account, so they follow you to a new phone."
+      ? "These are synced to your account, so they follow you to a new device."
       : "These are saved in this browser only.";
   }
 
