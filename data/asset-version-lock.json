@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v232",
+    "cacheName": "curb-alerts-shell-v233",
     "files": {
-      "index.html": "b45ba82b713dc906132bfdc30ac6924d4a3e5e9ca9952379fd303c0c2e992595",
-      "sw.js": "b79f10b679a24744e9a7ce8391c3f1d43cfecefe02f32bdccf355e8df1d714ea"
+      "index.html": "bb44162a7b8cb1275fa7f05292681e8303bc7ea8de4c16958245d9b4c8fc687c",
+      "sw.js": "696c9e410a952bfd448a7538a609421b19c36624a7599958c56c662670684397"
     }
   },
   "assets": {
@@ -45,8 +45,8 @@
       "sha256": "b06894aa757daa207aae2ba00e582f573e382eca45ac9ac657edee00593d4131"
     },
     "styles.css": {
-      "version": "20261001-snow-banner",
-      "sha256": "b3f36344ba57be280a20978773d780febf631ad9a4a93429985e9ec653a6fb75"
+      "version": "20261008-narrow-shell",
+      "sha256": "bc860f612a9cfc1051883411b3899bf4d376c6da737975e15613b0ef2c0ab683"
     },
     "vendor/leaflet/leaflet.css": {
       "version": "1.9.4",

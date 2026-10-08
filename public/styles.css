@@ -47,11 +47,15 @@ button {
   width: min(1480px, calc(100% - 28px));
   margin: 18px auto 28px;
   display: grid;
+  /* minmax(0, 1fr), not the implicit 1fr: an implicit track will not shrink below its widest
+     item's content, so the tab row stretched the whole page past a narrow phone window. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 
 .app-view {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
 }
 
