@@ -2182,3 +2182,17 @@ real declaration: the day-in-force wording for Days 2 and 3 (read only from the 
 **Build 10, uploaded 2026-10-01,** carries the Minneapolis snow alerts and was exported with `testFlightInternalTestingOnly`, at the author's request, so it can never join an external group. Both subscription products, the yearly 14-day free trial, the 16-day Billing Grace Period and both server-notification URLs were confirmed in App Store Connect first.
 
 **Build 11, uploaded 2026-10-02,** is build 10 plus the paywall fix (the purchase callback dismissed the sheet off the main thread and crashed a Debug run under the Main Thread Checker). Exported **without** the internal-only key, so it can go to App Review; it replaces build 8, which predates the paywall, as the submission candidate. Build 10 stays internal-only.
+
+**Build 12, uploaded 2026-10-08,** is the first native iPad build. App Review rejected build 11 under
+Guideline 4 (design: "not optimized to support all screen sizes") after running it on an iPad Air
+11-inch: the iPhone-only app ran in an iPhone-sized window, and the page was wider than that window.
+Two causes. (1) `.app-shell` and `.app-view` were grids with an implicit `1fr` track, which will not
+shrink below its widest child, so the tab row stretched the layout to 505 px in a 320 px window and
+every screen scrolled sideways; both now use `minmax(0, 1fr)`. (2) The build was iPhone-only, so
+iPad users got compatibility mode. It now targets iPhone and iPad (`TARGETED_DEVICE_FAMILY` `1,2`,
+all four iPad orientations, iPhone stays portrait). On iPadOS 26 the window controls were drawn over
+the first tab; `WebShellController` pins the web view below
+`layoutGuide(for: .margins(cornerAdaptation: .vertical))`. The paywall opened as a small form sheet on
+iPad, with the monthly plan hidden behind the purchase button; it is presented as `.pageSheet`. User-facing
+"phone" copy now says "device". Verified on the iPad Air 11-inch (M4) and iPad Pro 13-inch (M5)
+simulators in portrait and landscape. Exported without the internal-only key.
