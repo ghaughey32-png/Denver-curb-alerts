@@ -118,6 +118,10 @@ enum SubscriptionActions {
             let controller = UIHostingController(rootView: view)
             host = controller
             presented = controller
+            // On iPad the default is a small centred form sheet, too short for the plan list: the
+            // monthly plan sat behind the purchase button. A page sheet is nearly full height and
+            // keeps Apple's own close button, which a full-screen cover might not.
+            controller.modalPresentationStyle = .pageSheet
             presenter.present(controller, animated: true)
         }
     }
