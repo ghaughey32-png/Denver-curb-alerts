@@ -177,6 +177,22 @@ shows most of it already exists, and the real work is elsewhere.
   which Denver's urgent alerts already do with 😱. The holiday alert gets its own marker (e.g. "🗓️
   Holiday tomorrow ...") so the two hedges are told apart on the lock screen. The Live Activity and in-app
   banners can use the amber.
+- **Layout of the uncertain-day alerts (mockup agreed 2026-10-09; amber hex values are the mockup's
+  placeholders, the real one is chosen by CIELAB distance when built).**
+  - *One amber family for both states*, so uncertainty reads as one idea. The single hedge word is
+    highlighted: **May** in the 5th-week alert, **probably** in the holiday alert. They are told apart by
+    icon (warning triangle vs calendar) and wording, never by colour alone.
+  - *Live Activity (lock screen):* title "Sweeping **may** happen tomorrow" with body "A 5th-week day. The
+    schedule doesn't confirm it. Check the sign, and move your car to be safe." The holiday card reads
+    "Holiday tomorrow: **probably** no sweeping" / "Sweeping is usually skipped on holidays. Double-check
+    the posted sign before you leave your car." The 5th-week card's "I moved my car" button is the strong
+    dark one; the holiday card's is the quiet gray one, since most drivers need not act.
+  - *Notification text* is plain: a leading marker (warning / calendar emoji) and the same hedge wording.
+  - *In-app banner:* amber tint and border, icon, the highlighted word in the title, one or two sentences,
+    and a "Mark as moved" link. The 5th-week body is open to cutting the "tickets show it's sometimes
+    swept" clause; the shorter version is equally safe.
+  - *Curb list chips:* "**May** be swept" for 5th week and "Holiday: **probably** not" for holidays, with
+    the posted hours and the overnight line ("Tue 2-6 am, move Mon night") beneath the street.
 - **Reminder times per sweep: the same model as Denver.** Denver's settings are one evening-before time
   plus three sweep-day slots, with "keep reminding until I move" adding a later evening check-in and
   follow-ups. SF **daytime** blocks use exactly that, unchanged. SF **overnight** blocks have no sweep-day
