@@ -2331,3 +2331,25 @@ found none, 8.5% (3,383) do not match.** Where the 3,383 go:
   tell a driver a 5th-week day is clear on the data alone. Not yet decided how the build should treat it.
 - **Not a cause:** no single date, holiday or neighbourhood explains the rest; misses by week index are
   proportional to ticket volume apart from the 5th week.
+
+**SF missing blocks and time windows, explained (2026-10-09).** Same 40,000 tickets (2026-07-02 to
+2026-08-06). Scripts are in the scratchpad.
+- **Missing blocks were mostly my 40 m radius, not missing data.** Of the 1,535 tickets with no same-name
+  segment within 40 m, 791 were 40–80 m away: the ticket is geocoded to the address (a setback from the
+  curb), not the curb. Repeat offenders (Northridge Rd, John Muir Dr, Fulton St, Highland Ave; 147 25 m
+  cells with 3+ tickets) sit at a constant 42–60 m. Widening to **100 m, same street name, else 40 m any
+  name** leaves only 229 of 40,000 tickets (0.6%) with no candidate. Truly absent: 307 tickets on streets whose
+  name is not in `yhqp-riqs` at all (e.g. Harmonia, Westbrook Ct), some name variants (Geary St/Blvd).
+  **The build and any location lookup must search about 100 m from the address, not 40 m.**
+- **Time-window misses are an overnight problem, not a general one.** By posted start hour, the daytime
+  blocks (start 6 am and later) miss 0–1%; windows starting at 0 miss 25% (2,640 tickets), 3 am 66%, 4 am 23%
+  (SoMa/industrial: Berry, 12th, Beale, Delancey, Howard, Great Hwy). The same locations repeat at a constant
+  hour week after week (Great Hwy posted 0–6, tickets at 13.1–13.3; Myrtle St posted 4–6, tickets at
+  2.9–3.1; Buchanan St posted 10–12, tickets at 6.2), so it is systematic: either the posted window in the
+  dataset is wrong for those blocks or enforcement runs on a different schedule. Not resolved which.
+  30% of the dataset's rows (11,220 of 37,032 with a weekday) start before 5 am.
+- **Recomputed headline** (candidates = same name within 100 m, else any name within 40 m): 99.4% of tickets
+  find a candidate; **95.1% consistent**. Daytime-type blocks: **97.5%** (33,857 tickets). Overnight-type
+  blocks: **81.2%** (5,914 tickets).
+- **Consequence for the plan:** daytime sweeping data is shippable as is. Overnight rows should not be
+  presented with the same confidence until checked against signs (and the 5th-week flag stays unconfirmed).
