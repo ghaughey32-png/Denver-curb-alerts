@@ -10,7 +10,7 @@
 //
 // SHAPE OF A CURB (what public/sf-sweeping.json holds):
 //
-//   { id, street, sideKey, schedules, geometry }
+//   { id, street, sideKey, blockside?, opposite?, schedules, geometry }
 //
 // A block side (cnn + L/R) is one curb, because a driver parks on a side, not on a row. A side often
 // has several windows (Monday 0-2 and Thursday 8-10), so the rules sit in `schedules`, one per
@@ -31,11 +31,23 @@
 //                     is known to under-report. The app must never call such a day clear on the data
 //                     alone. Where the flag is set, a 5th-week day is sweeping.
 //
-// Geometry is [lat, lng] pairs like Minneapolis's, seven decimals (six reclassifies Denver blocks).
+//   sideKey   north | south | east | west: which way the curb faces from the street's middle, derived
+//             from the line's direction and the city's L/R flag (the city's own word agrees 99.9% of
+//             the time). Denver's colours, labels and opposite-side logic know these four
+//   blockside the city's own compass word ("southeast"), kept for display; absent on the ~2% of curbs
+//             where the city leaves it empty
+//   opposite  the id of the curb on the other side of the same centreline, when the city publishes one
+//
+// Geometry is [lat, lng] pairs like Minneapolis's, seven decimals (six reclassifies Denver blocks). The
+// city draws BOTH sides of a street on the identical centreline, so each curb is pushed
+// CURB_OFFSET_METRES toward its own side, which is where Denver's and Minneapolis's curbs sit; without
+// that the two sides draw on top of each other and a tap cannot tell them apart.
 
 const crypto = require("node:crypto");
 
 const COORDINATE_DECIMALS = 7;
+// How far a curb sits from the centreline. Matches Minneapolis's, and Denver's offsetPoint (about 3.9 m).
+const CURB_OFFSET_METRES = 4;
 // A refreshed curb keeps its old id when a curb on the same street and side sits this close.
 const ID_CONTINUITY_METRES = 15;
 // A posted window that starts before this hour is swept in the small hours: move the car the night before.
@@ -151,15 +163,80 @@ function mergeSchedules(schedules) {
   return merged;
 }
 
-function readGeometry(line) {
+// The city's line as raw [lat, lng] pairs, or null when it has none.
+function readLine(line) {
   const coordinates = line?.type === "LineString" ? line.coordinates : null;
   if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
-  const path = coordinates.map(([lon, lat]) => [Number(lat.toFixed(COORDINATE_DECIMALS)), Number(lon.toFixed(COORDINATE_DECIMALS))]);
+  const path = coordinates.map(([lon, lat]) => [Number(lat), Number(lon)]);
   return path.every(([lat, lon]) => Number.isFinite(lat) && Number.isFinite(lon)) ? path : null;
+}
+
+function roundPath(path) {
+  return path.map(([lat, lon]) => [Number(lat.toFixed(COORDINATE_DECIMALS)), Number(lon.toFixed(COORDINATE_DECIMALS))]);
 }
 
 function toXY([lat, lon]) {
   return [lon * METRES_PER_DEGREE_LON, lat * METRES_PER_DEGREE];
+}
+
+function fromXY([x, y]) {
+  return [y / METRES_PER_DEGREE, x / METRES_PER_DEGREE_LON];
+}
+
+// The direction a line travels, as a unit vector in metres: first vertex to last, or the longest
+// segment when the line loops back on itself (a cul-de-sac).
+function getTravelDirection(path) {
+  const points = path.map(toXY);
+  let dx = points[points.length - 1][0] - points[0][0];
+  let dy = points[points.length - 1][1] - points[0][1];
+  if (Math.hypot(dx, dy) < 1) {
+    let longest = 0;
+    for (let index = 1; index < points.length; index += 1) {
+      const length = Math.hypot(points[index][0] - points[index - 1][0], points[index][1] - points[index - 1][1]);
+      if (length > longest) {
+        longest = length;
+        dx = points[index][0] - points[index - 1][0];
+        dy = points[index][1] - points[index - 1][1];
+      }
+    }
+  }
+  const length = Math.hypot(dx, dy) || 1;
+  return [dx / length, dy / length];
+}
+
+// Which way a curb faces. In the city's data L is the left of the centreline's direction of travel and
+// R the right (checked against its own compass word on 17,978 sides: 99.94% within 30 degrees). The
+// side's outward normal is snapped to the nearest of four, the same vocabulary Denver's curbs use.
+function getSideKey(path, side) {
+  const [dx, dy] = getTravelDirection(path);
+  const nx = -dy * side;
+  const ny = dx * side;
+  return Math.abs(nx) >= Math.abs(ny) ? (nx > 0 ? "east" : "west") : ny > 0 ? "north" : "south";
+}
+
+// Pushes a path sideways by `distance` metres (positive to the left of its direction), averaging the
+// normals of the two segments at each interior vertex so a bend does not tear the line.
+function offsetPath(path, distance) {
+  const points = path.map(toXY);
+  const normals = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const dx = points[index + 1][0] - points[index][0];
+    const dy = points[index + 1][1] - points[index][1];
+    const length = Math.hypot(dx, dy) || 1;
+    normals.push([-dy / length, dx / length]);
+  }
+  return points.map((point, index) => {
+    const before = normals[Math.max(0, index - 1)];
+    const after = normals[Math.min(normals.length - 1, index)];
+    let nx = before[0] + after[0];
+    let ny = before[1] + after[1];
+    const length = Math.hypot(nx, ny) || 1;
+    nx /= length;
+    ny /= length;
+    // Stretch the averaged normal so the offset stays `distance` from both segments at a bend.
+    const cosine = Math.max(0.5, nx * after[0] + ny * after[1]);
+    return fromXY([point[0] + (nx * distance) / cosine, point[1] + (ny * distance) / cosine]);
+  });
 }
 
 // The point half way along the line, which survives small edits to its vertices better than the
@@ -254,16 +331,16 @@ function carryForwardIds(curbs, previousCurbs) {
 
 // Groups the city's rows into curbs. `rows` are the dataset's JSON rows as published.
 function buildSfCurbs({ rows, previousCurbs = [] }) {
-  const report = { rows: rows.length, rowsWithoutLine: 0, rowsUnreadable: 0, rowsHolidayOnly: 0, curbs: 0 };
+  const report = { rows: rows.length, rowsWithoutLine: 0, rowsUnreadable: 0, rowsHolidayOnly: 0, curbs: 0, sideDisagreesWithCity: 0 };
   const bySide = new Map();
   rows.forEach((row) => {
-    const geometry = readGeometry(row.line);
-    if (!geometry) {
+    const line = readLine(row.line);
+    if (!line) {
       report.rowsWithoutLine += 1;
       return;
     }
     const schedule = readSchedule(row);
-    if (!schedule || !row.cnn || !row.cnnrightleft) {
+    if (!schedule || !row.cnn || (row.cnnrightleft !== "L" && row.cnnrightleft !== "R")) {
       report.rowsUnreadable += 1;
       return;
     }
@@ -271,12 +348,18 @@ function buildSfCurbs({ rows, previousCurbs = [] }) {
     const key = `${row.cnn}|${row.cnnrightleft}`;
     let curb = bySide.get(key);
     if (!curb) {
+      const side = row.cnnrightleft === "L" ? 1 : -1;
+      const sideKey = getSideKey(line, side);
+      const blockside = String(row.blockside || "").trim().toLowerCase();
+      if (blockside && !blockside.includes(sideKey)) report.sideDisagreesWithCity += 1;
       curb = {
         id: buildCurbKey(row.cnn, row.cnnrightleft),
         street: formatStreetName(row.corridor),
-        sideKey: String(row.blockside || row.cnnrightleft).trim().toLowerCase(),
+        sideKey,
+        ...(blockside ? { blockside } : {}),
         schedules: [],
-        geometry
+        geometry: roundPath(offsetPath(line, side * CURB_OFFSET_METRES)),
+        cnn: String(row.cnn)
       };
       bySide.set(key, curb);
     }
@@ -286,6 +369,18 @@ function buildSfCurbs({ rows, previousCurbs = [] }) {
   const built = [...bySide.values()].map((curb) => ({ ...curb, schedules: mergeSchedules(curb.schedules) }));
   built.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const continuity = carryForwardIds(built, previousCurbs);
+  // The other side of the same centreline, by final id (so a carried-forward id is the one named).
+  // cnn is only the key for pairing and is not published.
+  const idsByCnn = new Map();
+  continuity.curbs.forEach((curb) => {
+    if (!idsByCnn.has(curb.cnn)) idsByCnn.set(curb.cnn, []);
+    idsByCnn.get(curb.cnn).push(curb);
+  });
+  continuity.curbs = continuity.curbs.map(({ cnn, ...curb }) => {
+    const partner = idsByCnn.get(cnn).find((other) => other.id !== curb.id && other.sideKey !== curb.sideKey);
+    return partner ? { ...curb, opposite: partner.id } : curb;
+  });
+  report.curbsWithOpposite = continuity.curbs.filter((curb) => curb.opposite).length;
   report.curbs = continuity.curbs.length;
   report.idsCarriedForward = continuity.carried;
   report.idsRetired = continuity.retired.length;
@@ -530,7 +625,10 @@ module.exports = {
   formatStreetName,
   readSchedule,
   mergeSchedules,
-  readGeometry,
+  readLine,
+  offsetPath,
+  getSideKey,
+  CURB_OFFSET_METRES,
   getMidpoint,
   carryForwardIds,
   buildSfCurbs,

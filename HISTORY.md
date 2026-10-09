@@ -2387,3 +2387,13 @@ Phase 1 of SF-PLAN.md: `scripts/build-sf-sweeping.js` and `scripts/lib/sf-sweepi
 - **Ticket matching** follows the research (same normalized name within 100 m, else any name within
   40 m; weekday, nth-weekday and posted window plus one hour). Overnight vs daytime is decided by the
   nearest candidate posted on the ticket's weekday.
+
+- **Sides and opposites (same day, follow-up to the Phase 3 design).** The city draws both sides of a
+  street on the *identical* centreline (all 10,314 centrelines with two sides), so Phase 1's curbs
+  drew on top of each other and a tap could not tell them apart. The build now offsets each curb 4 m
+  toward its own side (as Minneapolis and Denver do), derives a four-way `sideKey` from the line's
+  direction and the L/R flag (L is the left of travel; 99.94% of 17,978 sides within 30 degrees of the
+  city's own compass word, and 9 of 22,556 curbs disagree outright), keeps the city's word as
+  `blockside` (absent on 839 rows), and writes `opposite` (the other side of the same `cnn`) on 20,628
+  curbs. The file grew from 6.75 to 7.74 MB, because offset coordinates no longer share the city's
+  digits. Ticket figures did not move (96.4% consistent). Existing ids carried over by exact hash match.

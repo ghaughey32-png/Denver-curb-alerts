@@ -209,7 +209,8 @@ and the code in `public/cities.js` / `public/app.js`.
 
 ### Three gaps in the Phase 1 data that this phase needs closed first
 
-These are changes to `scripts/` and the generated file, which are allowed now.
+These are changes to `scripts/` and the generated file, which are allowed now. **Gaps 1 and 2 were closed on
+2026-10-09** (see HISTORY.md § SF build, "Sides and opposites"); the file is now 7.74 MB.
 
 1. **Sides.** `sideKey` is the city's compass word: eight values (`north` ... `southwest`, 2,600 curbs on
    diagonal streets) and, for 424 curbs whose `blockside` is empty, just `l` or `r`. Denver's colours, side

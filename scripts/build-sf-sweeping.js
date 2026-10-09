@@ -149,6 +149,7 @@ async function main() {
       `holiday-only rows ${report.rowsHolidayOnly}`
   );
   console.log(`Overnight (move the night before) curbs ${report.overnightCurbs}; 5th week unconfirmed curbs ${report.week5UnconfirmedCurbs}`);
+  console.log(`Sides: ${report.sideDisagreesWithCity} disagree with the city's own compass word; ${report.curbsWithOpposite} curbs have an opposite`);
   console.log(`Ids carried forward ${report.idsCarriedForward}, retired ${report.idsRetired}`);
   console.log(`Tickets ${check.tickets} (${report.tickets.from} to ${report.tickets.to}), ${check.unreadable} unreadable`);
   console.log(`  no candidate curb: ${check.noCandidate} (${percent(check.noCandidate, check.tickets)})`);
