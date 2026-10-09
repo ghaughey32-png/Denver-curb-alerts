@@ -2196,3 +2196,43 @@ the first tab; `WebShellController` pins the web view below
 iPad, with the monthly plan hidden behind the purchase button; it is presented as `.pageSheet`. User-facing
 "phone" copy now says "device". Verified on the iPad Air 11-inch (M4) and iPad Pro 13-inch (M5)
 simulators in portrait and landscape. Exported without the internal-only key.
+
+## Chicago research (2026-10-09)
+
+Research only; no code, no crawl. Sources: the Socrata catalog and resource APIs on
+`data.cityofchicago.org`. The chicago.gov winter-parking page answered 403 to a fetch, so the rules below
+come from news reports (2016–2021) and the datasets' own descriptions and **are not yet verified against
+the city's page** — verify before any copy ships.
+
+**Street sweeping**
+- Published yearly as two datasets. Schedule `u5ai-3efk` (2026, updated 2026-06-08): one row per ward
+  section per month, fields `ward`, `section`, `ward_section_concatenated`, `month_name`, `month_number`,
+  `dates` (a string like `"13,14"`). Zones `2r7q-emq3` (2026): a `MultiPolygon` per ward section with
+  `april`…`november` date strings inline. Dataset ids change every year (2025: `a2xx-z2ja` / `utb4-q645`).
+- **The unit is the ward section, not the curb.** There is no left/right side, no street-level geometry
+  and no per-street rule. A driver's reminder is "your ward section is swept on these dates", found by
+  point-in-polygon. This is far simpler than Denver's pipeline: no crawl, no coverage audit, no pink.
+  The cost is precision (a section is a large area; not every street in it is posted, and Chicago posts
+  signs per block) — the copy must say sweeping applies where signs are posted.
+- Season runs April–November. Dates are two per month, so a year is small (hundreds of KB, not 12 MB).
+- No ticket dataset for validation: the portal's catalog returns none, and ProPublica's bulk file ends
+  May 2018. Validation would be against the schedule alone.
+
+**Snow and winter bans**
+- Two distinct rules, two datasets, both **last modified 2021-12-06**:
+  - Winter Overnight Parking Restrictions `mcad-r2g5`: 3–7 am, Dec 1–Apr 1, regardless of snow, ~107
+    miles of arterials. **Fixed calendar — no declaration, so it can be scheduled on the device like a
+    sweep reminder.** (Fields not yet inspected.)
+  - Snow Route Parking Restrictions `i6k4-giaj`: 144 `MultiLineString` rows, all `restrict_t` = `"2 INCH"`,
+    fields `on_street`, `from_stree`, `to_street`. Banned whenever 2+ inches are on the ground, ~500
+    miles. News says it is rarely activated and cars are often relocated rather than ticketed. **It needs
+    a person-declared trigger like `lib/snow.js`, or a weather feed; the city publishes no
+    "ban active" flag we have found.**
+- Geometry is one line per named route, long (one is ~97 km), so side-of-street rules cannot be derived;
+  the ban applies to the route as signed. Datasets are 5 years stale — streets may have changed.
+- Costs reported: tow ≥ $150, ticket $60, storage ~$25/day (news, 2016–2021; verify).
+
+**Recommendation recorded:** build winter overnight ban first (fixed calendar, small data, no server
+trigger, towing-severity makes it the highest-value alert), then sweeping by ward section, and treat the
+2-inch ban as a later phase needing a declaration source. Open before building: verify rules on
+chicago.gov; confirm the city's route data is current; per-city on-demand inventory for the bundled app.
