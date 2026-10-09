@@ -202,24 +202,109 @@ shows most of it already exists, and the real work is elsewhere.
   so a driver can hold roughly six weekly overnight curbs before the soonest-first cut-off starts
   dropping later jobs, which is no worse than Denver's.
 
-## Phase 3: SF as a city record (after Build 12)
+## Phase 3: SF as a city record (design written 2026-10-09; code waits for Build 12 and Phase 2)
 
-- `public/cities.js`: bounds, `minZoom`, `inventoryUrl`, `kind: "sweeping"`, `webReminders: false`,
-  `appStoreUrl`. Reuse the existing `kind` split (`"snow"` for Minneapolis).
-- **Address search.** `findLocalSearchMatch` uses Denver's `addressGrid`, which does not apply. SF needs
-  a geocode path. Options: bundle the EAS address points (compressed, only street + number + lat/lng) or
-  call a geocoder through the server. Recommend a bundled, trimmed table so the app stays free of third
-  parties and the privacy manifest does not change. Measure its size before choosing.
-- **City limits.** Reuse the pattern of one shared file read by map and pipeline (see
-  `denver-city-limits.js`); SF's line is simple (one polygon) but must not be hardcoded per area.
-- **Colors.** SF has no pink/plum/gray states in v1: a block is either swept on a schedule or not in the
-  data. The gray "not maintained" state needs a decision (bike lanes are excluded from this dataset).
-- **Reminders.** Reuse the local reminder jobs, keyed off `startHour`. The existing "keep going until moved"
-  nag, the moved confirmation and the parking pin all apply. The 64-notification iOS cap and
-  `ReminderScheduler` rules stay.
-- **Copy.** Terms, Privacy and Disclaimer must name SF and the sweeping authority (SF Public Works / SFMTA),
-  in the same commit as the behavior. Source-text tests will need updating.
-- **Subscription.** If one subscription covers all cities, no StoreKit change; the paywall copy changes.
+Design only; nothing in `public/` or `ios/` changes. Measured from the generated `public/sf-sweeping.json`
+and the code in `public/cities.js` / `public/app.js`.
+
+### Two gaps in the Phase 1 data that this phase needs closed first
+
+These are changes to `scripts/` and the generated file, which are allowed now.
+
+1. **Sides.** `sideKey` is the city's compass word: eight values (`north` ... `southwest`, 2,600 curbs on
+   diagonal streets) and, for 424 curbs whose `blockside` is empty, just `l` or `r`. Denver's colours, side
+   labels ("North curb") and `PARKING_SIDE_OPPOSITES` know four sides. Derive a four-way `sideKey` from the
+   line and the L/R flag, as `getCompassSide` does for Minneapolis, and keep the city's word as
+   `blockside` for the sheet.
+2. **The opposite curb.** `getOppositeCurb` builds `"<way>:<opposite side>"` from a Denver id, and SF ids
+   are hashes. The parked-car pin picks the street and the driver picks the side, so SF needs an explicit
+   `opposite` id on each curb (the other L/R of the same `cnn`, when it exists), written by the build.
+3. **House-number ranges (verify before relying on it).** The city's street centreline dataset ("Streets -
+   Active and Retired") should carry the first and last house number on each side of each `cnn`
+   (`lf_fadd`/`lf_toadd`/`rt_fadd`/`rt_toadd`). I have not queried it: Phase 1's network allowance named two
+   datasets. If it holds, the build can write `addresses: [from, to]` per curb, which is both the address
+   search (below) and the missing side check on tickets (ticket addresses have house numbers).
+
+### The city record
+
+`public/cities.js` gains an SF record shaped like Minneapolis's:
+
+- `id: "san-francisco"`, `name`, `kind: "sweeping"`, `idPrefix: "sf:"`, `inventoryFormat` (Phase 2 item 1),
+  `geocodeSuffix: "San Francisco, CA"`.
+- `bounds` from the published curbs, padded a little: south 37.707, north 37.825, west -122.514, east
+  -122.370. That includes Treasure Island and Yerba Buena; it excludes the Farallon Islands, which are in
+  the county and not in the data. It overlaps neither Denver nor Minneapolis, so `getCityForPoint` works.
+- `minZoom: 11` as the others; `sweepSeason: null` (year-round); `webReminders: false` and the shared
+  `appStoreUrl`, as Denver (the map is free on the web; reminders are the app).
+- `inventoryUrl: "./sf-sweeping.json?v=N"`, not in `APP_SHELL`; `cities.js`'s own `?v=` moves with it and
+  keeps the `-inv<N>` ending the existing test requires.
+- `cityLimitsGlobal: "SanFranciscoCityLimits"`, below.
+
+### City limits
+
+A UMD `public/sf-city-limits.js` in the shape of `minneapolis-city-limits.js` (OSM boundary relation,
+simplified, `[lat, lon]`, 20 m `getMaskRings`). There is no pipeline half: the curbs are the city's own, so
+nothing is clipped. The red wash tells a driver in Daly City the app has nothing there. Take the
+land-and-Treasure-Island rings only, not the county's water or the Farallones.
+
+### Address search
+
+`findLocalSearchMatch` is Denver's grid and does not apply. Options:
+- *Per-curb house-number ranges (preferred, if gap 3 holds):* a few hundred KB inside the inventory the
+  page already loads. A typed "1234 Fulton St" places the pin on the right curb and side by parity and
+  range, with no third-party geocoder and no privacy-manifest change. San Francisco's streets are named, so
+  street search and crossings already work from curb names.
+- *A bundled table of address points:* heavier, and I have not measured it; only if ranges prove unusable.
+- *A server or third-party geocoder:* rejected; it changes the privacy story.
+Where a number cannot be placed the search reports the street, as Denver's does.
+
+### Colours and states
+
+- Scheduled curbs take Denver's four side colours from the derived side, so the map reads the same in every
+  city. **SF has no pink, plum or gray in v1:** a curb is in the city's schedule or it is not drawn.
+- The "no mapped public street block may render blank" invariant cannot be enforced for SF: there is no
+  expected-block manifest. A street with no curb is blank, and a tap near nothing says "No sweeping
+  schedule found in the city's data for this street. Check the sign." (ticket tests found about 0.7% of
+  tickets with no nearby curb).
+- Uncertainty (5th week, holiday) is shown on the curb sheet, list and alerts as agreed above, **not on
+  the map**; the map stays cheap and uncluttered.
+- Idea, not v1: because SF publishes times, the map could highlight curbs swept in the next 24 hours.
+
+### Reminders and copy
+
+- Reminders follow the Phase 2 design (per-curb jobs, overnight evening-only, three slots).
+- Denver's authority wording is source-text-tested; **do not template it.** SF-specific strings (the
+  authority, the unavailable-curb message, the sheet lines) live on the SF record or in SF-only functions,
+  and Denver's strings stay untouched. Lines like "That spot looks outside the Denver map" need an
+  active-city form for SF.
+- **Terms, Privacy and Disclaimer name San Francisco, say the app covers street sweeping only, and say the
+  posted sign wins, in the same commit as the behaviour.** Support address unchanged.
+- The Disclaimer must also say the schedule can differ from the sign on a given block.
+
+### Subscription, analytics, store
+
+- One subscription across cities (decided), so no StoreKit change; the paywall and App Store copy stop
+  saying "Denver". Audit `Paywall.swift`, onboarding and the listing for city names.
+- *Analytics:* events are a name, platform and version only. Adding a city field is a Privacy and
+  privacy-manifest change. **Recommend not adding it for SF**; infer city mix from `app_open` once the
+  switcher exists, or decide deliberately.
+- App Store listing: new screenshots and description, and the multi-city note for Guideline 4.3 (Phase 4).
+
+### Tests to write with it
+
+City-by-location for the three bounds; `getCurbIdCity` for `sf:`; the SF record passes
+`static-cache-version`; the four-way side and `opposite` pairing in the build; address-range placement
+against known addresses; source-text tests that Denver's strings are unchanged.
+
+### Decisions needed
+
+- **Pair curbs and derive sides in the build** (recommended; needed before anything else here).
+- **Confirm the street-centreline dataset's address ranges** (a network read of one dataset, which needs
+  your go-ahead since Phase 1 named two).
+- **City choice at first launch by location** (recommended, as AGENTS.md already says) with the header
+  switcher as the manual override; at many cities the switcher becomes a searchable list, designed when
+  the fourth city is real.
+- **Whether to count cities in analytics** (recommend no).
 
 ## Phase 4: ship (needs the user's go-ahead)
 
