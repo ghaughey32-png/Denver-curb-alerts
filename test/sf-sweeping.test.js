@@ -218,6 +218,25 @@ test("a curb without the city's own side word still gets a side and keeps no blo
   assert.ok(!("blockside" in curbs[0]));
 });
 
+test("house-number ranges attach to the side of the centreline they belong to", () => {
+  const streets = [{ cnn: "7", lf_fadd: "101.0", lf_toadd: "199.0", rt_fadd: "200.0", rt_toadd: "100.0" }, { cnn: "8", lf_fadd: "0.0", lf_toadd: "0.0", rt_fadd: "0.0", rt_toadd: "0.0" }];
+  const { curbs, report } = buildSfCurbs({
+    streets,
+    rows: [
+      row({ cnn: "7", cnnrightleft: "L", line: EAST_STREET }),
+      row({ cnn: "7", cnnrightleft: "R", line: EAST_STREET }),
+      row({ cnn: "8", cnnrightleft: "L", line: EAST_STREET }),
+      row({ cnn: "9", cnnrightleft: "L", line: EAST_STREET })
+    ]
+  });
+  const north = curbs.filter((curb) => curb.sideKey === "north");
+  assert.deepEqual(north.find((curb) => curb.addresses)?.addresses, [101, 199]);
+  // A range given high-to-low is stored low-to-high; zeros and unknown streets carry none.
+  assert.deepEqual(curbs.find((curb) => curb.sideKey === "south").addresses, [100, 200]);
+  assert.equal(curbs.filter((curb) => curb.addresses).length, 2);
+  assert.equal(report.curbsWithAddresses, 2);
+});
+
 test("an offset follows a bend without tearing", () => {
   const bend = [[37.78, -122.42], [37.78, -122.419], [37.7809, -122.419]];
   const out = offsetPath(bend, 4);

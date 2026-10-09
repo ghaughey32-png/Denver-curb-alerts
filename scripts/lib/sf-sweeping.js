@@ -37,6 +37,9 @@
 //   blockside the city's own compass word ("southeast"), kept for display; absent on the ~2% of curbs
 //             where the city leaves it empty
 //   opposite  the id of the curb on the other side of the same centreline, when the city publishes one
+//   addresses [first, last] house number on this side of the block, from the city's street centreline
+//             dataset (3psu-pn9h); every number on one side has the same parity, so first % 2 says odd or
+//             even. Absent where the city lists none (private ways, paper streets)
 //
 // Geometry is [lat, lng] pairs like Minneapolis's, seven decimals (six reclassifies Denver blocks). The
 // city draws BOTH sides of a street on the identical centreline, so each curb is pushed
@@ -330,9 +333,25 @@ function carryForwardIds(curbs, previousCurbs) {
 }
 
 // Groups the city's rows into curbs. `rows` are the dataset's JSON rows as published.
-function buildSfCurbs({ rows, previousCurbs = [] }) {
+// The house numbers on each side of each centreline, keyed by cnn. The city gives them as a first and
+// last number per side (left and right of the centreline's direction, the same L/R as the sweeping
+// rows); zero means none.
+function readAddressRanges(streets) {
+  const byCnn = new Map();
+  (streets || []).forEach((street) => {
+    const range = (from, to) => {
+      const numbers = [Number(from), Number(to)];
+      return numbers.every((value) => Number.isFinite(value) && value > 0) ? [Math.min(...numbers), Math.max(...numbers)] : null;
+    };
+    byCnn.set(String(street.cnn), { L: range(street.lf_fadd, street.lf_toadd), R: range(street.rt_fadd, street.rt_toadd) });
+  });
+  return byCnn;
+}
+
+function buildSfCurbs({ rows, streets = [], previousCurbs = [] }) {
   const report = { rows: rows.length, rowsWithoutLine: 0, rowsUnreadable: 0, rowsHolidayOnly: 0, curbs: 0, sideDisagreesWithCity: 0 };
   const bySide = new Map();
+  const ranges = readAddressRanges(streets);
   rows.forEach((row) => {
     const line = readLine(row.line);
     if (!line) {
@@ -361,6 +380,8 @@ function buildSfCurbs({ rows, previousCurbs = [] }) {
         geometry: roundPath(offsetPath(line, side * CURB_OFFSET_METRES)),
         cnn: String(row.cnn)
       };
+      const addresses = ranges.get(String(row.cnn))?.[row.cnnrightleft];
+      if (addresses) curb.addresses = addresses;
       bySide.set(key, curb);
     }
     curb.schedules.push(schedule);
@@ -380,6 +401,7 @@ function buildSfCurbs({ rows, previousCurbs = [] }) {
     const partner = idsByCnn.get(cnn).find((other) => other.id !== curb.id && other.sideKey !== curb.sideKey);
     return partner ? { ...curb, opposite: partner.id } : curb;
   });
+  report.curbsWithAddresses = continuity.curbs.filter((curb) => curb.addresses).length;
   report.curbsWithOpposite = continuity.curbs.filter((curb) => curb.opposite).length;
   report.curbs = continuity.curbs.length;
   report.idsCarriedForward = continuity.carried;

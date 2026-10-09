@@ -2397,3 +2397,13 @@ Phase 1 of SF-PLAN.md: `scripts/build-sf-sweeping.js` and `scripts/lib/sf-sweepi
   `blockside` (absent on 839 rows), and writes `opposite` (the other side of the same `cnn`) on 20,628
   curbs. The file grew from 6.75 to 7.74 MB, because offset coordinates no longer share the city's
   digits. Ticket figures did not move (96.4% consistent). Existing ids carried over by exact hash match.
+- **House-number ranges and a side proof (same day, after the user cleared the read).** The street
+  centreline dataset is `3psu-pn9h` on data.sf.gov (an earlier guess, `3psu-pwnf`, does not exist); it
+  has `lf_fadd`/`lf_toadd`/`rt_fadd`/`rt_toadd` per `cnn` (17,176 rows, 16,395 with ranges). The build now
+  reads it (cached, ranges only) and writes `addresses: [first, last]` on 21,896 of 22,556 curbs (97%);
+  parity is that of the first number. The file is **8.23 MB**. *Side proof, which Phase 0 could not do:*
+  of 30,000 tickets, 28,741 have a house number inside a nearby curb's range with matching parity. Where
+  the two sides of a block disagree about the ticket (23,832 tickets), the side the house number picks
+  explains the ticket **23,055 times against 777 for the other side (96.7%)**. So the L/R flag, the
+  derived sides and the ranges all agree with what the city enforces. (Exploratory script in the
+  scratchpad, not committed; the build's gate is unchanged.)

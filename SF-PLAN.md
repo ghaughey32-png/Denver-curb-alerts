@@ -209,8 +209,8 @@ and the code in `public/cities.js` / `public/app.js`.
 
 ### Three gaps in the Phase 1 data that this phase needs closed first
 
-These are changes to `scripts/` and the generated file, which are allowed now. **Gaps 1 and 2 were closed on
-2026-10-09** (see HISTORY.md § SF build, "Sides and opposites"); the file is now 7.74 MB.
+These are changes to `scripts/` and the generated file, which are allowed now. **All three gaps were closed on
+2026-10-09** (see HISTORY.md § SF build, "Sides and opposites"); the file is now 8.23 MB.
 
 1. **Sides.** `sideKey` is the city's compass word: eight values (`north` ... `southwest`, 2,600 curbs on
    diagonal streets) and, for 424 curbs whose `blockside` is empty, just `l` or `r`. Denver's colours, side
@@ -251,7 +251,7 @@ land-and-Treasure-Island rings only, not the county's water or the Farallones.
 ### Address search
 
 `findLocalSearchMatch` is Denver's grid and does not apply. Options:
-- *Per-curb house-number ranges (preferred, if gap 3 holds):* a few hundred KB inside the inventory the
+- *Per-curb house-number ranges (confirmed 2026-10-09; chosen):* the build writes `addresses: [first, last]` on 97% of curbs from dataset `3psu-pn9h`, and the side the number picks explains 96.7% of discriminating tickets. This is about 0.5 MB inside the inventory the
   page already loads. A typed "1234 Fulton St" places the pin on the right curb and side by parity and
   range, with no third-party geocoder and no privacy-manifest change. San Francisco's streets are named, so
   street search and crossings already work from curb names.
@@ -299,13 +299,12 @@ against known addresses; source-text tests that Denver's strings are unchanged.
 
 ### Decisions needed
 
-- **Pair curbs and derive sides in the build** (recommended; needed before anything else here).
-- **Confirm the street-centreline dataset's address ranges** (a network read of one dataset, which needs
-  your go-ahead since Phase 1 named two).
-- **City choice at first launch by location** (recommended, as AGENTS.md already says) with the header
+- ~~Pair curbs and derive sides in the build~~ done.
+- ~~Confirm the street-centreline dataset's address ranges~~ done; see above.
+- **City choice at first launch by location** (decided 2026-10-09, as AGENTS.md already says) with the header
   switcher as the manual override; at many cities the switcher becomes a searchable list, designed when
   the fourth city is real.
-- **Whether to count cities in analytics** (recommend no).
+- **Whether to count cities in analytics:** no (decided 2026-10-09; a city field would change Privacy and the privacy manifest).
 
 ## Phase 4: ship (needs the user's go-ahead)
 

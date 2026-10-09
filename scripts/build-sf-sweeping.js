@@ -7,7 +7,7 @@
 //   npm run build:sf-sweeping -- --dry-run    build and report, write nothing to public/
 //
 // This is not a Denver crawl: the schedule is one dataset (yhqp-riqs, about 38,000 rows) read in four
-// pages, plus one page-set of recent street cleaning tickets (ab4h-6ztd) for the gate. Downloads are
+// pages, the street centrelines (3psu-pn9h, house-number ranges only), plus one page-set of recent street cleaning tickets (ab4h-6ztd) for the gate. Downloads are
 // cached under data/sf-sweeping-cache/, so a rebuild after a logic change needs no network at all.
 //
 // Two gates stand between a build and the published file, as in scripts/build-minneapolis-snow.js:
@@ -30,6 +30,8 @@ const REPORT_PATH = path.join(ROOT, "data", "sf-sweeping-report.json");
 const SODA_ROOT = "https://data.sf.gov/resource";
 const SWEEPING_DATASET = "yhqp-riqs";
 const TICKET_DATASET = "ab4h-6ztd";
+// Street centrelines, for the first and last house number on each side of each block.
+const STREETS_DATASET = "3psu-pn9h";
 
 const PAGE_SIZE = 10000;
 const TICKET_SAMPLE = 30000;
@@ -112,6 +114,12 @@ async function main() {
   const dryRun = args.includes("--dry-run");
 
   const sweeping = await loadCached("sweeping", SWEEPING_DATASET, { order: ":id" }, refresh);
+  const streets = await loadCached(
+    "streets",
+    STREETS_DATASET,
+    { select: "cnn,lf_fadd,lf_toadd,rt_fadd,rt_toadd", order: ":id" },
+    refresh
+  );
   // Only the most recent tickets that carry coordinates: the city geocodes with a lag, so the very
   // newest tickets have none. Only the fields the check reads are kept; no plate or citation number.
   const tickets = await loadCached(
@@ -128,7 +136,7 @@ async function main() {
 
   const previous = readPublished();
   console.log("Building curbs...");
-  const { curbs, report } = buildSfCurbs({ rows: sweeping.rows, previousCurbs: previous?.curbs || [] });
+  const { curbs, report } = buildSfCurbs({ rows: sweeping.rows, streets: streets.rows, previousCurbs: previous?.curbs || [] });
   const check = checkAgainstTickets(curbs, tickets.rows);
   const sampleDates = tickets.rows.map((ticket) => ticket.citation_issued_datetime.slice(0, 10)).sort();
   report.tickets = { dataset: TICKET_DATASET, from: sampleDates[0], to: sampleDates[sampleDates.length - 1], ...check };
@@ -136,7 +144,11 @@ async function main() {
   const payload = {
     city: "san-francisco",
     generatedAt: new Date().toISOString(),
-    source: { dataset: SWEEPING_DATASET, fetchedAt: sweeping.fetchedAt },
+    source: {
+      dataset: SWEEPING_DATASET,
+      fetchedAt: sweeping.fetchedAt,
+      addressRanges: { dataset: STREETS_DATASET, fetchedAt: streets.fetchedAt }
+    },
     curbs
   };
   const serialized = JSON.stringify(payload);
@@ -149,7 +161,7 @@ async function main() {
       `holiday-only rows ${report.rowsHolidayOnly}`
   );
   console.log(`Overnight (move the night before) curbs ${report.overnightCurbs}; 5th week unconfirmed curbs ${report.week5UnconfirmedCurbs}`);
-  console.log(`Sides: ${report.sideDisagreesWithCity} disagree with the city's own compass word; ${report.curbsWithOpposite} curbs have an opposite`);
+  console.log(`Sides: ${report.sideDisagreesWithCity} disagree with the city's own compass word; ${report.curbsWithOpposite} curbs have an opposite; ${report.curbsWithAddresses} have house-number ranges`);
   console.log(`Ids carried forward ${report.idsCarriedForward}, retired ${report.idsRetired}`);
   console.log(`Tickets ${check.tickets} (${report.tickets.from} to ${report.tickets.to}), ${check.unreadable} unreadable`);
   console.log(`  no candidate curb: ${check.noCandidate} (${percent(check.noCandidate, check.tickets)})`);
