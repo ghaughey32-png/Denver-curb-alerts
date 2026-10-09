@@ -99,8 +99,8 @@ shows most of it already exists, and the real work is elsewhere.
    "denver"`. An `sf:` id would read as Denver, and on a Denver page `hydrateSavedSet` would prune it from
    every set (and the account upload would carry the loss to the server). Give each city record an
    `idPrefix` (Denver's is the empty default), a `kind` (`"sweeping"` | `"snow"`) and an
-   `inventoryFormat`, and look the city up from the id. Grep `mpls:` in `public/`, `lib/`, `server.js`
-   and `ios/` for the other places that assume two cities (`PushRegistrar`'s snow-watching test must
+   `inventoryFormat`, and look the city up from the id. The other `mpls:` assumptions are `lib/snow.js`
+   (`MINNEAPOLIS_CURB_PREFIX`) and `PushRegistrar.swift` (its snow-watching test must
    keep ignoring `sf:`).
 2. **Fix a bug that exists today, before SF depends on it.** `getRuleBasedSweepDates` reads
    `CITY_SWEEP_SEASON` from the **active** city. On a Minneapolis page the season is null (every month),
