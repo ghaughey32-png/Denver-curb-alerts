@@ -52,14 +52,15 @@ dataset**, so there is no crawl, no coverage audit, and no pink state to invent.
   source (DataSF "Addresses with Units – Enterprise Addressing System").
 - Decide whether `Holiday` rows (824) need their own treatment; they mean sweeping only on a holiday.
 
-## Phase 1: the build script (`scripts/`, offline, ~2–3 days)
+## Phase 1: the build script (`scripts/`, offline, ~2–3 days) — built 2026-10-09
 
 `scripts/build-sf-sweeping.js` → writes a generated `public/sf-sweeping.json` (path and name to confirm; the
 file is never hand-edited, like `minneapolis-snow.json`). Modeled on `build-mpls-snow` and
 [scripts/lib/minneapolis-snow.js](scripts/lib/minneapolis-snow.js), not on `build-static-inventory.js`.
 
 - Fetch with paging and cache under `data/sf-sweeping-cache/` (`--refresh`, `--dry-run`, as Minneapolis).
-- Each curb: `{ id, street, sideKey, days, startHour, endHour, weeks, holidays, geometry }` with
+- Each curb (as built: `{ id, street, sideKey, schedules, geometry }`, the hours and weeks sit in
+  `schedules`; see the header of `scripts/lib/sf-sweeping.js` and HISTORY.md § SF build; the file is 6.75 MB, not 5) with
   `id: "sf:<hash of cnn+side>"`. **Ids must survive a refresh**; carry old ids to the nearest new curb on
   the same street and side within 15 m, and report any that are retired.
 - Coordinates rounded to seven decimals (the repo's rule: six reclassifies blocks).

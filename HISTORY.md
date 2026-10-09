@@ -2353,3 +2353,37 @@ found none, 8.5% (3,383) do not match.** Where the 3,383 go:
   blocks: **81.2%** (5,914 tickets).
 - **Consequence for the plan:** daytime sweeping data is shippable as is. Overnight rows should not be
   presented with the same confidence until checked against signs (and the 5th-week flag stays unconfirmed).
+
+### SF build (2026-10-09)
+
+Phase 1 of SF-PLAN.md: `scripts/build-sf-sweeping.js` and `scripts/lib/sf-sweeping.js` write
+`public/sf-sweeping.json`; tests in `test/sf-sweeping.test.js`. Downloads cache in
+`data/sf-sweeping-cache/` (gitignored), report in `data/sf-sweeping-report.json`.
+
+- **Result.** 37,878 rows (22 without a line, dropped; 0 unreadable) became **22,556 curbs** (one per
+  `cnn` + L/R; no side had two different geometries or two `blockside` values). 824 `Holiday` rows are
+  holiday-only schedules. 3,854 curbs (17%) have an overnight schedule (`nightBefore`); 9,555 (42%) have a
+  schedule with no 5th week, so a 5th-week day is `unconfirmed` for them.
+- **Size.** The file is **6.75 MB** (983 KB gzipped), not the plan's "about 5 MB": the plan counted
+  rows, and a curb carries its schedules plus seven-decimal coordinates. Slimming `week5Unconfirmed` and
+  `nightBefore` (derivable from `weeks` and `startHour`) would save little; geometry dominates.
+- **Gate figures** (latest 30,000 `STR CLEAN` tickets with coordinates, issued 2026-09-11 to 2026-10-05):
+  202 (0.7%) found no candidate; of 29,798 matched, **96.4% consistent (3.6% contradicted)**. Daytime
+  blocks 98.2% (25,007), overnight 86.8% (4,791), 5th-week days 91.9% (1,252). Phase 0's July sample was
+  95.1% overall, 97.5% daytime, 81.2% overnight, so September–October is slightly better; the gate (5%)
+  now has real margin, where Phase 0's figure sat just inside it. Overnight is still the weak spot and
+  the 5th week is still the one reproducible cluster. The newest tickets have no coordinates (the city
+  geocodes with a lag), so the sample is "latest with latitude", not "latest".
+- **Holidays.** The dataset carries a `holidays` flag but not the city's holiday list, so the list was read
+  off tickets: in 2025 `STR CLEAN` tickets fall from about 2,000 a day to under 130 on all eleven federal
+  holidays (including Juneteenth, Columbus/Indigenous Peoples' Day and Veterans Day) **and on the day after
+  Thanksgiving**, and are normal on Christmas Eve and the 26th. In 2026, July 3 (the observed July 4)
+  had 80 tickets, so weekend holidays move to the nearest weekday. `getSweepingHolidays` encodes that.
+  The residue on a holiday is the `holidays = 1` streets. Not checked against the city's published
+  holiday page; a driver is told "probable skip" (`holiday-skip`), never "clear".
+- **Not proven.** That `cnn` is stable across refreshes: only one download exists, so the second run's
+  22,556 carried ids are trivial. Check the report's `retiredIds` after the first real refresh. The
+  side is still unchecked (tickets carry no side), and overnight windows are not checked against signs.
+- **Ticket matching** follows the research (same normalized name within 100 m, else any name within
+  40 m; weekday, nth-weekday and posted window plus one hour). Overnight vs daytime is decided by the
+  nearest candidate posted on the ticket's weekday.

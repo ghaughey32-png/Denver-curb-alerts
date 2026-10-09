@@ -20,6 +20,7 @@
     "events": "node scripts/show-events.js",
     "push": "node scripts/send-push.js",
     "build:mpls-snow": "node scripts/build-minneapolis-snow.js",
+    "build:sf-sweeping": "node scripts/build-sf-sweeping.js",
     "snow": "node scripts/snow.js"
   },
   "dependencies": {
