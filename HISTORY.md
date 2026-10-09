@@ -2309,3 +2309,25 @@ in that week of the month, with the ticket time inside the posted window plus 1 
 - **Not proven:** a per-side check (needs the address parity or curb side of each ticket, which the
   dataset does not carry), stable ids across refreshes, and a sign spot-check. Ticket data lags about
   two months here.
+
+**SF miss clusters (same day, same 40,000 tickets).** Of 40,000 tickets, 36,617 are consistent. Correcting the
+figure above: **4.8% is of the 38,465 tickets that found a same-street segment; counting the 1,535 that
+found none, 8.5% (3,383) do not match.** Where the 3,383 go:
+- **45% (1,535): no same-named segment within 40 m.** Streets such as Geary, Great Hwy, Fairfax, Hyde,
+  Mission and Turk exist in the dataset but not near these tickets. Either blocks are missing from
+  `yhqp-riqs` or the ticket's geocode drifted; relaxing the name match recovers only 321. Not resolved.
+- **34% (1,164): right weekday and week, ticket 0.5–4 h outside the posted window** (441 before the
+  window, 723 after; most are 1–4 h off). Clusters on Howard, Great Hwy, Brannan, Harrison and Folsom
+  (SoMa has several overlapping windows per street). Cause unresolved: tickets issued outside the posted
+  hours, or windows that differ by side and are matched to the wrong one.
+- **12% (391): wrong weekday**; the nearest posted day is the one after the ticket for 172 of them.
+- **9% (293): right weekday, week-of-month flag says no.**
+- **Week definition confirmed.** The nth-occurrence rule (`ceil(day/7)`) scores 95.2%; calendar weeks
+  starting Sunday or Monday score 77.6%. Use nth-occurrence.
+- **5th-week days are the one reproducible cluster.** Tickets on the 29th–31st miss at 15.5% against
+  about 7.7% for other weeks in July; on a second sample (March–June, same days) 5th-week days are 90.2%
+  consistent against 95.5% for days 8–9. 191 of 427 July 5th-week misses had the right weekday and time
+  posted with `week5` = 0. So the 5th-week flag under-reports sweeping. Treat it as a known risk: do not
+  tell a driver a 5th-week day is clear on the data alone. Not yet decided how the build should treat it.
+- **Not a cause:** no single date, holiday or neighbourhood explains the rest; misses by week index are
+  proportional to ticket volume apart from the 5th week.
