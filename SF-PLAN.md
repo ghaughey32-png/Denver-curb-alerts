@@ -251,7 +251,7 @@ land-and-Treasure-Island rings only, not the county's water or the Farallones.
 ### Address search
 
 `findLocalSearchMatch` is Denver's grid and does not apply. Options:
-- *Per-curb house-number ranges (confirmed 2026-10-09; chosen):* the build writes `addresses: [first, last]` on 97% of curbs from dataset `3psu-pn9h`, and the side the number picks explains 96.7% of discriminating tickets. This is about 0.5 MB inside the inventory the
+- *Per-curb house-number ranges (confirmed 2026-10-09; chosen):* the build writes `addresses: [first, last]` on 97% of curbs from dataset `3psu-pn9h`, and the side the number picks explains 96.7% of discriminating tickets. It costs about 0.5 MB inside the inventory the
   page already loads. A typed "1234 Fulton St" places the pin on the right curb and side by parity and
   range, with no third-party geocoder and no privacy-manifest change. San Francisco's streets are named, so
   street search and crossings already work from curb names.
