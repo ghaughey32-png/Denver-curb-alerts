@@ -2289,3 +2289,23 @@ one rating), plus national SpotAngels (raised $2.3 M in 2018, free, 200+ cities 
 - **Conclusion:** the layer cannot by itself say which day applies at a curb. Not shippable as a
   per-curb app. Would need the signs themselves (city sign inventory or the street-level route sheets),
   which I have not found. LA stays ~5/10 for data fit unless that appears.
+
+### SF Phase 0 ticket check (2026-10-09; scripts in the scratchpad, not committed)
+
+40,000 `STR CLEAN` citations from `ab4h-6ztd` (issued 2026-07-02 to 2026-08-06, with coordinates; 373 k
+such citations in 2026 so far) checked against the 37,878 sweeping rows in `yhqp-riqs`. A ticket is
+consistent if any sweeping segment on the **same street name** within 40 m runs on the ticket's weekday,
+in that week of the month, with the ticket time inside the posted window plus 1 hour.
+- **Result: 95.2% consistent** (94.5% with no hour of slack); 1,535 tickets (3.8%) had no same-named
+  segment within 40 m. Misses: 1,164 right weekday but wrong time or week, 391 wrong weekday.
+  Minneapolis's gate was 5% contradiction; SF is 4.8% (higher than Minneapolis's 1.0–2.9%, just inside).
+- **Control:** shifting every ticket's weekday by two days drops it to 33.3%, and shifting its hour by
+  5 h drops it to 1.9%, so the match is far above chance, but the same-street test is lenient: it
+  accepts a match on either side of the street, so it proves the schedule is real, not that the side
+  is right.
+- **What the misses look like:** ticket and posted hours disagree on streets with several overlapping
+  rows (Gough, King, Buchanan, Harrison), many with early-morning 0–2 and 0–6 windows (likely
+  industrial/downtown night sweeping, or tickets geocoded to a cross street). Not yet investigated.
+- **Not proven:** a per-side check (needs the address parity or curb side of each ticket, which the
+  dataset does not carry), stable ids across refreshes, and a sign spot-check. Ticket data lags about
+  two months here.
