@@ -28,9 +28,10 @@ dataset**, so there is no crawl, no coverage audit, and no pink state to invent.
    Copy must say clearly that the app covers sweeping only and signs always win.
 2. **Pricing.** Same StoreKit products as Denver, or per-city? Recommend one subscription across cities
    (Apple ID-keyed, as today) so a Denver subscriber is covered in SF. Needs a decision, not code.
-3. **Notification cadence.** Denver's is 6 pm and 9 pm the night before plus 7:00/7:30/8:00 on the day,
-   because Denver publishes no time. SF has a start hour, so the day-of nags should key off `fromhour`
-   (for example 60, 30 and 10 minutes before). Choose the cadence; do not copy Denver's by default.
+3. **Notification cadence (decided 2026-10-09).** Overnight blocks (below) alert at **6 pm and 8 pm the
+   evening before the sweep**. Daytime blocks' cadence is still open: SF has a start hour, so day-of
+   alerts could key off `fromhour`; do not copy Denver's 6/9 pm + 7:00/7:30/8:00 by default, because those
+   exist only because Denver publishes no time.
 4. **Where do we take the city line and the address search from?** See Phase 3.
 
 ## Phase 0: confirm the gaps (no code, ~1 day)
@@ -98,6 +99,23 @@ deferred per-city on-demand design (AGENTS.md "Before building for a second city
   functionality) risk for multi-city apps and note it in the review notes.
 - Launch-day `appStoreUrl`, and refresh the generated inventory on a schedule (SF edits as needed, so
   refresh before each season boundary is not enough; plan a monthly `--refresh` after launch).
+
+## Overnight blocks and alert copy (decided 2026-10-09)
+
+Day-level alerts are enough; the app does not promise an exact sweep time. Phase 0 found daytime blocks
+(posted start 6 am or later) 97.5% consistent with tickets and overnight blocks 81.2%, and every time
+miss had the right weekday and week. See HISTORY.md § SF missing blocks and time windows.
+
+- **An overnight block** is a row whose posted window starts before 5 am (about 30% of rows). "Tuesday
+  0–2" means 12–2 am Tuesday, so the car must move **Monday night**. Store it as a `nightBefore` flag; the
+  reminder date is the evening before the posted weekday, not the weekday itself.
+- **Notification (6 pm and 8 pm):** "Overnight street sweeping tonight. Move your car."
+- **List / detail view:** "Overnight sweeping, Monday night (posted 12–2 am Tuesday)." The posted hours
+  appear only here, labelled as the posted sign, never as our promise ("check the sign").
+- Do not say "before midnight": some overnight windows start at 3 or 4 am.
+- The 5th-week flag stays unconfirmed (HISTORY.md § SF miss clusters); overnight rows are not yet checked
+  against real signs.
+- Keep this wording in SF-specific code or the city record, not in Denver's copy (Denver publishes no time).
 
 ## Risks
 
