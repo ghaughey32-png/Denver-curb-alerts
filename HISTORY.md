@@ -2269,3 +2269,23 @@ reviewers cite stale dates), Street Cleaning Parking (SF-only, subscription), St
 (2.4 from 29), ParkSafeNow (2.5 from 2), SweepSense (Android), CURB: SF Street Parking (new, June 2026,
 one rating), plus national SpotAngels (raised $2.3 M in 2018, free, 200+ cities claimed). SFMTA issues
 ~500 k sweeping tickets a year (older report). Crowded but low-quality: none found with a large rating base.
+
+**LA spot-check (2026-10-09; scripts in the scratchpad, not committed).** Pulled all 871 features of
+`Posted_Street_Sweeping_Routes_Update` as GeoJSON (38 MB; 436 route bases; data last edited 2026-09-09).
+- **Clean fields:** no nulls, no missing geometry; days Mon–Fri plus 4 downtown "Mon–Fri" rows;
+  weeks `1st & 3rd` (418) / `2nd & 4th` (446) / `Weekly` (6); 23 distinct posted-time strings, so
+  hours are usable.
+- **Polygons are area blobs** (median longest side ~1.3 km, p90 ~2.4 km, max ~7.5 km), not street strips.
+- **A route area holds several polygons with different days** (433 of 436 route bases have more than one;
+  only 33 share identical geometry). E.g. 8P263 M and 8P263 Tu are both Odd with identical boundaries
+  (Franklin–Melrose, Highland–La Brea): the polygon says an address is in the area, not which street gets
+  which day.
+- **Ambiguity measured:** 284 random points inside posted polygons; for the parity cases that matched at
+  least one schedule (328), only 118 (36%) gave a single schedule, 200 (61%) gave two conflicting ones and
+  10 (3%) gave three or four. Random points are not street points and the sample is small, so read it as
+  "most unresolved", not as an exact rate.
+- **Gaps:** of 12 named intersections, 3 matched no polygon (Westwood Blvd & Wilshire, Silver Lake Blvd &
+  Sunset, 1st & Soto in Boyle Heights); DTLA returned a separate weekly 1–4 am route.
+- **Conclusion:** the layer cannot by itself say which day applies at a curb. Not shippable as a
+  per-curb app. Would need the signs themselves (city sign inventory or the street-level route sheets),
+  which I have not found. LA stays ~5/10 for data fit unless that appears.
