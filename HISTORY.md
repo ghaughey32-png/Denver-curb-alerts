@@ -2236,3 +2236,24 @@ the city's page** — verify before any copy ships.
 trigger, towing-severity makes it the highest-value alert), then sweeping by ward section, and treat the
 2-inch ban as a later phase needing a declaration source. Open before building: verify rules on
 chicago.gov; confirm the city's route data is current; per-city on-demand inventory for the bundled app.
+
+### San Francisco and Los Angeles research (2026-10-09)
+
+Same method as Chicago above: portal APIs only, no code, no crawl.
+
+**San Francisco — dataset `yhqp-riqs` (data.sf.gov; data.sfgov.org 301s there), modified 2026-04.**
+Verified rows: one `LineString` per block side, with `cnn` (centerline id), `corridor`, `limits`,
+`cnnrightleft` (L/R), `blockside` (compass), `weekday`, `fromhour`/`tohour` (**posted hours, which
+Denver does not publish**), `week1`…`week5` flags (which weeks of the month), `holidays`, `blocksweepid`.
+This is Denver's shape (per-curb, per-side) with the schedule included: no crawl, no coverage audit.
+Year-round sweeping. Tickets: `ab4h-6ztd`, daily, 24 h lag; street cleaning is by far the top violation
+(`STR CLEAN` 6.77 M + `ST CLEANIN` 2.46 M rows) — usable for validation, as Minneapolis tickets were.
+Fixed hours mean a reminder can name a time. Competition (existing sweeping apps) is not researched.
+
+**Los Angeles — `krk7-ayq2`, last modified 2020-11-30.** Rows carry `route_no`, `cd`, `time_start`,
+`time_end` and `boundaries` as **free text** ("Chandler Bl. to Ventura Fwy / Colfax Av. to Laurel Cyn.
+Bl.") — **no geometry and no day-of-week column in the portal table**, and duplicate routes differ only
+in spacing. A city ArcGIS service `Biweekly_Routes_2021` (posted routes, Aug 2023) may carry geometry
+and days but **could not be queried (HTTP 400 on my URL) — unconfirmed**. Tickets: `4f5p-udkv`, current
+(2026-10-09): `80.69BS NO PARK/STREET CLEAN` is #1 with ~900 k citations since 2025-01-01, with lat/long.
+Largest ticket market, weakest confirmed sweeping data; needs a geometry source found before scoping.
