@@ -2257,3 +2257,15 @@ in spacing. A city ArcGIS service `Biweekly_Routes_2021` (posted routes, Aug 202
 and days but **could not be queried (HTTP 400 on my URL) — unconfirmed**. Tickets: `4f5p-udkv`, current
 (2026-10-09): `80.69BS NO PARK/STREET CLEAN` is #1 with ~900 k citations since 2025-01-01, with lat/long.
 Largest ticket market, weakest confirmed sweeping data; needs a geometry source found before scoping.
+
+**Follow-up, same day.** *LA geometry resolved:* the city's ArcGIS account `services1.arcgis.com/PTh9WC0Sf2WS7AAq`
+(the earlier 400 was a wrong service name) publishes `Posted_Street_Sweeping_Routes_Update`, layer 0,
+**polygons** (max 2000 per query) with `Route`, `Posted_Time` ("8 am - 10 am"), `Posted_Day`, `Weeks`
+("1 & 3"), `Odd_Even` (side by house-number parity), `Route_Type`, `Boundaries`, maintenance district.
+Verified on three rows. It is route-level, not per-curb, and the side comes from address parity rather
+than geometry; LA's weekly/biweekly policy has been changing, so currency is unverified.
+*SF competition (App Store/news snippets, not download counts):* Sweep Alarm (free, 4.5 from ~89 ratings,
+reviewers cite stale dates), Street Cleaning Parking (SF-only, subscription), Street Sweep, Xtreet Parking
+(2.4 from 29), ParkSafeNow (2.5 from 2), SweepSense (Android), CURB: SF Street Parking (new, June 2026,
+one rating), plus national SpotAngels (raised $2.3 M in 2018, free, 200+ cities claimed). SFMTA issues
+~500 k sweeping tickets a year (older report). Crowded but low-quality: none found with a large rating base.
