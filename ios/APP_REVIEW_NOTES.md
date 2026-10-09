@@ -2,7 +2,7 @@
 
 Paste the text below into App Store Connect → App Review Information → Notes for each submission.
 Check it against the build before pasting: the paywall trigger and the notification-permission timing
-were checked against public/app.js on 2026-10-09 (the Swift prompt was not read); the sandbox testing
+were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt at launch); the sandbox testing
 steps were written from AGENTS.md and should be confirmed. Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
@@ -24,7 +24,7 @@ The city switcher in the header changes the map to Minneapolis. The curb map and
 Snow alerts are push notifications sent only when the City of Minneapolis declares a snow emergency, and a person on our team confirms and sends each declaration. No emergency is declared outside winter storms, so you will not see a snow alert during review, and none is expected. This is normal operation, not a missing feature. Snow alerts are included with the same subscription as reminders.
 
 NOTIFICATIONS
-We use notifications for reminders the device schedules locally, and for snow-emergency alerts sent through Apple Push Notification service. The app asks for notification permission only after you tap "Turn on reminders".
+We use notifications for reminders the device schedules locally, and for snow-emergency alerts sent through Apple Push Notification service. The app asks for notification permission only after you tap "Turn on reminders" or "Send test now".
 
 DEVICES
 Runs natively on iPhone and iPad, in all iPad orientations.
