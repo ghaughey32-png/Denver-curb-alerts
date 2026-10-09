@@ -28,10 +28,12 @@ dataset**, so there is no crawl, no coverage audit, and no pink state to invent.
    Copy must say clearly that the app covers sweeping only and signs always win.
 2. **Pricing.** Same StoreKit products as Denver, or per-city? Recommend one subscription across cities
    (Apple ID-keyed, as today) so a Denver subscriber is covered in SF. Needs a decision, not code.
-3. **Notification cadence (decided 2026-10-09).** Overnight blocks (below) alert at **6 pm and 8 pm the
-   evening before the sweep**. Daytime blocks' cadence is still open: SF has a start hour, so day-of
-   alerts could key off `fromhour`; do not copy Denver's 6/9 pm + 7:00/7:30/8:00 by default, because those
-   exist only because Denver publishes no time.
+3. **Notification cadence (decided 2026-10-09).** SF works like Denver: local, on-device reminders the
+   user configures, not server push. **Evening-before reminders only, no sweep-day morning reminders**,
+   for overnight and daytime blocks alike. The user sets the times (up to three per sweep, which also keeps
+   iOS's 64-pending-notification cap in view); defaults are **6 pm and 8 pm**. The "I moved my car"
+   confirmation still removes the pending ones. Consequence to remember: a daytime block swept at midday
+   gets no nudge that morning. Reversible later by adding Denver's sweep-day group.
 4. **Where do we take the city line and the address search from?** See Phase 3.
 
 ## Phase 0: confirm the gaps (no code, ~1 day)
@@ -109,7 +111,7 @@ miss had the right weekday and week. See HISTORY.md § SF missing blocks and tim
 - **An overnight block** is a row whose posted window starts before 5 am (about 30% of rows). "Tuesday
   0–2" means 12–2 am Tuesday, so the car must move **Monday night**. Store it as a `nightBefore` flag; the
   reminder date is the evening before the posted weekday, not the weekday itself.
-- **Notification (6 pm and 8 pm):** "Overnight street sweeping tonight. Move your car."
+- **Notification (default 6 pm and 8 pm, user-configurable, evening before only):** "Overnight street sweeping tonight. Move your car."
 - **List / detail view:** "Overnight sweeping, Monday night (posted 12–2 am Tuesday)." The posted hours
   appear only here, labelled as the posted sign, never as our promise ("check the sign").
 - Do not say "before midnight": some overnight windows start at 3 or 4 am.
