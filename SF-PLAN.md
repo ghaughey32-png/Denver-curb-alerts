@@ -207,7 +207,7 @@ shows most of it already exists, and the real work is elsewhere.
 Design only; nothing in `public/` or `ios/` changes. Measured from the generated `public/sf-sweeping.json`
 and the code in `public/cities.js` / `public/app.js`.
 
-### Two gaps in the Phase 1 data that this phase needs closed first
+### Three gaps in the Phase 1 data that this phase needs closed first
 
 These are changes to `scripts/` and the generated file, which are allowed now.
 
