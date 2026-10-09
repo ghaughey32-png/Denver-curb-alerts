@@ -122,7 +122,7 @@ shows most of it already exists, and the real work is elsewhere.
    expire, so nothing goes stale in a saved set and reminders do not depend on reopening the SF page.
    The serialized curb is a few hundred bytes larger.
 5. **Reminder planning for SF.** Per curb, by schedule type: `nightBefore` gets evening-before jobs only
-   (defaults 6 pm and 8 pm, user-set), a daytime schedule keeps Denver's model. Sets are per-set, so a set
+   (three user-set slots, 6 pm and 8 pm on by default), a daytime schedule keeps Denver's model. Sets are per-set, so a set
    mixing both kinds produces jobs per curb from the same set times; the 6/8 pm defaults apply to
    overnight curbs. The iOS cap is the constraint: a weekly curb with two evening jobs is 16 jobs over the
    8-sweep horizon, and `ReminderScheduler` keeps 21 days and 60 jobs, soonest first, so a driver with
@@ -144,14 +144,34 @@ shows most of it already exists, and the real work is elsewhere.
 3. The reminder planner for overnight and daytime curbs (item 5), with tests for sets that span cities.
 4. SF in the switcher with copy and display (item 6, Phase 3).
 
-### Decisions needed
+### Decisions (answered 2026-10-09)
 
-- **Unconfirmed 5th-week days:** remind (recommended: a spurious reminder costs a moment, a missed one
-  costs a ticket) or stay silent. Either way the UI says "may be swept".
-- **`holiday-skip` days:** suppress the reminder (recommended; tickets fall about 95% on holidays) but show
-  the day as "probably not swept".
-- **Bundle all three cities in the app** (recommended) or download SF on first use.
-- **How many reminder times per sweep** a user may set for SF, given the 60-job cap.
+- **Unconfirmed 5th-week days: remind, with hedged wording.** The reminder says the sweeping is not
+  confirmed for that date, e.g. "Street sweeping may happen tomorrow (a 5th-week day). Check the sign, and
+  move your car to be safe." The curb sheet and list say "May be swept (5th week; not confirmed)". Never
+  "clear".
+- **Holiday-skip days: remind with a double-check message, do not go silent.** Tickets fall about 95% on
+  holidays, so sweeping is probably off, but the city's holiday list is read from tickets, not published
+  data, and a quiet reminder that turns out wrong costs a ticket. The message: "Tomorrow is a holiday.
+  Street sweeping is usually skipped, but double-check the posted sign before you leave your car." Streets
+  with `holidays = 1` get the normal reminder. The curb sheet shows "Holiday: probably not swept; check
+  the sign". (This reverses the earlier recommendation to suppress.)
+- **Bundle all three cities in the app.** *Bundling:* works offline on first launch, no new failure path,
+  no privacy-manifest change, simplest review story, no loading wait when the driver switches city;
+  but the app grows by about 23 MB raw JSON (SF is 983 KB gzipped, so the download grows far less), every
+  install carries cities it never opens, and a data refresh needs a new build because the bundle is frozen
+  until the next release. *Downloading on first use:* smaller install, and a city's data can update without
+  an app release; but it needs a network on first use, adds a failure and loading state, needs storage and
+  a cache-versioning scheme, adds App Review surface, and breaks the offline map. At three cities
+  bundling wins; revisit at a fourth.
+- **Reminder times per sweep: the same model as Denver.** Denver's settings are one evening-before time
+  plus three sweep-day slots, with "keep reminding until I move" adding a later evening check-in and
+  follow-ups. SF **daytime** blocks use exactly that, unchanged. SF **overnight** blocks have no sweep-day
+  half, so the same three-slot control becomes three **evening-before** slots: 6 pm and 8 pm on by
+  default, a third (10 pm) off by default, all user-set. That is the three reminders per sweep you asked
+  for. Cost against the 60-job cap: 3 jobs per sweep, a weekly curb is about 9 jobs in the 21-day window,
+  so a driver can hold roughly six weekly overnight curbs before the soonest-first cut-off starts
+  dropping later jobs, which is no worse than Denver's.
 
 ## Phase 3: SF as a city record (after Build 12)
 
