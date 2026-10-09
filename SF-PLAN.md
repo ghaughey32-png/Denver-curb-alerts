@@ -68,16 +68,90 @@ file is never hand-edited, like `minneapolis-snow.json`). Modeled on `build-mpls
 - Tests: a pure `lib` for the rules (`week` flags to dates, holiday handling, year-round projection), run
   with `npm test`, no network. The date projection must be tested at month boundaries and 5-week months.
 
-## Phase 2: per-city inventory loading (design, then `public/` after Build 12 clears)
+## Phase 2: per-city inventory loading (design written 2026-10-09; code waits for Build 12)
 
-Denver's 12 MB is bundled into the iOS app and fetched once by the page. A third inventory forces the
-deferred per-city on-demand design (AGENTS.md "Before building for a second city").
+This is a design. It changes nothing in `public/` or `ios/`. The earlier draft of this phase assumed a
+new loading mechanism was needed; reading `public/app.js`, `public/cities.js` and the Xcode bundle phase
+shows most of it already exists, and the real work is elsewhere.
 
-- Minneapolis already loads through `loadSnowInventory` and stays out of `sw.js`'s `APP_SHELL`. SF follows
-  that pattern: `inventoryUrl` on its `cities.js` record, `?v=` moves with it, not precached.
-- Decide: bundle SF in the app, or download on first use? About 5 MB is small enough to bundle; Denver
-  plus Minneapolis plus SF is roughly 22 MB. Recommend bundling for v1 and revisiting at city number 4.
-- A header city switcher already exists; choosing by location needs SF added.
+### What is already true
+
+- **The page fetches exactly one city's inventory per load.** The header switcher saves the choice and
+  reloads (`saveCityChoice`), `ACTIVE_CITY` is resolved once, and `loadStaticRouteInventory` /
+  `loadSnowInventory` fetch only `ACTIVE_CITY.inventoryUrl`. Minneapolis stays out of `sw.js`'s
+  `APP_SHELL`. SF follows exactly that: a `?v=` URL, cached on first use, never precached. No download
+  manager, no new cache layer.
+- **iOS bundles all of `public/`** (the "Bundle web app" phase `rsync`s it). With SF that is roughly
+  12 + 4.5 + 6.75 = 23 MB of raw JSON, 983 KB of it gzipped for SF. **Decision: bundle all three.** First
+  launch works offline, there is no new failure path, and nothing changes in the privacy manifest. If the
+  bundle becomes a problem (a fourth city, or raw JSON passing roughly 40 MB), the page already fetches
+  by URL through `BundledWebSchemeHandler`, so moving a city to on-demand resources changes the shell,
+  not the page.
+- **Saved sets are city-agnostic and carry their curbs.** `serializeSegment` stores each saved curb with its
+  geometry and `schedule`, and `getSegmentsForSavedSet` prefers those over the loaded inventory, so
+  `buildNotificationJobs` makes jobs for another city's curbs while a different city is loaded, and
+  `scheduleReminders` (which replaces all pending) receives every city's jobs together. That is the
+  property to protect.
+
+### What has to change
+
+1. **Make curb ids and city rules registry-driven.** `getCurbIdCity` is `startsWith("mpls:") ? ... :
+   "denver"`. An `sf:` id would read as Denver, and on a Denver page `hydrateSavedSet` would prune it from
+   every set (and the account upload would carry the loss to the server). Give each city record an
+   `idPrefix` (Denver's is the empty default), a `kind` (`"sweeping"` | `"snow"`) and an
+   `inventoryFormat`, and look the city up from the id. Grep `mpls:` in `public/`, `lib/`, `server.js`
+   and `ios/` for the other places that assume two cities (`PushRegistrar`'s snow-watching test must
+   keep ignoring `sf:`).
+2. **Fix a bug that exists today, before SF depends on it.** `getRuleBasedSweepDates` reads
+   `CITY_SWEEP_SEASON` from the **active** city. On a Minneapolis page the season is null (every month),
+   so a Denver curb with a monthly rule is projected through December–March and those jobs are handed
+   to the device; on an SF page the same would happen. The season must come from the segment's own city
+   (`schedule.cityId`, or its id prefix). Add a test that a Denver curb projects no winter dates while
+   another city is active.
+3. **A third loader.** Beside `buildInventoryFromRouteMap` (Denver) and `buildSnowDataset` (Minneapolis)
+   add `buildSfDataset(payload)` returning the same `{ streetWays, curbSegments }`. Dispatch on
+   `inventoryFormat` instead of `IS_SNOW_CITY`, and turn the places that test `IS_SNOW_CITY` for "skip
+   Denver's boot" into a property of the city record. SF skips Denver's built-in dataset and its coverage
+   patches.
+4. **How an SF rule becomes dates, and where it lives.** Move the pure date code
+   (`getWeekOfMonth`, `getScheduleStatus`, `getReminderDate`, holidays) from `scripts/lib/sf-sweeping.js`
+   into a UMD `public/sf-schedule.js` in the style of `curb-geometry.js`, and have the script `require` it,
+   so the page and the build share one implementation (the tests already cover it). Then **store the
+   curb's `schedules` on the segment (`schedule.sf`) and project at job time** through a per-city hook
+   that `getUpcomingSweepDates` calls, rather than baking `allDates` into the saved set. Rules do not
+   expire, so nothing goes stale in a saved set and reminders do not depend on reopening the SF page.
+   The serialized curb is a few hundred bytes larger.
+5. **Reminder planning for SF.** Per curb, by schedule type: `nightBefore` gets evening-before jobs only
+   (defaults 6 pm and 8 pm, user-set), a daytime schedule keeps Denver's model. Sets are per-set, so a set
+   mixing both kinds produces jobs per curb from the same set times; the 6/8 pm defaults apply to
+   overnight curbs. The iOS cap is the constraint: a weekly curb with two evening jobs is 16 jobs over the
+   8-sweep horizon, and `ReminderScheduler` keeps 21 days and 60 jobs, soonest first, so a driver with
+   many weekly curbs will hit it. Decide how many times per sweep a user may set before building the UI.
+6. **Display.** Posted hours labelled as the sign's, overnight wording, `unconfirmed` and `holiday-skip`
+   statuses, and the data's `generatedAt` date in the app. Colours are a Phase 3 question.
+7. **Housekeeping the existing tests enforce.** `cities.js` gets the SF record with `inventoryUrl`
+   `./sf-sweeping.json?v=1` and its own `?v=` moves with it; `index.html`/`sw.js` bump `CACHE_NAME`;
+   `test/static-cache-version.test.js` must pass unmodified. City-by-location (`getCityForPoint`) has no
+   overlap between the three bounding boxes. Memory is not a concern: one city is in memory at a time and
+   SF has 22,556 curbs against Denver's 158,000 layers' worth, drawn viewport-culled.
+
+### Order of work after Build 12 clears
+
+1. Registry fields, id-to-city lookup, and the season fix (items 1–2). Benefits Minneapolis today and
+   needs nothing from SF.
+2. `public/sf-schedule.js` and the `buildSfDataset` loader behind a city record that is not yet in the
+   switcher (items 3–4).
+3. The reminder planner for overnight and daytime curbs (item 5), with tests for sets that span cities.
+4. SF in the switcher with copy and display (item 6, Phase 3).
+
+### Decisions needed
+
+- **Unconfirmed 5th-week days:** remind (recommended: a spurious reminder costs a moment, a missed one
+  costs a ticket) or stay silent. Either way the UI says "may be swept".
+- **`holiday-skip` days:** suppress the reminder (recommended; tickets fall about 95% on holidays) but show
+  the day as "probably not swept".
+- **Bundle all three cities in the app** (recommended) or download SF on first use.
+- **How many reminder times per sweep** a user may set for SF, given the 60-job cap.
 
 ## Phase 3: SF as a city record (after Build 12)
 
