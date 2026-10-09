@@ -156,14 +156,27 @@ shows most of it already exists, and the real work is elsewhere.
   Street sweeping is usually skipped, but double-check the posted sign before you leave your car." Streets
   with `holidays = 1` get the normal reminder. The curb sheet shows "Holiday: probably not swept; check
   the sign". (This reverses the earlier recommendation to suppress.)
-- **Bundle all three cities in the app.** *Bundling:* works offline on first launch, no new failure path,
-  no privacy-manifest change, simplest review story, no loading wait when the driver switches city;
-  but the app grows by about 23 MB raw JSON (SF is 983 KB gzipped, so the download grows far less), every
-  install carries cities it never opens, and a data refresh needs a new build because the bundle is frozen
-  until the next release. *Downloading on first use:* smaller install, and a city's data can update without
-  an app release; but it needs a network on first use, adds a failure and loading state, needs storage and
-  a cache-versioning scheme, adds App Review surface, and breaks the offline map. At three cities
-  bundling wins; revisit at a fourth.
+- **Bundling, revised 2026-10-09 for "many more cities soon": bundle only the launch cities as a
+  starting copy, and make every city downloadable and updatable without an app release.** Size is not the
+  problem (ten cities is roughly 70 MB raw and well under the App Store's cellular limit once compressed).
+  *Staleness* is: a bundled city only updates with an app release and Apple's review, SF's schedule changes
+  "as needed" and Denver's routes change each season. Design: each city's file is hosted at a versioned
+  URL with a small manifest listing the current version; the shell serves a downloaded copy from app
+  storage when it has one, else the bundled copy (Denver, Minneapolis, SF), else downloads on first use.
+  New cities are never bundled. Reminders are unaffected: they are saved on the device and scheduled
+  locally, so only browsing the map of a city never opened needs a connection. The page already fetches
+  inventories by URL and knows `HOSTED_APP_ORIGIN`, so the work is in the shell
+  (`BundledWebSchemeHandler`) and a manifest, plus a first-use loading and failure state. This replaces the
+  earlier "bundle all three" recommendation; Phase 2 item 7 and the Phase 4 refresh plan follow it.
+- **Highlighting the uncertainty.** In the app, the word "May" in "May be swept" is set in an amber that is
+  clearly distinct from the pink (no schedule) and plum (no move needed) curb states, and picked by
+  CIELAB distance under simulated deuteranopia like the others; the same amber tints the 5th-week and
+  holiday notices on the curb sheet and list, with the wording carrying the meaning so colour is never the
+  only signal. A local notification cannot colour a word (iOS shows plain text), so the notification
+  carries the hedge in its text and a leading marker instead (e.g. "⚠️ Sweeping may happen tomorrow ..."),
+  which Denver's urgent alerts already do with 😱. The holiday alert gets its own marker (e.g. "🗓️
+  Holiday tomorrow ...") so the two hedges are told apart on the lock screen. The Live Activity and in-app
+  banners can use the amber.
 - **Reminder times per sweep: the same model as Denver.** Denver's settings are one evening-before time
   plus three sweep-day slots, with "keep reminding until I move" adding a later evening check-in and
   follow-ups. SF **daytime** blocks use exactly that, unchanged. SF **overnight** blocks have no sweep-day
