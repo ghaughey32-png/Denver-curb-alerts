@@ -99,3 +99,9 @@ test("a city with no season on its record projects every month", () => {
 
   assert.equal(getRuleBasedSweepDates(RULE_SEGMENT, 8).length, 8);
 });
+
+test("the season comes from Denver's record, not the page's city", () => {
+  // Saved sets hold Denver curbs even on a Minneapolis page, and Minneapolis has no season of its own.
+  const source = fs.readFileSync(APP_PATH, "utf8");
+  assert.match(source, /const CITY_SWEEP_SEASON = window\.CityRegistry\.getCity\("denver"\)\.sweepSeason/);
+});

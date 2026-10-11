@@ -1561,7 +1561,10 @@ const ACTIVE_CITY = window.CityRegistry.getActiveCity();
 const CITY_MAP_BOUNDS = ACTIVE_CITY.bounds;
 const CITY_NAME_PATTERN = new RegExp(`\\b${ACTIVE_CITY.name}\\b`, "i");
 const STATIC_ROUTE_INVENTORY_URL = ACTIVE_CITY.inventoryUrl;
-const CITY_SWEEP_SEASON = ACTIVE_CITY.sweepSeason || null;
+// The monthly-rule projection only ever runs on rule text, and only Denver's curbs carry any. On a
+// Minneapolis page the saved sets still hold Denver curbs, so the season is Denver's, not the page's;
+// otherwise those curbs projected sweeps into December-March and handed the reminders to the device.
+const CITY_SWEEP_SEASON = window.CityRegistry.getCity("denver").sweepSeason || null;
 // A snow city sells alerts for snow emergencies, not sweeping: its curbs carry the days parking is
 // banned rather than a sweep schedule, and its data loads through loadSnowInventory.
 const IS_SNOW_CITY = ACTIVE_CITY.kind === "snow";
