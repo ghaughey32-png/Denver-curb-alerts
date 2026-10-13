@@ -4196,14 +4196,32 @@ function renderSnowBanner() {
   const banned = getSnowBannedSavedStreets(copy.day);
   const saved = getRemindedSegmentIds().size;
   if (banned.length) {
-    const names = [...new Set(banned)].slice(0, 2).join(" and ");
-    const more = banned.length > 2 ? ` and ${banned.length - 2} more` : "";
-    snowBannerYours.textContent = `${banned.length === 1 ? "A saved curb is" : `${banned.length} saved curbs are`} banned on Day ${copy.day}: ${names}${more}.`;
+    snowBannerYours.textContent = `${banned.length === 1 ? "A saved curb is" : `${banned.length} saved curbs are`} banned on Day ${copy.day}: ${formatSnowStreetList(banned)}.`;
   } else if (saved) {
     snowBannerYours.textContent = `None of your saved curbs are banned on Day ${copy.day}.`;
   } else {
     snowBannerYours.textContent = "Tap the colored curb where you park to see if it is banned.";
   }
+
+  // A curb that is fine today may be banned on a later day, which is the one a driver forgets. Say so
+  // here, with the time the server gave, instead of leaving it to the push alone.
+  for (const ban of snowEmergency.bans) {
+    if (ban.day <= copy.day) {
+      continue;
+    }
+    const later = getSnowBannedSavedStreets(ban.day).filter((street) => !banned.includes(street));
+    if (later.length) {
+      const names = formatSnowStreetList(later);
+      snowBannerYours.textContent += ` ${names} ${new Set(later).size === 1 ? "is" : "are"} banned on Day ${ban.day}, ${formatSnowInstant(ban.at, now)}.`;
+    }
+  }
+}
+
+// Up to two street names, then a count of the rest.
+function formatSnowStreetList(streets) {
+  const unique = [...new Set(streets)];
+  const more = unique.length > 2 ? ` and ${unique.length - 2} more` : "";
+  return `${unique.slice(0, 2).join(" and ")}${more}`;
 }
 
 function buildSnowSchedule(curb) {

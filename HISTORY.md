@@ -2179,6 +2179,21 @@ it was checked by writing an active record into a scratch `DATA_DIR` and opening
 Denver page, which switched to Minneapolis and showed the Day 1 announcement. Not yet seen against a
 real declaration: the day-in-force wording for Days 2 and 3 (read only from the `bans` timestamps).
 
+**First real declaration, 2026-10-13.** Run against production on the author's own phone, the only
+Minneapolis phone then registered (`npm run snow -- declare --day1=2026-10-14`, dry run first, then
+`--send`, then `cancel --send`). The dry run's timeline matched `lib/snow.js` (declaration now, Day 1 at
+7:30 pm, Days 2 and 3 at 8 pm the evening before and 7 am) and reached 1, 0, 0, 0, 1, 1 phones; the
+saved curb, Aldrich Ave S, is banned on Day 3 only. The declaration push arrived on the lock screen
+("Snow emergency declared. Move your car off Aldrich Ave S by 8am Friday"), the in-app banner read "Day 1
+parking ban on snow emergency routes begins Wednesday at 9pm", followed by "None of your saved curbs are
+banned on Day 1", and the cancel push arrived on the phone and the Apple Watch. The server refuses a
+`--day1` more than a few days from today (400). Still unseen: the banner's Day 2 and Day 3 wording, and
+a notice in the city's banner file. The poller's email path was tested only against the outbox; the
+`support@curbalerts.co` forwarding to Gmail was confirmed by hand. A `--refresh --dry-run` of
+`build:mpls-snow` the same day found the city's data unchanged (24,591 curbs, 0 ids retired, tickets 97.1%,
+98.8% and 99.0% explained). Because that left the banner silent about a curb banned only on Day 3, the
+"yours" line now also names saved curbs banned on later days, with the server's time.
+
 **Build 10, uploaded 2026-10-01,** carries the Minneapolis snow alerts and was exported with `testFlightInternalTestingOnly`, at the author's request, so it can never join an external group. Both subscription products, the yearly 14-day free trial, the 16-day Billing Grace Period and both server-notification URLs were confirmed in App Store Connect first.
 
 **Build 11, uploaded 2026-10-02,** is build 10 plus the paywall fix (the purchase callback dismissed the sheet off the main thread and crashed a Debug run under the Main Thread Checker). Exported **without** the internal-only key, so it can go to App Review; it replaces build 8, which predates the paywall, as the submission candidate. Build 10 stays internal-only.

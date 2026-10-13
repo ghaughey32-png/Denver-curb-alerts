@@ -39,3 +39,10 @@ test("the legal pages name the snow alerts they sell and the data they use", () 
   assert.match(indexSource, /Minneapolis snow emergency alerts need a subscription/);
   assert.match(indexSource, /snow emergency parking data published\s+by the City of Minneapolis/);
 });
+
+test("the banner names a saved curb that is banned on a later day, with the time the server gave", () => {
+  const body = appSource.slice(appSource.indexOf("function renderSnowBanner"), appSource.indexOf("function buildSnowSchedule"));
+  assert.match(body, /for \(const ban of snowEmergency\.bans\)/);
+  assert.match(body, /if \(ban\.day <= copy\.day\)/);
+  assert.match(body, /formatSnowInstant\(ban\.at, now\)/);
+});
