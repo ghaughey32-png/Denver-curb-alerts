@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Denver Curb Alerts | Street Sweeping Reminders</title>
+    <title>Curb Alerts | Street Sweeping Reminders</title>
     <meta
       name="description"
-      content="Avoid surprise Denver street sweeping tickets. Tap the curb where you park, see its next sweep date, and get a reminder before it happens."
+      content="Avoid surprise street sweeping tickets in Denver and San Francisco. Tap the curb where you park, see its next sweep date, and get a reminder before it happens."
     />
     <link rel="canonical" href="https://www.curbalerts.co/" />
     <meta name="theme-color" content="#c95d2a" />
@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20261008-narrow-shell" />
+    <link rel="stylesheet" href="./styles.css?v=20261026-sf-phase3" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -79,9 +79,9 @@
       <section class="app-view landing-view is-active" data-view="landing">
         <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Denver street sweeping alerts</p>
+          <p class="eyebrow" id="hero-eyebrow">Denver street sweeping alerts</p>
           <h1>Avoid surprise street sweeping tickets.</h1>
-          <p class="hero-text">
+          <p class="hero-text" id="hero-text">
             Tap the curb where you park. We'll show you when Denver sweeps it, and remind you before it happens.
           </p>
           <div class="hero-cta-row">
@@ -123,7 +123,7 @@
         <button id="dismiss-onboarding-button" class="ghost-button onboarding-dismiss" type="button">Got it</button>
       </section>
 
-      <section class="value-grid" aria-label="Why Denver Curb Alerts helps">
+      <section class="value-grid" aria-label="Why Curb Alerts helps">
         <article class="value-card beta-note">
           <p class="section-kicker">A note<span class="note-alert" aria-hidden="true">!</span></p>
           <h2>Still follow the signs.</h2>
@@ -195,7 +195,7 @@
           <details class="map-details">
             <summary>
               <span class="map-details-swatches" aria-hidden="true">
-                <span class="legend-dot green"></span><span class="legend-dot orange"></span><span class="legend-dot red"></span><span class="legend-dot blue"></span><span class="legend-dot plum"></span><span class="legend-dot pink"></span><span class="legend-dot gray"></span>
+                <span class="legend-dot green"></span><span class="legend-dot orange"></span><span class="legend-dot red"></span><span class="legend-dot blue"></span><span class="legend-dot plum" data-denver-only></span><span class="legend-dot pink" data-denver-only></span><span class="legend-dot gray" data-denver-only></span>
               </span>
               <span class="map-details-label">What do the colors mean?</span>
               <span class="map-details-toggle" aria-hidden="true"></span>
@@ -205,9 +205,9 @@
               <span class="legend-item"><span class="legend-dot orange"></span> South curb of east-west streets</span>
               <span class="legend-item"><span class="legend-dot red"></span> East curb of north-south streets</span>
               <span class="legend-item"><span class="legend-dot blue"></span> West curb of north-south streets</span>
-              <span class="legend-item"><span class="legend-dot plum"></span> Plum: swept on a schedule, but you do not need to move your car</span>
-              <span class="legend-item"><span class="legend-dot pink"></span> Pink: no Denver sweeping schedule found — check with Denver, and use caution</span>
-              <span class="legend-item"><span class="legend-dot gray"></span> Gray: no Denver sweeping — street not maintained by Denver</span>
+              <span class="legend-item" data-denver-only><span class="legend-dot plum"></span> Plum: swept on a schedule, but you do not need to move your car</span>
+              <span class="legend-item" data-denver-only><span class="legend-dot pink"></span> Pink: no Denver sweeping schedule found — check with Denver, and use caution</span>
+              <span class="legend-item" data-denver-only><span class="legend-dot gray"></span> Gray: no Denver sweeping — street not maintained by Denver</span>
             </div>
 
             <p class="map-note">
@@ -603,18 +603,19 @@
         <main class="legal-page">
           <article class="legal-card">
             <p class="section-kicker">Terms of use</p>
-            <h1>Terms for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated October 1, 2026</p>
+            <h1>Terms for Curb Alerts</h1>
+            <p class="legal-updated">Last updated October 26, 2026</p>
 
             <div class="legal-copy">
               <p>
-                Curb Alerts also covers snow emergencies in Minneapolis: the map shows which side of each street the
-                city bans parking on, on each day of a declared snow emergency, and the iPhone app can alert you when
-                one is declared. Everything below applies to those alerts as it does to street sweeping reminders.
+                Curb Alerts covers street sweeping in Denver and San Francisco, and snow emergencies in Minneapolis.
+                For Minneapolis, the map shows which side of each street the city bans parking on, on each day of a
+                declared snow emergency, and the iPhone app can alert you when one is declared. Everything below
+                applies to each city as it does to the others.
               </p>
               <p>
-                Denver Curb Alerts is a reminder tool built to help drivers remember posted Denver street sweeping
-                restrictions. It is operated by Curb Alerts LLC ("we" and "us" in these terms). By using the app, you
+                Curb Alerts is a reminder tool built to help drivers remember posted street sweeping
+                restrictions in Denver and San Francisco. It is operated by Curb Alerts LLC ("we" and "us" in these terms). By using the app, you
                 agree to use it as an extra reminder and not as a replacement for checking posted signs, city rules, or
                 your own parking situation.
               </p>
@@ -622,7 +623,14 @@
               <h2>Your responsibility</h2>
               <p>
                 You are responsible for parking legally. Street signs, temporary city notices, emergency restrictions,
-                construction, weather, and official Denver rules always control over anything shown in this app.
+                construction, weather, and official city rules always control over anything shown in this app.
+              </p>
+              <p>
+                In San Francisco, street sweeping is enforced from the signs posted on each block, and the sign always
+                wins. Our San Francisco map follows the City and County of San Francisco's published schedule, which
+                can differ from the sign on a given block. The hours we show are the posted hours, not a promise of
+                when a sweeper will come, and a 5th-week day or a holiday may be swept or skipped contrary to what the
+                schedule says. Read the sign before you leave your car.
               </p>
 
               <!-- Reminders in the iPhone app are sold, decided 2026-09-23; see "The reminders are what
@@ -633,7 +641,7 @@
               <h2>What it costs</h2>
               <p>
                 The map, address search, curb colors, and saved curbs are free. In the Curb Alerts iPhone app, street sweeping
-                reminders and Minneapolis snow emergency alerts need a subscription, sold by Apple through the App Store. The plans and their prices are shown in
+                reminders and Minneapolis snow emergency alerts need a subscription, and one subscription covers every city. It is sold by Apple through the App Store. The plans and their prices are shown in
                 the app and on the App Store before you buy, and a free trial is offered on the yearly plan to people who have
                 not had one.
               </p>
@@ -659,8 +667,8 @@
                 We may change, add, pause, or stop features as the app improves.
               </p>
               <p>
-                Curb coverage is best effort and always will be. Denver's published sweeping data is incomplete in places,
-                the city changes schedules, and nothing here guarantees that a given block is correct or that a reminder
+                Curb coverage is best effort and always will be. Each city's published sweeping data is incomplete in places,
+                cities change schedules, and nothing here guarantees that a given block is correct or that a reminder
                 will arrive. See the Disclaimer for what that means in practice.
               </p>
 
@@ -693,12 +701,12 @@
         <main class="legal-page">
           <article class="legal-card">
             <p class="section-kicker">Privacy</p>
-            <h1>Privacy for Denver Curb Alerts</h1>
-            <p class="legal-updated">Last updated October 1, 2026</p>
+            <h1>Privacy for Curb Alerts</h1>
+            <p class="legal-updated">Last updated October 26, 2026</p>
 
             <div class="legal-copy">
               <p>
-                Denver Curb Alerts is operated by Curb Alerts LLC, which is the "we" on this page.
+                Curb Alerts is operated by Curb Alerts LLC, which is the "we" on this page.
               </p>
               <p>
                 We collect only what the app needs to help you create and receive curb reminders. Your location is used to
@@ -727,7 +735,11 @@
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
                   account, so your saved curb sets can follow you to another device. We never store your actual password.
                 </li>
-                <li>Your approximate or precise location only when you tap Use my location, so the map can move to you.</li>
+                <li>
+                  Your approximate or precise location when you tap Use my location, so the map can move to you, and, the
+                  first time you open the iPhone app, once, so it can open the city you are in. That position is used on
+                  your phone to choose a city; it is not stored and not sent to us.
+                </li>
                 <li>
                   Where you parked, only when you tap Park here or I parked here. The pin is kept on your device and
                   cleared when you move your car or clear it yourself. The iPhone app tells us which curb the pin is on,
@@ -752,7 +764,7 @@
               <p>
                 The app is hosted on Render, which also hosts the database holding accounts and reminder schedules. It uses
                 browser push services operated by your browser vendor, Apple's push notification service for the iPhone app, map tiles and street data from OpenStreetMap, and
-                street sweeping data published by the City and County of Denver, and snow emergency parking data published
+                street sweeping data published by the City and County of Denver and the City and County of San Francisco, and snow emergency parking data published
                 by the City of Minneapolis. Those services may process basic technical
                 information needed to load maps, routes, and notifications.
               </p>
@@ -807,18 +819,25 @@
           <article class="legal-card">
             <p class="section-kicker">Disclaimer</p>
             <h1>Important parking disclaimer</h1>
-            <p class="legal-updated">Last updated October 1, 2026</p>
+            <p class="legal-updated">Last updated October 26, 2026</p>
 
             <div class="legal-copy">
               <p>
-                Denver Curb Alerts is an informational reminder app. It is not legal advice, not an official City and County
-                of Denver service, and not a guarantee that you will avoid a parking ticket.
+                Curb Alerts is an informational reminder app. It is not legal advice, not an official service of the City
+                and County of Denver or the City and County of San Francisco, and not a guarantee that you will avoid a
+                parking ticket.
               </p>
               <p>
                 The same is true of the Minneapolis snow emergency map and alerts: they are not an official City of
                 Minneapolis service. The map is built from the city's published open data, where the city's own datasets
                 sometimes disagree, and a snow emergency alert is sent only after we have confirmed the city's declaration.
                 The city's announcement and the posted signs always control.
+              </p>
+              <p>
+                San Francisco street sweeping is enforced from the posted signs. Our San Francisco map is built from the
+                city's published schedule, which can differ from the sign on a given block, and it shows the hours the
+                schedule posts, not a promise about when a sweeper will come. A 5th-week day or a holiday may be swept or
+                skipped contrary to the schedule. The sign always controls.
               </p>
 
               <h2>Always check the signs</h2>
@@ -852,7 +871,7 @@
         <!-- The operator is named on every page, not only inside the Terms: Apple's organization
              enrollment checks that the website belongs to the entity enrolling, and this footer is
              what a reviewer sees first. Keep it identical to the legal name D&B holds. -->
-        <span>Denver Curb Alerts is a reminder tool for Denver drivers, operated by Curb Alerts LLC.</span>
+        <span>Curb Alerts is a reminder tool for drivers in Denver, San Francisco and Minneapolis, operated by Curb Alerts LLC.</span>
         <div class="legal-footer-links">
           <button class="legal-link" type="button" data-view-target="terms">Terms</button>
           <button class="legal-link" type="button" data-view-target="privacy">Privacy</button>
@@ -1050,7 +1069,65 @@
               <p class="reminder-summary"></p>
             </span>
           </div>
-          <label class="reminder-row reminder-row-featured">
+          <div class="reminder-group overnight-group" data-model="overnight" hidden>
+            <div class="reminder-group-head">
+              <span>
+                <span class="reminder-kicker">Overnight sweeping</span>
+                <span class="reminder-label">Evening reminders</span>
+              </span>
+              <span class="reminder-count">Up to 3</span>
+              <span class="reminder-help">These curbs are swept in the small hours, so the car has to move the evening before. Choose when you want to be reminded.</span>
+            </div>
+            <label class="reminder-row">
+              <span class="reminder-copy">
+                <span class="reminder-slot-number">01</span>
+                <span class="reminder-slot-label">First reminder</span>
+              </span>
+              <span class="reminder-controls">
+                <span class="reminder-switch-wrap">
+                  <input class="reminder-toggle overnight-enabled" data-slot="0" type="checkbox" />
+                  <span class="reminder-switch" aria-hidden="true"></span>
+                </span>
+                <span class="time-input-wrap">
+                  <span class="time-input-icon" aria-hidden="true"></span>
+                  <input class="time-input overnight-time" data-slot="0" type="time" aria-label="First evening reminder time" />
+                </span>
+              </span>
+            </label>
+            <label class="reminder-row">
+              <span class="reminder-copy">
+                <span class="reminder-slot-number">02</span>
+                <span class="reminder-slot-label">Second reminder</span>
+              </span>
+              <span class="reminder-controls">
+                <span class="reminder-switch-wrap">
+                  <input class="reminder-toggle overnight-enabled" data-slot="1" type="checkbox" />
+                  <span class="reminder-switch" aria-hidden="true"></span>
+                </span>
+                <span class="time-input-wrap">
+                  <span class="time-input-icon" aria-hidden="true"></span>
+                  <input class="time-input overnight-time" data-slot="1" type="time" aria-label="Second evening reminder time" />
+                </span>
+              </span>
+            </label>
+            <label class="reminder-row">
+              <span class="reminder-copy">
+                <span class="reminder-slot-number">03</span>
+                <span class="reminder-slot-label">Final reminder</span>
+              </span>
+              <span class="reminder-controls">
+                <span class="reminder-switch-wrap">
+                  <input class="reminder-toggle overnight-enabled" data-slot="2" type="checkbox" />
+                  <span class="reminder-switch" aria-hidden="true"></span>
+                </span>
+                <span class="time-input-wrap">
+                  <span class="time-input-icon" aria-hidden="true"></span>
+                  <input class="time-input overnight-time" data-slot="2" type="time" aria-label="Final evening reminder time" />
+                </span>
+              </span>
+            </label>
+          </div>
+          <label class="reminder-row reminder-row-featured" data-model="day">
             <span class="reminder-copy">
               <span class="reminder-kicker">The night before</span>
               <span class="reminder-label">Evening heads-up</span>
@@ -1067,7 +1144,7 @@
               </span>
             </span>
           </label>
-          <div class="reminder-group">
+          <div class="reminder-group" data-model="day">
             <div class="reminder-group-head">
               <span>
                 <span class="reminder-kicker">Sweep day</span>
@@ -1129,7 +1206,7 @@
             <span class="reminder-copy">
               <span class="reminder-kicker">Until it's done</span>
               <span class="reminder-label">Keep reminding me</span>
-              <span class="reminder-help">A check-in at 9 PM the night before, then two more 30 minutes apart after your first morning reminder. Stops when you tap I moved my car.</span>
+              <span class="reminder-help nag-help">A check-in at 9 PM the night before, then two more 30 minutes apart after your first morning reminder. Stops when you tap I moved my car.</span>
             </span>
             <span class="reminder-controls">
               <span class="reminder-switch-wrap">
@@ -1164,8 +1241,9 @@
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./minneapolis-city-limits.js?v=20261001-mpls-limits"></script>
-    <script src="./cities.js?v=20261026-sf-record-inv98"></script>
+    <script src="./sf-city-limits.js?v=20261026-sf-limits2"></script>
+    <script src="./cities.js?v=20261026-sf-on-inv98"></script>
     <script src="./sf-schedule.js?v=20261026-sf-schedule"></script>
-    <script src="./app.js?v=20261026-sf-reminders"></script>
+    <script src="./app.js?v=20261026-sf-phase3c"></script>
   </body>
 </html>

@@ -2422,3 +2422,42 @@ Phase 1 of SF-PLAN.md: `scripts/build-sf-sweeping.js` and `scripts/lib/sf-sweepi
   explains the ticket **23,055 times against 777 for the other side (96.7%)**. So the L/R flag, the
   derived sides and the ranges all agree with what the city enforces. (Exploratory script in the
   scratchpad, not committed; the build's gate is unchanged.)
+
+## SF Phase 3 build (2026-10-26)
+
+SF's visible half, built behind `enabled: false` on its city record. The author approved the legal copy
+([SF-LEGAL-DRAFT.md](SF-LEGAL-DRAFT.md)) the same day, and it went into index.html in the same commit that
+set `enabled: true`, as AGENTS.md requires. The iPhone app has not shipped with SF yet (Phase 4).
+
+- **Data refresh.** `npm run build:sf-sweeping -- --refresh` on 2026-10-26 (17 days after the first build):
+  **not one curb changed** (22,556, 0 ids retired); only `generatedAt` moved, so the inventory URL went to
+  `?v=2`. Against 30,000 tickets written 2026-09-29 to 2026-10-22: 97.3% consistent (813 contradicted),
+  0.8% with no candidate curb; **daytime 97.9%, overnight 93.9%** (the plan quoted 81.2% for overnight from
+  Phase 0, measured on a different ticket sample and before sides and ranges were fixed), 5th-week days 95.1%.
+- **City line.** OpenStreetMap relation 111968 (San Francisco) has two outer rings; the Farallones ring is
+  dropped. The mainland ring is the legal line, so it runs through the bay and ocean; drawing it as an
+  outline put a red line across the bay at city zoom. `OUTLINE_PATHS` draws only the stretches within 400 m
+  of a curb, which is the Daly City border; the wash (ring pushed out 20 m) still covers the land across the
+  water. **47 of 59,020 curb points** on 17 streets that run on past the OSM line at the southern border sit
+  under the wash (up to about 100 m); the test budgets 60, as Denver budgets its stubs.
+- **Address search.** Per-curb ranges place a typed number on the right curb and side: 21,876 of 21,896
+  ranged curbs resolve from a number inside their own range, and 21,874 land on the exact curb. Two bugs
+  were found by running every ranged curb through it, not by the hand-picked cases: stripping ", CA" with a
+  pattern also removed "California St" (now the text is cut at the first comma), and Denver's search key
+  drops suffixes, which merges "5th St" with "5th Ave" and "1st St" with "1st Ave" (SF has both), so SF
+  has its own suffix-and-direction-exact key. A name shared by two streets is not guessed without the suffix.
+  The 20 misses are street names that contain a comma ("Octavia St, Frontage West").
+- **Sweep-day banner.** SF publishes hours, so the banner stops asking "did you move your car?" once a
+  window has ended, and an overnight curb is asked about from its first evening reminder rather than the
+  daytime heads-up. Denver has no hours and is unchanged. (Found by looking at the page: an overnight sweep
+  that ended at 6 am was still asking at 9 am.)
+- **Amber.** The hedge word ("May", "probably") is `#8a5a00`: CIELAB distance from pink / plum / gray of 85 /
+  100 / 60 in normal vision and 45 / 91 / 58 under simulated deuteranopia. It is text on the sheet, never on
+  the map, so closeness to the south-curb orange is not a concern.
+- **First-launch city choice.** `chooseCityFromLocationOnce` opens the city the phone is in, once. The native
+  shell asks Core Location (its own prompt); a browser is asked only when location is already allowed, so a
+  website visit never opens a prompt on load. The attempt is recorded either way. This is the first time the
+  iPhone app asks for location at launch, so the permission text now says it also opens the city you are in,
+  and the Privacy copy in the draft says so.
+- **Paywall.** "A Denver street sweeping ticket costs $50." became "A street sweeping ticket can cost $50 to
+  $200." as a placeholder, flagged in IDEAS.md to confirm each city's fine from its own source.

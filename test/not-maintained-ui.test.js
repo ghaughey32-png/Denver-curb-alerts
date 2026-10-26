@@ -51,7 +51,8 @@ test("no-relocation curbs get their own colour, distinct from every other state"
   assert.match(styles, /\.plum \{\s*background: #8e44ad;/);
   // One colour decision, shared by the live and embedded datasets, so they cannot drift.
   assert.match(app, /function getCurbColor\(schedule, sideColor\)/);
-  assert.equal(app.match(/getCurbColor\(/g).length, 3);
+  // The definition, the live and embedded Denver datasets, and San Francisco's side colours.
+  assert.equal(app.match(/getCurbColor\(/g).length, 4);
   assert.doesNotMatch(app, /color: scheduleInfo \? sideDef\.color : colors\.unavailable/);
 });
 

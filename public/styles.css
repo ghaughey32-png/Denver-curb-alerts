@@ -3434,3 +3434,20 @@ a.ghost-button {
   opacity: 0.55;
   cursor: progress;
 }
+
+/* San Francisco and the other cities after Denver. */
+
+/* A reminder model a set's curbs do not use is hidden; `hidden` alone loses to the display these
+   classes set. */
+.reminder-row[data-model][hidden],
+.reminder-group[data-model][hidden] {
+  display: none;
+}
+
+/* The one word of a headline that carries the doubt ("May be swept", "probably not swept"). Picked by
+   CIELAB distance from pink, plum and gray, normal vision and simulated deuteranopia (at least 45 from
+   each). The wording says the same without the colour, so it is never the only signal. */
+.hedge-word {
+  color: #8a5a00;
+  font-weight: 800;
+}

@@ -1568,6 +1568,12 @@ const CITY_SWEEP_SEASON = window.CityRegistry.getCity("denver").sweepSeason || n
 // A snow city sells alerts for snow emergencies, not sweeping: its curbs carry the days parking is
 // banned rather than a sweep schedule, and its data loads through loadSnowInventory.
 const IS_SNOW_CITY = ACTIVE_CITY.kind === "snow";
+// Only Denver's inventory comes with a street underlay and a built-in dataset; every other city draws
+// its curb lines alone and loads its own file.
+const IS_DENVER_FORMAT = ACTIVE_CITY.inventoryFormat === "denver-routes";
+const IS_SF_CITY = ACTIVE_CITY.inventoryFormat === "sf-sweeping";
+// The city page's own wording, where its record has any; Denver's stays in index.html and below.
+const CITY_PAGE_COPY = ACTIVE_CITY.pageCopy || null;
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
 const PUSH_PRIMER_DISMISSED_KEY = "denver-curb-alerts-push-primer-dismissed";
 const MOVED_SWEEPS_KEY = "denver-curb-alerts-moved-sweeps";
@@ -4299,8 +4305,7 @@ function buildSnowDataset(payload) {
 
 // One SF curb into the shape the map and the reminder planner already read. The posted windows ride
 // along as `schedule.sf` (see getSfSweepDates) and no dates are baked in. `sweepType` is "Scheduled" so
-// the Denver-shaped code that asks "is this swept on a schedule" answers yes; colours and the sheet's
-// wording are Phase 3, so `color` is a neutral placeholder here.
+// the Denver-shaped code that asks "is this swept on a schedule" answers yes.
 function buildSfSchedule(curb) {
   const windows = Array.isArray(curb.schedules) ? curb.schedules : [];
   const nightBefore = windows.some((item) => item.nightBefore);
@@ -4328,6 +4333,7 @@ function buildSfDataset(payload) {
     }
 
     const name = curb.street || "San Francisco street";
+    const schedule = buildSfSchedule(curb);
     // As in Minneapolis the curb line is already on the curb's side, so the way carries the same line
     // for street search.
     streetWays.push({
@@ -4346,15 +4352,75 @@ function buildSfDataset(payload) {
       // parked-car pin cannot derive it the way it does for Denver's "<way>:<side>" ids.
       oppositeId: curb.opposite || null,
       addresses: Array.isArray(curb.addresses) ? curb.addresses : null,
-      color: "#7b8790",
+      // Denver's four side colours, so the map reads the same in every city. SF has no pink, plum or
+      // gray: a curb is in the city's schedule or it is not drawn.
+      color: getCurbColor(schedule, colors[curb.sideKey]),
       geometry: curb.geometry,
       highway: "residential",
-      schedule: buildSfSchedule(curb)
+      schedule
     });
   });
 
   return { streetWays, curbSegments };
 }
+
+// Puts a city's own wording on the landing page and map where it names the city. Denver's copy is the
+// markup's default and is never touched here.
+// First visit with no city chosen: if the phone already knows where it is, open that city. Once only,
+// recorded either way. The native shell answers from Core Location (its own permission); a browser is
+// asked only when it has already been allowed, so a website visit never opens a location prompt on load.
+// The header switcher stays the way to choose by hand, and the position is never stored or sent.
+async function chooseCityFromLocationOnce() {
+  const registry = window.CityRegistry;
+  if (registry.hasStoredCityChoice() || registry.hasTriedLocatingCity() || registry.listCities().length < 2) {
+    return;
+  }
+
+  registry.markTriedLocatingCity();
+  try {
+    const nativeBridge = getNativeReminderBridge();
+    const mayAsk = typeof nativeBridge?.getCurrentPosition === "function";
+    if (!mayAsk) {
+      const permission = await navigator.permissions?.query?.({ name: "geolocation" });
+      if (permission?.state !== "granted") {
+        return;
+      }
+    }
+
+    const position = await getDevicePosition({ maximumAge: 10 * 60 * 1000 });
+    const city = registry.getCityForPoint(position.latitude, position.longitude);
+    if (city && city.id !== ACTIVE_CITY.id && registry.saveCityChoice(city.id)) {
+      window.location.reload();
+    }
+  } catch (error) {
+    // Denied, unavailable or slow: stay on the default city; the switcher is one tap away.
+  }
+}
+
+function applyCityPageCopy() {
+  if (!CITY_PAGE_COPY) {
+    return;
+  }
+
+  document.body.classList.add(`city-${ACTIVE_CITY.id}`);
+  const setText = (selector, text) => {
+    const element = document.querySelector(selector);
+    if (element && text) {
+      element.textContent = text;
+    }
+  };
+  setText("#hero-eyebrow", CITY_PAGE_COPY.eyebrow);
+  setText("#hero-text", CITY_PAGE_COPY.heroText);
+  setText("#map-loading-title", CITY_PAGE_COPY.loadingTitle);
+  document.querySelector("#map")?.setAttribute("aria-label", CITY_PAGE_COPY.mapLabel);
+  // The pink, plum and gray states are Denver's; a city that has none must not explain them.
+  document.querySelectorAll("[data-denver-only]").forEach((element) => {
+    element.style.display = "none";
+  });
+}
+
+// When the data was built, shown on the curb sheet so a driver can judge how fresh it is.
+let sfDataGeneratedAt = null;
 
 async function loadSfInventory() {
   try {
@@ -4363,6 +4429,7 @@ async function loadSfInventory() {
       throw new Error(`The saved ${ACTIVE_CITY.name} street sweeping map could not be loaded.`);
     }
     const payload = await response.json();
+    sfDataGeneratedAt = payload.generatedAt || null;
     const { streetWays, curbSegments } = buildSfDataset(payload);
     if (!curbSegments.length) {
       throw new Error(`The saved ${ACTIVE_CITY.name} street sweeping map is empty.`);
@@ -5220,6 +5287,167 @@ function buildLocalMatchStatusText(localMatch) {
   return `Denver's address lookup is down, so I placed ${localMatch.label} on ${localMatch.matchedStreet}${nearCrossStreet} from the curb map. Tap a colored curb nearby to see its schedule.`;
 }
 
+// San Francisco's address search: the curb file carries each side's first and last house number, so a
+// typed "1234 Fulton St" lands on the curb whose range holds the number and whose parity matches, at its
+// place along the block. No geocoder is involved. Where the number cannot be placed this returns null and
+// the caller falls back to the street, as Denver's search does.
+let sfCurbsByStreetCache = null;
+
+// San Francisco has both "5th St" and "5th Ave", "1st St" and "1st Ave", so unlike Denver's search key
+// this one keeps the suffix and the direction, spelled one way: a number on the wrong street would put
+// the driver on a different curb entirely.
+const SF_STREET_WORDS = {
+  street: "st", avenue: "ave", boulevard: "blvd", court: "ct", drive: "dr", place: "pl", road: "rd", lane: "ln",
+  terrace: "ter", alley: "aly", highway: "hwy", parkway: "pkwy", circle: "cir", plaza: "plz",
+  north: "n", south: "s", east: "e", west: "w"
+};
+const SF_STREET_SUFFIXES = new Set(["st", "ave", "blvd", "ct", "dr", "pl", "rd", "ln", "ter", "aly", "hwy", "pkwy", "cir", "plz", "way", "walk", "row", "path", "loop", "pt", "sq", "bridge", "hl", "ramp", "stwy"]);
+
+function canonicalizeSfStreet(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/(\d+)(st|nd|rd|th)\b/g, "$1")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => SF_STREET_WORDS[word] || word)
+    .join(" ");
+}
+
+function splitSfStreetSuffix(canonical) {
+  const words = canonical.split(" ");
+  return words.length > 1 && SF_STREET_SUFFIXES.has(words[words.length - 1])
+    ? { name: words.slice(0, -1).join(" "), suffix: words[words.length - 1] }
+    : { name: canonical, suffix: "" };
+}
+
+function getSfCurbsByStreet() {
+  if (sfCurbsByStreetCache && sfCurbsByStreetCache.source === state.curbSegments) {
+    return sfCurbsByStreetCache;
+  }
+
+  const exact = new Map();
+  const byName = new Map();
+  state.curbSegments.forEach((curb) => {
+    const canonical = canonicalizeSfStreet(curb.street);
+    if (!canonical) {
+      return;
+    }
+    exact.set(canonical, [...(exact.get(canonical) || []), curb]);
+    const { name } = splitSfStreetSuffix(canonical);
+    byName.set(name, [...(byName.get(name) || []), curb]);
+  });
+  sfCurbsByStreetCache = { source: state.curbSegments, exact, byName };
+  return sfCurbsByStreetCache;
+}
+
+// The curbs a typed street can mean: the exact street, or, when no suffix was typed, the one street of
+// that name. Two streets sharing a name ("Hyde St" and "Hyde Ave") are ambiguous without the suffix.
+function findSfStreetCurbs(streetText) {
+  const index = getSfCurbsByStreet();
+  const canonical = canonicalizeSfStreet(streetText);
+  if (index.exact.has(canonical)) {
+    return index.exact.get(canonical);
+  }
+
+  const { name, suffix } = splitSfStreetSuffix(canonical);
+  const sameName = suffix ? [] : index.byName.get(name) || [];
+  const suffixes = new Set(sameName.map((curb) => splitSfStreetSuffix(canonicalizeSfStreet(curb.street)).suffix));
+  return suffixes.size === 1 ? sameName : [];
+}
+
+// The point a fraction of the way along a line, measured by its own length in degrees (a block is short
+// enough that the difference from metres does not matter).
+function getPointAlongPath(geometry, fraction) {
+  const lengths = [];
+  let total = 0;
+  for (let index = 1; index < geometry.length; index += 1) {
+    const length = Math.hypot(geometry[index][0] - geometry[index - 1][0], geometry[index][1] - geometry[index - 1][1]);
+    lengths.push(length);
+    total += length;
+  }
+
+  let remaining = Math.min(1, Math.max(0, fraction)) * total;
+  for (let index = 0; index < lengths.length; index += 1) {
+    if (remaining <= lengths[index] || index === lengths.length - 1) {
+      const t = lengths[index] ? Math.min(1, remaining / lengths[index]) : 0;
+      return {
+        lat: geometry[index][0] + (geometry[index + 1][0] - geometry[index][0]) * t,
+        lon: geometry[index][1] + (geometry[index + 1][1] - geometry[index][1]) * t
+      };
+    }
+    remaining -= lengths[index];
+  }
+
+  return { lat: geometry[0][0], lon: geometry[0][1] };
+}
+
+function findSfAddressMatch(query) {
+  const houseNumber = parseSearchHouseNumber(query);
+  // Everything after the first comma is the city and state ("1234 Fulton St, San Francisco, CA"). It is cut
+  // there rather than by pattern because "California St" is a street.
+  const streetText = getSearchStreetText(query).split(",")[0].replace(CITY_NAME_PATTERN, " ");
+  if (!houseNumber || !canonicalizeSfStreet(streetText)) {
+    return null;
+  }
+
+  const curb = findSfStreetCurbs(streetText).find((candidate) => {
+    const range = candidate.addresses;
+    if (!Array.isArray(range) || range.length !== 2) {
+      return false;
+    }
+    const [first, last] = range;
+    return houseNumber >= Math.min(first, last) && houseNumber <= Math.max(first, last) && houseNumber % 2 === first % 2;
+  });
+  if (!curb) {
+    return null;
+  }
+
+  const [first, last] = curb.addresses;
+  const fraction = first === last ? 0.5 : (houseNumber - first) / (last - first);
+  return {
+    ...getPointAlongPath(curb.geometry, fraction),
+    label: `${houseNumber} ${curb.street}`,
+    matchedStreet: curb.street,
+    segmentId: curb.id,
+    kind: "address"
+  };
+}
+
+function buildSfMatchStatusText(match) {
+  if (match.kind === "address") {
+    return `Found ${match.label}. Tap the curb to see its schedule.`;
+  }
+
+  if (match.kind === "street") {
+    return `I could only match the street, not the number. The map is centered on ${match.matchedStreet} — scroll along it to find your block.`;
+  }
+
+  return `I matched this to ${match.matchedStreet} on the curb map. Tap a colored curb nearby to see its schedule.`;
+}
+
+function searchSfAddress(cleanedAddress) {
+  const match = findSfAddressMatch(cleanedAddress) || findLocalSearchMatch(cleanedAddress);
+  if (!match || !isWithinMappedCity(match.lat, match.lon)) {
+    throw new Error(`I couldn't find that in San Francisco. ${CITY_PAGE_COPY.addressHint}`);
+  }
+
+  state.searchedLocation = { ...match, label: match.label || cleanedAddress };
+  renderContext();
+  focusMapOnSearchedLocation();
+  if (lookupAddressInput) {
+    lookupAddressInput.value = cleanedAddress;
+  }
+  if (lookupStatus) {
+    lookupStatus.textContent = buildSfMatchStatusText(match);
+  }
+  // A placed address opens its own curb, so the side the number is on is the one shown.
+  if (match.segmentId) {
+    openCurbSheet(match.segmentId);
+  }
+}
+
 async function searchAddressAndCenter(address) {
   const cleanedAddress = String(address || "").trim();
   if (!cleanedAddress) {
@@ -5238,6 +5466,12 @@ async function searchAddressAndCenter(address) {
   }
 
   try {
+    // San Francisco is searched from its own curb file; Denver's lookup service knows nothing of it.
+    if (IS_SF_CITY) {
+      searchSfAddress(cleanedAddress);
+      return;
+    }
+
     let denverLookupError = "";
     const searchQuery = normalizeCitySearchQuery(cleanedAddress);
     const response = await fetch(buildAddressLookupUrl(searchQuery));
@@ -5364,8 +5598,9 @@ function showUserLocation(latitude, longitude) {
   }
 
   if (!isWithinMappedCity(latitude, longitude)) {
-    lookupStatus.textContent =
-      "We found you, but you look outside the Denver map area right now. You can still pan around Denver and tap curb sides manually.";
+    lookupStatus.textContent = CITY_PAGE_COPY
+      ? `We found you, but you look outside the ${ACTIVE_CITY.name} map area right now. You can still pan around ${ACTIVE_CITY.name} and tap curb sides manually.`
+      : "We found you, but you look outside the Denver map area right now. You can still pan around Denver and tap curb sides manually.";
     return;
   }
 
@@ -5445,7 +5680,7 @@ function requestUserLocation() {
   }
 
   useMyLocationButton.disabled = true;
-  lookupStatus.textContent = "Finding your location in Denver now...";
+  lookupStatus.textContent = CITY_PAGE_COPY?.locating || "Finding your location in Denver now...";
 
   getDevicePosition()
     .then((position) => showUserLocation(position.latitude, position.longitude))
@@ -5541,7 +5776,7 @@ function parkCarAt(lat, lon, options = {}) {
   }
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || !isWithinMappedCity(lat, lon)) {
-    lookupStatus.textContent = "That spot looks outside the Denver map, so there is no Denver sweeping schedule for us to follow there.";
+    lookupStatus.textContent = CITY_PAGE_COPY?.outsideMap || "That spot looks outside the Denver map, so there is no Denver sweeping schedule for us to follow there.";
     renderContext();
     return false;
   }
@@ -5767,7 +6002,7 @@ function initializeMap() {
   state.map.on("moveend zoomend", scheduleMapRender);
   attachCurbInteraction();
   loadCityBoundary();
-  if (IS_SNOW_CITY) {
+  if (!IS_DENVER_FORMAT) {
     // No built-in dataset to fit to while the city's file loads, and a Leaflet map with no view
     // draws no tiles.
     state.map.fitBounds([
@@ -5814,7 +6049,7 @@ function loadCityBoundary() {
     interactive: false
   }).addTo(state.boundaryLayerGroup);
 
-  L.polygon(cityLimits.CITY_LIMITS || cityLimits.DENVER_CITY_LIMITS, {
+  const outlineStyle = {
     pane: "denverBoundaryOutline",
     interactive: false,
     color: "#9f1d2f",
@@ -5823,7 +6058,12 @@ function loadCityBoundary() {
     fill: false,
     lineCap: "round",
     lineJoin: "round"
-  }).addTo(state.boundaryLayerGroup);
+  };
+  // A city whose line mostly runs through water draws only the stretches that meet land.
+  (cityLimits.OUTLINE_PATHS
+    ? L.polyline(cityLimits.OUTLINE_PATHS, outlineStyle)
+    : L.polygon(cityLimits.CITY_LIMITS || cityLimits.DENVER_CITY_LIMITS, outlineStyle)
+  ).addTo(state.boundaryLayerGroup);
 }
 
 function renderMapFailure(message) {
@@ -6057,8 +6297,9 @@ function renderStreetBases() {
 
   state.baseLayerGroup.clearLayers();
 
-  // A snow curb's line is the whole drawing; its way is the same line and only exists for search.
-  if (isOverviewZoom() || IS_SNOW_CITY) {
+  // A snow or San Francisco curb's line is the whole drawing; its way is the same line and only exists
+  // for search.
+  if (isOverviewZoom() || !IS_DENVER_FORMAT) {
     return;
   }
 
@@ -6447,6 +6688,9 @@ function attachCurbInteraction() {
       // Kept so "I parked here" can put the pin where the driver tapped, not at the block's middle.
       activeCurbSheetLatLng = { lat: event.latlng.lat, lon: event.latlng.lng };
       openCurbSheet(segment.id);
+    } else if (CITY_PAGE_COPY?.noCurb && lookupStatus) {
+      // A street with no curb in the city's data is blank on the map, so a tap there has to say why.
+      lookupStatus.textContent = CITY_PAGE_COPY.noCurb;
     }
   });
 
@@ -6541,8 +6785,113 @@ function buildSnowCurbSheetCopy(segment) {
   };
 }
 
+const SF_WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const SF_ORDINALS = ["1st", "2nd", "3rd", "4th", "5th"];
+
+function formatSfHour(hour) {
+  const clock = hour % 24;
+  const suffix = clock < 12 ? "am" : "pm";
+  return `${clock % 12 === 0 ? 12 : clock % 12} ${suffix}`;
+}
+
+function joinWithAnd(items) {
+  return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+// One posted window as the driver reads it on the sheet and in the list. Posted hours are the sign's,
+// not our promise, so the overnight line says "posted"; and "the night before" rather than "before
+// midnight", because some overnight windows start at 3 or 4 am.
+function describeSfWindow(item) {
+  const hours = `${formatSfHour(item.startHour)}–${formatSfHour(item.endHour)}`;
+  if (item.holidayOnly || !item.days.length) {
+    return `Swept on holidays only (posted ${hours})`;
+  }
+
+  const weeks = item.weeks.length >= 5 ? "every week" : `${joinWithAnd(item.weeks.map((week) => SF_ORDINALS[week - 1]))} of the month`;
+  const days = joinWithAnd(item.days.map((day) => `${SF_WEEKDAY_NAMES[day]}s`));
+  if (item.nightBefore) {
+    const nights = joinWithAnd(item.days.map((day) => `${SF_WEEKDAY_NAMES[(day + 6) % 7]} night`));
+    return `Overnight sweeping, ${nights} (posted ${hours} ${days}), ${weeks}`;
+  }
+
+  return `${days}, ${hours} (posted), ${weeks}`;
+}
+
+// Rows that differ only in which weeks they list (the 1st, 3rd and 5th, then the 2nd and 4th) are one
+// line to a driver, so their weeks are merged before wording.
+function describeSfWindows(windows) {
+  const merged = new Map();
+  windows.forEach((item) => {
+    const key = [item.days.join(), item.startHour, item.endHour, item.nightBefore, item.holidayOnly].join("|");
+    const existing = merged.get(key);
+    merged.set(key, existing ? { ...existing, weeks: [...new Set([...existing.weeks, ...item.weeks])].sort() } : item);
+  });
+  return Array.from(merged.values()).map(describeSfWindow).join("; ");
+}
+
+function formatSfDataDate() {
+  const built = sfDataGeneratedAt ? new Date(sfDataGeneratedAt) : null;
+  return built && !Number.isNaN(built.getTime())
+    ? built.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+}
+
+function buildSfCurbSheetCopy(segment) {
+  const windows = Array.isArray(segment.schedule?.sf) ? segment.schedule.sf : [];
+  const built = formatSfDataDate();
+  const freshness = built ? ` Schedule data from ${built}.` : "";
+  const posted = "Posted hours are the sign's, not our promise. Check the sign before you leave your car.";
+
+  if (!windows.length) {
+    return {
+      headline: "No sweeping schedule found",
+      rule: "",
+      notice: `We did not find street sweeping information for this curb in the City and County of San Francisco's data. That is not the same as no sweeping. ${posted}`,
+      canRemind: false
+    };
+  }
+
+  const entry = getSfReminderEntries(segment, 1)[0] || null;
+  const rule = describeSfWindows(windows);
+  if (!entry) {
+    return { headline: "No upcoming sweep found", rule, notice: `${posted}${freshness}`, canRemind: true };
+  }
+
+  const date = formatDateObject(entry.sweepDate);
+  if (entry.hedge === "fifth-week") {
+    return {
+      headline: `May be swept ${date} (5th week; not confirmed)`,
+      hedgeWord: "May",
+      rule,
+      notice: `A 5th-week day. The schedule doesn't confirm it. Check the sign, and move your car to be safe.${freshness}`,
+      canRemind: true
+    };
+  }
+
+  if (entry.hedge === "holiday") {
+    return {
+      headline: `Holiday ${date}: probably not swept`,
+      hedgeWord: "probably",
+      rule,
+      notice: `Sweeping is usually skipped on holidays. Check the sign before you leave your car.${freshness}`,
+      canRemind: true
+    };
+  }
+
+  return {
+    headline: entry.nightBefore ? `Next sweep: ${date}, move the night before` : `Next sweep: ${date}`,
+    rule,
+    notice: `${posted}${freshness}`,
+    canRemind: true
+  };
+}
+
 function buildCurbSheetCopy(segment) {
   const schedule = segment.schedule;
+
+  if (Array.isArray(schedule?.sf)) {
+    return buildSfCurbSheetCopy(segment);
+  }
 
   if (schedule?.sweepType === "Snow") {
     return buildSnowCurbSheetCopy(segment);
@@ -6597,6 +6946,24 @@ function buildCurbSheetCopy(segment) {
   };
 }
 
+// The headline, with the one word that carries the doubt set apart in amber. The wording says the same
+// thing without the colour, so it is never the only signal.
+function setSheetHeadline(element, copy) {
+  element.textContent = "";
+  const word = copy.hedgeWord;
+  if (word && copy.headline.includes(word)) {
+    const before = copy.headline.slice(0, copy.headline.indexOf(word));
+    element.append(before);
+    const hedge = document.createElement("span");
+    hedge.className = "hedge-word";
+    hedge.textContent = word;
+    element.append(hedge, copy.headline.slice(before.length + word.length));
+    return;
+  }
+
+  element.textContent = copy.headline;
+}
+
 function renderCurbSheet() {
   if (!curbSheet) {
     return;
@@ -6614,7 +6981,7 @@ function renderCurbSheet() {
   curbSheetSide.textContent = segment.sideLabel;
   curbSheetSide.style.background = segment.color;
   curbSheetStreet.textContent = segment.street;
-  curbSheetHeadline.textContent = copy.headline;
+  setSheetHeadline(curbSheetHeadline, copy);
 
   curbSheetRule.textContent = copy.rule;
   curbSheetRule.hidden = !copy.rule;
@@ -6823,6 +7190,11 @@ function buildSelectionMeta(segment) {
   if (segment.schedule?.sweepType === "Snow") {
     const bans = describeSnowBans(segment.schedule.snowDays);
     return `${segment.sideLabel} of ${segment.street} | Snow emergency: no parking ${bans.join(", ") || "listed"}`;
+  }
+
+  if (Array.isArray(segment.schedule?.sf)) {
+    const copy = buildSfCurbSheetCopy(segment);
+    return `${segment.sideLabel} of ${segment.street} | ${copy.headline}${copy.rule ? ` | ${copy.rule}` : ""}`;
   }
 
   if (!segment.schedule) {
@@ -7074,6 +7446,23 @@ function getStartOfToday() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 }
 
+function updateOvernightReminder(setId, slotIndex, field, value) {
+  const savedSet = getReminderSets().find((set) => set.id === setId);
+  if (!savedSet) {
+    return;
+  }
+
+  const nextSlots = buildDefaultReminders(savedSet.reminders).overnightReminders.map((slot, index) =>
+    index === slotIndex ? { ...slot, [field]: value } : slot
+  );
+
+  updateSavedSet(setId, {
+    reminders: {
+      overnightReminders: nextSlots
+    }
+  });
+}
+
 function updateDayOfReminder(setId, slotIndex, field, value) {
   const savedSet = getReminderSets().find((set) => set.id === setId);
   if (!savedSet) {
@@ -7118,7 +7507,7 @@ function buildSavedSetDetails(set, segments, reminders) {
   const detailRows = [
     ["Next sweep", summarizeSetSchedule(set, segments)],
     ["Curbs", summarizeCurbList(segments)],
-    ["Reminders", summarizeReminders(reminders).replace(/^Scheduled /, "")],
+    ["Reminders", summarizeReminders(reminders, getReminderModels(segments)).replace(/^Scheduled /, "")],
     ["Area", set.sourceLabel || "Saved curb set"],
     [set.kind === "parked" ? "Parked" : "Saved", formatSavedAt(set.createdAt)]
   ];
@@ -7299,7 +7688,18 @@ function renderSavedSets() {
         item.querySelector(".delete-set-button").textContent = "Clear pin";
       }
       item.querySelector(".saved-set-details").innerHTML = buildSavedSetDetails(set, savedSegments, reminders);
-      item.querySelector(".reminder-summary").textContent = summarizeReminders(reminders);
+      const reminderModels = getReminderModels(savedSegments);
+      item.querySelector(".reminder-summary").textContent = summarizeReminders(reminders, reminderModels);
+      // Overnight curbs have no sweep-day half, so a set holds whichever plans its curbs use.
+      item.querySelectorAll("[data-model]").forEach((element) => {
+        element.hidden = !reminderModels[element.dataset.model];
+      });
+      if (!reminderModels.day) {
+        const nagHelp = item.querySelector(".nag-help");
+        if (nagHelp) {
+          nagHelp.textContent = "Sends every evening reminder you have turned on. Off sends only the first. Stops when you tap I moved my car.";
+        }
+      }
 
       const dayBeforeEnabledInput = item.querySelector(".day-before-enabled");
       const dayBeforeTimeInput = item.querySelector(".day-before-time");
@@ -7320,6 +7720,24 @@ function renderSavedSets() {
         enabledInput.checked = slot.enabled;
         timeInput.value = slot.time;
         timeInput.disabled = !slot.enabled;
+      });
+
+      const overnightEnabledInputs = Array.from(item.querySelectorAll(".overnight-enabled"));
+      const overnightTimeInputs = Array.from(item.querySelectorAll(".overnight-time"));
+      reminders.overnightReminders.forEach((slot, index) => {
+        if (!overnightEnabledInputs[index] || !overnightTimeInputs[index]) {
+          return;
+        }
+
+        overnightEnabledInputs[index].checked = slot.enabled;
+        overnightTimeInputs[index].value = slot.time;
+        overnightTimeInputs[index].disabled = !slot.enabled;
+      });
+      overnightEnabledInputs.forEach((input, index) => {
+        input.addEventListener("change", () => updateOvernightReminder(set.id, index, "enabled", input.checked));
+      });
+      overnightTimeInputs.forEach((input, index) => {
+        input.addEventListener("change", () => updateOvernightReminder(set.id, index, "time", input.value));
       });
 
       dayBeforeEnabledInput.addEventListener("change", () =>
@@ -7361,8 +7779,6 @@ function renderSavedSets() {
     });
 }
 
-// Denver's model, and San Francisco's daytime blocks: an evening heads-up the night before, then the
-// sweep-day reminders, with follow-ups hung off the first of them while the driver has not moved.
 // What to plan reminders for, one entry per sweep: the posted day, whether the car has to move the
 // evening before (an overnight window), and which hedge applies when the data cannot confirm the day.
 // Other cities' curbs keep the dates they always had.
@@ -7387,15 +7803,16 @@ function getSfReminderEntries(segment, count = 8) {
     const key = `${sweep.date}|${sweep.nightBefore ? "night" : "day"}`;
     const hedge = sweep.status === "unconfirmed" ? "fifth-week" : sweep.status === "holiday-skip" ? "holiday" : null;
     const existing = byKey.get(key);
-    if (existing && (!hedge || existing.hedge)) {
-      existing.hedge = existing.hedge && hedge;
+    if (existing) {
+      existing.endHour = Math.max(existing.endHour, sweep.endHour);
+      if (!hedge || existing.hedge) {
+        existing.hedge = existing.hedge && hedge;
+      }
       return;
     }
 
-    if (!existing) {
-      const { year, month, day } = window.SfSchedule.parseDate(sweep.date);
-      byKey.set(key, { sweepDate: new Date(year, month - 1, day), nightBefore: Boolean(sweep.nightBefore), hedge });
-    }
+    const { year, month, day } = window.SfSchedule.parseDate(sweep.date);
+    byKey.set(key, { sweepDate: new Date(year, month - 1, day), nightBefore: Boolean(sweep.nightBefore), hedge, endHour: sweep.endHour });
   });
 
   return Array.from(byKey.values())
@@ -7403,6 +7820,8 @@ function getSfReminderEntries(segment, count = 8) {
     .slice(0, count);
 }
 
+// Denver's model, and San Francisco's daytime blocks: an evening heads-up the night before, then the
+// sweep-day reminders, with follow-ups hung off the first of them while the driver has not moved.
 function buildSweepCandidates(sweepDate, reminders) {
   const candidates = [];
 
@@ -7626,6 +8045,22 @@ function loadMovedSweepKeys() {
 
 // What the banner asks about: a sweep today, or tomorrow once the evening heads-up would have gone
 // out. Earlier than that the question is premature - nobody moves their car two days early.
+// The sweeps to ask about for one curb: Denver's next date, or San Francisco's next few, which carry the
+// window's end so a sweep that is over is not asked about, and whether the car moves the night before.
+function getSweepCheckCandidates(segment) {
+  if (Array.isArray(segment.schedule?.sf)) {
+    return getSfReminderEntries(segment, 4);
+  }
+
+  const sweepDate = getNextSweepDate(segment);
+  return sweepDate ? [{ sweepDate, nightBefore: false }] : [];
+}
+
+function getFirstOvernightTime(reminders) {
+  const slots = reminders.overnightReminders.filter((slot) => slot.enabled).sort((a, b) => a.time.localeCompare(b.time));
+  return slots.length ? slots[0].time : DEFAULT_OVERNIGHT_REMINDERS[0].time;
+}
+
 function getPendingSweepChecks(now = new Date()) {
   const todayKey = formatLocalDateKey(now);
   const tomorrowKey = formatLocalDateKey(addDays(now, 1));
@@ -7641,36 +8076,37 @@ function getPendingSweepChecks(now = new Date()) {
         return;
       }
 
-      const sweepDate = getNextSweepDate(segment);
-      if (!sweepDate) {
-        return;
-      }
+      getSweepCheckCandidates(segment).forEach((candidate) => {
+        const sweepDate = candidate.sweepDate;
+        const dateKey = formatLocalDateKey(sweepDate);
+        if (set.kind !== "parked" && state.movedSweepKeys.includes(buildMovedCurbKey(segment.id, dateKey))) {
+          return;
+        }
 
-      const dateKey = formatLocalDateKey(sweepDate);
-      if (set.kind !== "parked" && state.movedSweepKeys.includes(buildMovedCurbKey(segment.id, dateKey))) {
-        return;
-      }
+        // An overnight curb is asked about from its first evening reminder, not the daytime heads-up.
+        const startsAt = candidate.nightBefore ? applyTimeToDate(now, getFirstOvernightTime(reminders)) : eveningStart;
+        // San Francisco publishes hours, so a sweep whose window has ended is not asked about again.
+        const isToday = dateKey === todayKey && !(Number.isFinite(candidate.endHour) && now.getHours() >= candidate.endHour);
+        const isTomorrow = dateKey === tomorrowKey && now.getTime() >= startsAt.getTime();
+        if (!isToday && !isTomorrow) {
+          return;
+        }
 
-      const isToday = dateKey === todayKey;
-      const isTomorrow = dateKey === tomorrowKey && now.getTime() >= eveningStart.getTime();
-      if (!isToday && !isTomorrow) {
-        return;
-      }
+        const key = buildSweepKey(set.id, sweepDate);
+        if (state.movedSweepKeys.includes(key)) {
+          return;
+        }
 
-      const key = buildSweepKey(set.id, sweepDate);
-      if (state.movedSweepKeys.includes(key)) {
-        return;
-      }
+        if (!checks.has(key)) {
+          checks.set(key, { key, setName: set.name, isToday, overnight: Boolean(candidate.nightBefore), sweepDate, segmentLabels: [] });
+        }
 
-      if (!checks.has(key)) {
-        checks.set(key, { key, setName: set.name, isToday, sweepDate, segmentLabels: [] });
-      }
-
-      const label = `${segment.street} - ${segment.sideLabel}`;
-      const check = checks.get(key);
-      if (!check.segmentLabels.includes(label)) {
-        check.segmentLabels.push(label);
-      }
+        const label = `${segment.street} - ${segment.sideLabel}`;
+        const check = checks.get(key);
+        if (!check.segmentLabels.includes(label)) {
+          check.segmentLabels.push(label);
+        }
+      });
     });
   });
 
@@ -7706,7 +8142,11 @@ function renderSweepCheck() {
   const check = checks.find((candidate) => candidate.key === state.sweepCheckFocusKey) || checks[0];
   const others = checks.length - 1;
   sweepCheck.classList.remove("is-done");
-  sweepCheckKicker.textContent = check.isToday ? "Street sweeping today" : "Street sweeping tomorrow";
+  sweepCheckKicker.textContent = check.isToday
+    ? "Street sweeping today"
+    : check.overnight
+      ? "Overnight street sweeping tonight"
+      : "Street sweeping tomorrow";
   sweepCheckTitle.textContent = check.isToday ? "Did you move your car?" : "Move your car tonight?";
   sweepCheckBody.textContent =
     `${check.setName}: ${formatSegmentPreview(check.segmentLabels)}.` +
@@ -8941,16 +9381,39 @@ function summarizeSetSchedule(set, segments) {
   return formatDateObject(dates[0]);
 }
 
-function summarizeReminders(reminders) {
+// Which reminder models a set's curbs use: the evening-and-morning plan every Denver curb and San
+// Francisco daytime block follows, and the evening-only plan of an overnight San Francisco block.
+function getReminderModels(segments) {
+  const models = { day: false, overnight: false };
+  segments.filter(Boolean).forEach((segment) => {
+    const windows = segment.schedule?.sf;
+    if (!Array.isArray(windows)) {
+      models.day = true;
+      return;
+    }
+    windows.forEach((item) => {
+      models[item.nightBefore ? "overnight" : "day"] = true;
+    });
+  });
+  // An empty set still shows the plan it would start with.
+  return models.day || models.overnight ? models : { day: true, overnight: false };
+}
+
+function summarizeReminders(reminders, models = { day: true, overnight: false }) {
   const parts = [];
   const activeDayOfTimes = reminders.dayOfReminders.filter((slot) => slot.enabled).map((slot) => formatTime(slot.time));
+  const activeOvernightTimes = reminders.overnightReminders.filter((slot) => slot.enabled).map((slot) => formatTime(slot.time));
 
-  if (reminders.dayBeforeEnabled) {
+  if (models.day && reminders.dayBeforeEnabled) {
     parts.push(`day before at ${formatTime(reminders.dayBeforeTime)}`);
   }
 
-  if (activeDayOfTimes.length) {
+  if (models.day && activeDayOfTimes.length) {
     parts.push(`day of at ${activeDayOfTimes.join(", ")}`);
+  }
+
+  if (models.overnight && activeOvernightTimes.length) {
+    parts.push(`the evening before overnight sweeps at ${activeOvernightTimes.join(", ")}`);
   }
 
   if (!parts.length) {
@@ -10091,7 +10554,7 @@ purgeLegacyInventoryCache();
 
 try {
   // The small built-in dataset is Denver's. Any other city draws nothing until its own file arrives.
-  if (ACTIVE_CITY.inventoryFormat === "denver-routes") {
+  if (IS_DENVER_FORMAT) {
     buildStreetData();
   }
   showMapLoadingOverlay(
@@ -10124,6 +10587,8 @@ loadEmailConfig();
 // doing that before the first load would race it.
 loadCurrentAccount().then(handleEmailLinks);
 initializeCitySwitcher();
+applyCityPageCopy();
+chooseCityFromLocationOnce();
 if (IS_SNOW_CITY) {
   loadSnowInventory();
   refreshSnowEmergency();

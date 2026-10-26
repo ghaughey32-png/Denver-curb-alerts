@@ -29,9 +29,11 @@ function loadSfClient(today = new Date(2026, 9, 26)) {
     window: { SfSchedule },
     capitalize: (value) => value.charAt(0).toUpperCase() + value.slice(1),
     getStreetOrientation: () => "north-south",
-    getStartOfToday: () => today
+    getStartOfToday: () => today,
+    getSnowCurbColor: () => "snow",
+    colors: { north: "#2f9e44", south: "#e07a1f", east: "#d64545", west: "#2f6fed", unavailable: "#ff2d8d", notMaintained: "#7b8790", noRelocation: "#8e44ad" }
   };
-  const names = ["buildSfSchedule", "buildSfDataset", "getSfSweepDates"];
+  const names = ["buildSfSchedule", "buildSfDataset", "getSfSweepDates", "getCurbColor"];
   vm.createContext(sandbox);
   vm.runInContext([...names.map(extractFunctionBlock), `this.__exports = { ${names.join(", ")} };`].join("\n"), sandbox);
   return sandbox.__exports;
@@ -54,25 +56,27 @@ const VALENCIA = {
   opposite: "sf:afe94ebd96"
 };
 
-test("the SF record is built but never offered, stored or matched by location", () => {
+test("the SF record is offered in the switcher, stored and matched by location", () => {
   const sf = registry.getCity("san-francisco");
-  assert.equal(sf.enabled, false);
+  assert.notEqual(sf.enabled, false);
   assert.equal(sf.idPrefix, "sf:");
-  assert.ok(!registry.listCities().some((city) => city.id === "san-francisco"));
-  assert.equal(registry.getCityForPoint(37.7749, -122.4194), null);
-  assert.throws(() => registry.saveCityChoice("san-francisco"));
+  assert.ok(registry.listCities().some((city) => city.id === "san-francisco"));
+  assert.equal(registry.getCityForPoint(37.7749, -122.4194).id, "san-francisco");
   assert.equal(registry.getCityForCurbId("sf:abc123").id, "san-francisco");
 });
 
-test("a stored choice of SF falls back to Denver while it is disabled", () => {
-  const registryPath = require.resolve("../public/cities.js");
-  delete require.cache[registryPath];
-  globalThis.localStorage = { getItem: () => "san-francisco", setItem() {} };
+test("a city switched off stays out of the switcher, saved choices and location matching", () => {
+  const sf = registry.getCity("san-francisco");
+  sf.enabled = false;
   try {
-    assert.equal(require(registryPath).getActiveCity().id, "denver");
+    assert.ok(!registry.listCities().some((city) => city.id === "san-francisco"));
+    assert.equal(registry.getCityForPoint(37.7749, -122.4194), null);
+    assert.throws(() => registry.saveCityChoice("san-francisco"));
+    // getCity and getCityForCurbId still know it, so saved curbs keep their owner.
+    assert.equal(registry.getCityForCurbId("sf:abc123").id, "san-francisco");
+
   } finally {
-    delete globalThis.localStorage;
-    delete require.cache[registryPath];
+    sf.enabled = true;
   }
 });
 
@@ -124,6 +128,8 @@ test("buildSfDataset keeps the posted windows, the opposite side and the address
   assert.equal(segment.sideLabel, "East curb");
   assert.equal(segment.oppositeId, "sf:afe94ebd96");
   assert.deepEqual(plain(segment.addresses), [1201, 1299]);
+  // Denver's four side colours, so the map reads the same in every city; never pink, plum or gray.
+  assert.equal(segment.color, "#d64545");
   assert.equal(segment.schedule.sf.length, 2);
   assert.equal(segment.schedule.cityId, "san-francisco");
   assert.equal(segment.schedule.remindersAllowed, true);

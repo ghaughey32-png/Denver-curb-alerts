@@ -202,17 +202,17 @@
     }
   };
 
-  // San Francisco's street sweeping, built in the registry ahead of the switcher: `enabled: false`
-  // keeps it out of the switcher, out of the choice a phone can store and out of location matching,
-  // while getCity and getCityForCurbId still know it so the loader and its tests can use the record.
-  // Turning it on is Phase 3 of SF-PLAN.md, once the copy, colours, limits and reminders exist.
+  // San Francisco's street sweeping. It was built in the registry ahead of the switcher with
+  // `enabled: false`, which keeps a city out of the switcher, out of the choice a phone can store and
+  // out of location matching while getCity and getCityForCurbId still know it. It was switched on
+  // 2026-10-26, in the same commit that put San Francisco into the Terms, Privacy and Disclaimer.
   const SAN_FRANCISCO = {
     id: "san-francisco",
     name: "San Francisco",
     kind: "sweeping",
     inventoryFormat: "sf-sweeping",
     idPrefix: "sf:",
-    enabled: false,
+    enabled: true,
     geocodeSuffix: "San Francisco, CA",
     // The bounding box of the published curbs, padded a little like Minneapolis's.
     bounds: {
@@ -224,13 +224,26 @@
     minZoom: 11,
     // Not in the service worker's precache, like Minneapolis: cached on first use. Its "?v=" moves
     // with the file, and cities.js's own tag moves with it.
-    inventoryUrl: "./sf-sweeping.json?v=1",
-    // No boundary module yet; getCityLimits answers null and the map draws no line.
-    cityLimitsGlobal: null,
+    inventoryUrl: "./sf-sweeping.json?v=2",
+    // public/sf-city-limits.js: the OpenStreetMap boundary, with the same 20 m wash as the others.
+    cityLimitsGlobal: "SanFranciscoCityLimits",
     // SF sweeps all year, and its rules arrive as posted windows, not dated rule text.
     sweepSeason: null,
     webReminders: false,
-    appStoreUrl: null
+    appStoreUrl: null,
+    // The page's own wording where it names the city, in place of Denver's, which stays hardcoded in
+    // index.html and app.js because source-text tests guard it (see the note at the top). A record
+    // without `pageCopy` leaves the page as it is.
+    pageCopy: {
+      eyebrow: "San Francisco street sweeping alerts",
+      heroText: "Tap the curb where you park. We'll show you when San Francisco sweeps it, and remind you before it happens.",
+      mapLabel: "Clickable San Francisco curb-side map",
+      loadingTitle: "Loading San Francisco curbs",
+      locating: "Finding your location in San Francisco now...",
+      outsideMap: "That spot looks outside the San Francisco map, so there is no San Francisco sweeping schedule for us to follow there.",
+      noCurb: "No sweeping schedule found in the city's data for this street. Check the sign.",
+      addressHint: 'Try a San Francisco street, an address like "1234 Fulton St", or cross streets like "Valencia and 24th".'
+    }
   };
 
   const CITIES = [DENVER, MINNEAPOLIS, SAN_FRANCISCO];
@@ -263,6 +276,35 @@
       return false;
     }
     return true;
+  }
+
+  // Choosing a city from the phone's position happens once, on a first visit with no choice saved: the
+  // attempt is recorded either way, so a refusal is not asked again on every load.
+  const CITY_LOCATED_KEY = "curb-alerts-city-located";
+
+  function hasStoredCityChoice() {
+    try {
+      return typeof localStorage !== "undefined" && localStorage.getItem(CITY_CHOICE_KEY) !== null;
+    } catch (error) {
+      // Unreadable storage cannot hold a choice, and must not be asked about on every load either.
+      return true;
+    }
+  }
+
+  function hasTriedLocatingCity() {
+    try {
+      return typeof localStorage !== "undefined" && localStorage.getItem(CITY_LOCATED_KEY) !== null;
+    } catch (error) {
+      return true;
+    }
+  }
+
+  function markTriedLocatingCity() {
+    try {
+      localStorage.setItem(CITY_LOCATED_KEY, "1");
+    } catch (error) {
+      // Nothing to record it in; hasTriedLocatingCity already answers true for such a browser.
+    }
   }
 
   let activeCityId = readStoredCityId();
@@ -332,6 +374,9 @@
     getActiveCity,
     setActiveCity,
     saveCityChoice,
+    hasStoredCityChoice,
+    hasTriedLocatingCity,
+    markTriedLocatingCity,
     isWithinCityBounds,
     getCityForPoint,
     getCityForCurbId,

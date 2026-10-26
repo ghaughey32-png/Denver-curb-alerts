@@ -45,3 +45,14 @@ behind the modal.
 
 Not started, and deliberately not scheduled — reminders and the remaining native work (geofencing,
 APNs) are ahead of it.
+
+---
+
+## Paywall ticket-cost line
+
+Noted 2026-10-26. `Paywall.swift` said "A Denver street sweeping ticket costs $50." Now a city-neutral
+placeholder, "A street sweeping ticket can cost $50 to $200.", written so it stays true in Denver, SF and
+Minneapolis. **Look at it again soon:** confirm each city's current sweeping fine from its own source
+(SF's is not yet checked), and decide whether the paywall should name the city the driver is in. The
+line beneath it (the daily cost) is unchanged. The paywall subtitle ("the evening before and the morning
+of every sweep") is also Denver-shaped: an SF overnight curb has no morning reminder.

@@ -42,7 +42,10 @@ struct PaywallView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 VStack(spacing: 2) {
-                    Text("A Denver street sweeping ticket costs $50.")
+                    // Placeholder range, to revisit soon: each city's fine differs (Denver's was $50), and
+                    // this line should say what a ticket costs where the driver parks. See IDEAS.md,
+                    // "Paywall ticket-cost line".
+                    Text("A street sweeping ticket can cost $50 to $200.")
                     if let dailyCost {
                         Text("Curb Alerts costs about \(dailyCost) a day.")
                             .foregroundStyle(Self.logoOrange)
