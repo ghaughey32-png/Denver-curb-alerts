@@ -278,35 +278,6 @@
     return true;
   }
 
-  // Choosing a city from the phone's position happens once, on a first visit with no choice saved: the
-  // attempt is recorded either way, so a refusal is not asked again on every load.
-  const CITY_LOCATED_KEY = "curb-alerts-city-located";
-
-  function hasStoredCityChoice() {
-    try {
-      return typeof localStorage !== "undefined" && localStorage.getItem(CITY_CHOICE_KEY) !== null;
-    } catch (error) {
-      // Unreadable storage cannot hold a choice, and must not be asked about on every load either.
-      return true;
-    }
-  }
-
-  function hasTriedLocatingCity() {
-    try {
-      return typeof localStorage !== "undefined" && localStorage.getItem(CITY_LOCATED_KEY) !== null;
-    } catch (error) {
-      return true;
-    }
-  }
-
-  function markTriedLocatingCity() {
-    try {
-      localStorage.setItem(CITY_LOCATED_KEY, "1");
-    } catch (error) {
-      // Nothing to record it in; hasTriedLocatingCity already answers true for such a browser.
-    }
-  }
-
   let activeCityId = readStoredCityId();
 
   // The cities a person can choose: the switcher, a stored choice and location matching all read
@@ -344,8 +315,10 @@
     );
   }
 
-  // Which city a point falls in, for choosing from the phone's position rather than asking. Returns
-  // null outside every city, which is the case a picker exists to answer.
+  // Which city a point falls in. Returns null outside every city. The page does not call it: choosing a
+  // city from the phone's position at launch was dropped on 2026-10-26 so the app never opens with a
+  // location prompt (App Review), and Denver is always the first city. It stays for offering a switch
+  // when someone taps Use my location in another city.
   function getCityForPoint(lat, lon) {
     return listCities().find((city) => isWithinCityBounds(city, lat, lon)) || null;
   }
@@ -374,9 +347,6 @@
     getActiveCity,
     setActiveCity,
     saveCityChoice,
-    hasStoredCityChoice,
-    hasTriedLocatingCity,
-    markTriedLocatingCity,
     isWithinCityBounds,
     getCityForPoint,
     getCityForCurbId,

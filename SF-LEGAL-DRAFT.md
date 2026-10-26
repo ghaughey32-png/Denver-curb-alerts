@@ -40,13 +40,9 @@ subscription terms.
 
 1. **Heading.** "Privacy for Denver Curb Alerts" → "Privacy for Curb Alerts"; "Denver Curb Alerts is
    operated by Curb Alerts LLC" → "Curb Alerts is operated by Curb Alerts LLC".
-2. **Location bullet** (today: "…only when you tap Use my location, so the map can move to you."). →
-   > Your approximate or precise location when you tap Use my location, so the map can move to you, and,
-   > the first time you open the iPhone app, once, so it can open the city you are in. That position is
-   > used on your phone to choose a city; it is not stored and not sent to us.
-   *This reflects a real behaviour change:* the iPhone app now asks for location on first launch. I also
-   changed the iOS permission text to "Curb Alerts uses your location to open the city you are in and to
-   find the curb you are parked on." (project file, not yet built).
+2. **Location bullet:** unchanged. A first-launch city choice by location was drafted and then dropped (see
+   HISTORY.md), so Privacy and the iOS permission text keep saying location is used only for Use my location
+   and the parking pin.
 3. **Services involved.** "street sweeping data published by the City and County of Denver, and snow
    emergency parking data published by the City of Minneapolis" → "street sweeping data published by the
    City and County of Denver and the City and County of San Francisco, and snow emergency parking data

@@ -2454,10 +2454,22 @@ set `enabled: true`, as AGENTS.md requires. The iPhone app has not shipped with 
 - **Amber.** The hedge word ("May", "probably") is `#8a5a00`: CIELAB distance from pink / plum / gray of 85 /
   100 / 60 in normal vision and 45 / 91 / 58 under simulated deuteranopia. It is text on the sheet, never on
   the map, so closeness to the south-curb orange is not a concern.
-- **First-launch city choice.** `chooseCityFromLocationOnce` opens the city the phone is in, once. The native
-  shell asks Core Location (its own prompt); a browser is asked only when location is already allowed, so a
-  website visit never opens a prompt on load. The attempt is recorded either way. This is the first time the
-  iPhone app asks for location at launch, so the permission text now says it also opens the city you are in,
-  and the Privacy copy in the draft says so.
+- **First-launch city choice: built, then dropped the same day.** `chooseCityFromLocationOnce` opened the city
+  the phone was in, once, which meant the iPhone app asking for location at launch. The author chose to avoid
+  that in App Review: the app always opens on Denver, and the header switcher (a dropdown in the top right,
+  next to the account chip) is the way to change city. The iOS permission text and the Privacy line are back
+  to saying location is used only for Use my location and the parking pin. `getCityForPoint` stays in the
+  registry for a possible "switch to San Francisco?" offer after Use my location.
 - **Paywall.** "A Denver street sweeping ticket costs $50." became "A street sweeping ticket can cost $50 to
   $200." as a placeholder, flagged in IDEAS.md to confirm each city's fine from its own source.
+
+## City dropdown (2026-10-27)
+
+The header's city control changed from a native `<select>` to a button and a listbox that drops down from it
+with a short fade and slide, at the author's request. It keeps the select's behaviour (arrow keys, Home and
+End, Enter or Space, Escape back to the button, Tab closes, a tap elsewhere closes) with `aria-haspopup`,
+`aria-expanded` and `role="option"` / `aria-selected`; the open city carries a check, so it is not marked by
+colour alone. A closed list is hidden with `visibility`, not the `hidden` attribute, so it can animate;
+`prefers-reduced-motion` turns the animation off. The list hangs from the button's right edge, or its left edge
+where that would run off the screen (the button sits at the left of its row on a phone). Checked in the browser
+on desktop and at phone width, and selecting a city saves it and reloads into it.

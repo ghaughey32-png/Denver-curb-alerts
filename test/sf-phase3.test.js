@@ -217,54 +217,6 @@ test("the summary names the evening times for overnight curbs and leaves Denver'
   assert.match(summarizeReminders(reminders, { day: true, overnight: true }), /day of at 7:00 AM and the evening before overnight sweeps at 6:00 PM, 8:00 PM/);
 });
 
-function loadLocator({ stored = false, tried = false, bridgePosition = null, permission = null, position = { latitude: 37.7749, longitude: -122.4194 } }) {
-  const calls = { saved: [], reloaded: 0, marked: 0 };
-  const sf = { id: "san-francisco" };
-  const sandbox = {
-    ACTIVE_CITY: { id: "denver" },
-    window: {
-      CityRegistry: {
-        hasStoredCityChoice: () => stored,
-        hasTriedLocatingCity: () => tried,
-        markTriedLocatingCity: () => { calls.marked += 1; },
-        listCities: () => [{ id: "denver" }, sf],
-        getCityForPoint: () => sf,
-        saveCityChoice: (id) => { calls.saved.push(id); return true; }
-      },
-      location: { reload: () => { calls.reloaded += 1; } }
-    },
-    navigator: { permissions: permission ? { query: async () => ({ state: permission }) } : undefined },
-    getNativeReminderBridge: () => (bridgePosition ? { getCurrentPosition: async () => bridgePosition } : null),
-    getDevicePosition: async () => position
-  };
-  const { chooseCityFromLocationOnce } = load(["chooseCityFromLocationOnce"], sandbox);
-  return { run: chooseCityFromLocationOnce, calls };
-}
-
-test("a first visit in San Francisco opens San Francisco, once, and a refusal is not asked again", async () => {
-  const native = loadLocator({ bridgePosition: { latitude: 37.77, longitude: -122.42 } });
-  await native.run();
-  assert.deepEqual(native.calls.saved, ["san-francisco"]);
-  assert.equal(native.calls.reloaded, 1);
-  assert.equal(native.calls.marked, 1);
-
-  const granted = loadLocator({ permission: "granted" });
-  await granted.run();
-  assert.equal(granted.calls.reloaded, 1);
-
-  const prompt = loadLocator({ permission: "prompt" });
-  await prompt.run();
-  assert.deepEqual(prompt.calls.saved, []);
-  assert.equal(prompt.calls.marked, 1, "the attempt is recorded so it is not retried every load");
-
-  for (const state of [{ stored: true }, { tried: true }]) {
-    const skipped = loadLocator({ ...state, bridgePosition: { latitude: 1, longitude: 1 } });
-    await skipped.run();
-    assert.equal(skipped.calls.saved.length, 0);
-    assert.equal(skipped.calls.marked, 0);
-  }
-});
-
 function loadSweepChecks(now, segments, movedSweepKeys = []) {
   const constantsStart = APP_LINES.findIndex((line) => line.startsWith("const DEFAULT_DAY_OF_REMINDERS = ["));
   const constantsEnd = APP_LINES.findIndex((line) => line.startsWith("const JOB_KIND_URGENCY = "));

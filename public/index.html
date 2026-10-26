@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20261026-sf-phase3" />
+    <link rel="stylesheet" href="./styles.css?v=20261027-city-menu" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -39,8 +39,17 @@
           <img src="./icon.svg?v=20260916-two-sides" alt="" width="40" height="40" />
         </div>
         <!-- Filled from CityRegistry by app.js. Choosing saves the city and reloads the page, since the
-             client settles on its city once at load. -->
-        <select id="city-switcher" class="city-switcher" aria-label="City"></select>
+             client settles on its city once at load. A button and a list that drops down from it, not a
+             <select>, so the list can be styled and animated; it keeps the select's keyboard behaviour. -->
+        <div id="city-switcher" class="city-switcher">
+          <button id="city-switcher-button" class="city-switcher-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="city-switcher-list" aria-label="City">
+            <span id="city-switcher-label">Denver</span>
+            <svg class="city-switcher-chevron" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+              <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <ul id="city-switcher-list" class="city-switcher-list" role="listbox" aria-label="City" tabindex="-1" aria-hidden="true"></ul>
+        </div>
         <button id="account-chip" class="account-chip" type="button" data-view-target="account">Sign in</button>
       </nav>
       <!-- The sweep-day check. Outside every view on purpose: on a sweep day the one question that
@@ -735,11 +744,7 @@
                   Your email address and a scrambled (hashed) form of your password, only if you choose to create an
                   account, so your saved curb sets can follow you to another device. We never store your actual password.
                 </li>
-                <li>
-                  Your approximate or precise location when you tap Use my location, so the map can move to you, and, the
-                  first time you open the iPhone app, once, so it can open the city you are in. That position is used on
-                  your phone to choose a city; it is not stored and not sent to us.
-                </li>
+                <li>Your approximate or precise location only when you tap Use my location, so the map can move to you.</li>
                 <li>
                   Where you parked, only when you tap Park here or I parked here. The pin is kept on your device and
                   cleared when you move your car or clear it yourself. The iPhone app tells us which curb the pin is on,
@@ -1242,8 +1247,8 @@
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./minneapolis-city-limits.js?v=20261001-mpls-limits"></script>
     <script src="./sf-city-limits.js?v=20261026-sf-limits2"></script>
-    <script src="./cities.js?v=20261026-sf-on-inv98"></script>
+    <script src="./cities.js?v=20261027-no-locate-inv98"></script>
     <script src="./sf-schedule.js?v=20261026-sf-schedule"></script>
-    <script src="./app.js?v=20261026-sf-phase3c"></script>
+    <script src="./app.js?v=20261027-city-menu"></script>
   </body>
 </html>

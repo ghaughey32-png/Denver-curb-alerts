@@ -307,10 +307,10 @@ The curb data is done; the city record, map, server alerts and paywall are not y
 
 In progress, planned 2026-10-09 ([SF-PLAN.md](SF-PLAN.md), a proposal): Phases 1–3 are built and **SF was switched
 on 2026-10-26** (`enabled` on its city record; `enabled: false` is how a city is kept out of the switcher, a stored
-choice, location matching and the first-launch city choice while it is being built). It went on in the same commit
+choice and location matching while it is being built). It went on in the same commit
 that put San Francisco into the Terms, Privacy and Disclaimer, which is the rule for any city: **a city is never
-enabled before its legal copy names it.** The app has not shipped with SF yet; the TestFlight build and App Store
-listing are Phase 4. What exists:
+enabled before its legal copy names it.** The app has not shipped with SF yet: Phase 4 (the TestFlight build and App Store
+listing) waits for build 12 to clear review and ships as version 1.1. What exists:
 `buildSfDataset` / `loadSfInventory` in `public/app.js`; `public/sf-schedule.js` (UMD, shared with the build script),
 which projects a curb's posted windows into dates at job time via `schedule.sf`; the reminder planner (overnight curbs
 remind the evening before at three user-set times, daytime curbs follow Denver's model, uncertain days are hedged);
@@ -608,6 +608,13 @@ Match the surrounding code. There is no linter or formatter.
    `npm run audit:inventory` pass, and only when the user asks. Never commit to `main` directly. If
    the live site serves a `?v=` tag on `develop` but not `main`, the Render dashboard is deploying the
    wrong branch.
+7. **While an iOS build waits in App Review** (build 12, submitted 2026-10-08, tagged `ios-build-12`), the
+   website and server may be released as usual: the app serves its own bundled `public/`, so a web release
+   cannot change what the submitted build does, but a server change must stay compatible with it. No iOS shell
+   change ships until approval, and the SF app release is a new version (1.1), not a swap of the build in
+   review (swapping is understood to lose the queue place; confirm in App Store Connect). Everything on
+   `develop` reaches the website on the next release, so keep unfinished work on a feature branch and merge it
+   when it is web-ready. Cut a fix for a rejected submission from the tag, not from `develop`.
 
 ## Environment variables
 

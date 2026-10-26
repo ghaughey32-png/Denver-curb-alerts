@@ -4366,37 +4366,6 @@ function buildSfDataset(payload) {
 
 // Puts a city's own wording on the landing page and map where it names the city. Denver's copy is the
 // markup's default and is never touched here.
-// First visit with no city chosen: if the phone already knows where it is, open that city. Once only,
-// recorded either way. The native shell answers from Core Location (its own permission); a browser is
-// asked only when it has already been allowed, so a website visit never opens a location prompt on load.
-// The header switcher stays the way to choose by hand, and the position is never stored or sent.
-async function chooseCityFromLocationOnce() {
-  const registry = window.CityRegistry;
-  if (registry.hasStoredCityChoice() || registry.hasTriedLocatingCity() || registry.listCities().length < 2) {
-    return;
-  }
-
-  registry.markTriedLocatingCity();
-  try {
-    const nativeBridge = getNativeReminderBridge();
-    const mayAsk = typeof nativeBridge?.getCurrentPosition === "function";
-    if (!mayAsk) {
-      const permission = await navigator.permissions?.query?.({ name: "geolocation" });
-      if (permission?.state !== "granted") {
-        return;
-      }
-    }
-
-    const position = await getDevicePosition({ maximumAge: 10 * 60 * 1000 });
-    const city = registry.getCityForPoint(position.latitude, position.longitude);
-    if (city && city.id !== ACTIVE_CITY.id && registry.saveCityChoice(city.id)) {
-      window.location.reload();
-    }
-  } catch (error) {
-    // Denied, unavailable or slow: stay on the default city; the switcher is one tap away.
-  }
-}
-
 function applyCityPageCopy() {
   if (!CITY_PAGE_COPY) {
     return;
@@ -5935,27 +5904,110 @@ function renderParkSheet() {
 // A failed save (storage blocked) leaves the page as it is rather than reloading into the same city.
 function initializeCitySwitcher() {
   const switcher = document.querySelector("#city-switcher");
+  const button = document.querySelector("#city-switcher-button");
+  const label = document.querySelector("#city-switcher-label");
+  const list = document.querySelector("#city-switcher-list");
   const cities = window.CityRegistry.listCities();
-  if (!switcher || cities.length < 2) {
+  if (!switcher || !button || !list || cities.length < 2) {
     if (switcher) {
       switcher.hidden = true;
     }
     return;
   }
 
-  cities.forEach((city) => {
-    const option = document.createElement("option");
-    option.value = city.id;
+  label.textContent = ACTIVE_CITY.name;
+  const options = cities.map((city) => {
+    const option = document.createElement("li");
+    option.id = `city-option-${city.id}`;
+    option.className = "city-switcher-option";
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(city.id === ACTIVE_CITY.id));
+    option.tabIndex = -1;
+    option.dataset.city = city.id;
     option.textContent = city.name;
-    option.selected = city.id === ACTIVE_CITY.id;
-    switcher.appendChild(option);
+    list.appendChild(option);
+    return option;
   });
 
-  switcher.addEventListener("change", () => {
-    if (window.CityRegistry.saveCityChoice(switcher.value)) {
-      window.location.reload();
-    } else {
-      switcher.value = ACTIVE_CITY.id;
+  const isOpen = () => switcher.classList.contains("is-open");
+  const focusOption = (index) => {
+    const option = options[(index + options.length) % options.length];
+    option.focus();
+  };
+  const close = (refocus = false) => {
+    switcher.classList.remove("is-open");
+    button.setAttribute("aria-expanded", "false");
+    list.setAttribute("aria-hidden", "true");
+    if (refocus) {
+      button.focus();
+    }
+  };
+  const open = () => {
+    // The list hangs from the button's right edge; where that would run off the left of the screen (the
+    // button sits at the left of its row on a phone) it hangs from the left edge instead.
+    const reach = switcher.getBoundingClientRect().right - list.offsetWidth;
+    switcher.classList.toggle("align-left", reach < 8);
+    switcher.classList.add("is-open");
+    button.setAttribute("aria-expanded", "true");
+    list.removeAttribute("aria-hidden");
+    focusOption(Math.max(0, cities.findIndex((city) => city.id === ACTIVE_CITY.id)));
+  };
+  // Choosing saves the city and reloads, since the client settles on its city once at load. Choosing the
+  // city already open just closes the list; a failed save (storage blocked) leaves the page as it is.
+  const choose = (cityId) => {
+    if (cityId === ACTIVE_CITY.id || !window.CityRegistry.saveCityChoice(cityId)) {
+      close(true);
+      return;
+    }
+
+    window.location.reload();
+  };
+
+  button.addEventListener("click", () => (isOpen() ? close() : open()));
+  button.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!isOpen()) {
+        open();
+      }
+    }
+  });
+  list.addEventListener("click", (event) => {
+    const option = event.target.closest?.(".city-switcher-option");
+    if (option) {
+      choose(option.dataset.city);
+    }
+  });
+  list.addEventListener("keydown", (event) => {
+    const current = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusOption(current + 1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusOption(current - 1);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      focusOption(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      focusOption(options.length - 1);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      if (current >= 0) {
+        choose(options[current].dataset.city);
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close(true);
+    } else if (event.key === "Tab") {
+      close();
+    }
+  });
+  // A tap anywhere else puts the list away, as a select's does.
+  document.addEventListener("pointerdown", (event) => {
+    if (isOpen() && !switcher.contains(event.target)) {
+      close();
     }
   });
 }
@@ -10588,7 +10640,6 @@ loadEmailConfig();
 loadCurrentAccount().then(handleEmailLinks);
 initializeCitySwitcher();
 applyCityPageCopy();
-chooseCityFromLocationOnce();
 if (IS_SNOW_CITY) {
   loadSnowInventory();
   refreshSnowEmergency();
