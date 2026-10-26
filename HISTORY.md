@@ -2651,3 +2651,25 @@ are not the bad ones.
 - **Still unplaced, not fixed:** Morton St (overlaps American Legion Hwy), Chester Park (the layer holds
   42 m of a 289 m street under another name), Brighton St (the row's dead end is not the layer's), the
   160 rows with `miles` = 0.
+
+### Boston: the 50 station mismatches, and a correction to the claims above (2026-10-26)
+
+Read the 59 `station-mismatch` rows (50 odd/even). Most were the test's limit, not wrong matches: paths
+the fitted start could not reach (Washington St, Centre St, East Fourth St, Dudley St) and streets where
+no candidate start explained any row (Porter St, Lomasney Way, Roxbury St: their stations begin 200–600
+m in, so the street's real start is not in the map's graph). `checkStations` now convicts a row only
+when the street's fit is **anchored by at least two distinct station spans** and the path is reachable;
+otherwise the row is untested, like a row alone on its street.
+
+- **Result: 91.6% of odd/even rows confident (3,193 of 3,486), still with the floor waived.** Station
+  check: **880 confirmed, 4 withdrawn, 2,521 untestable.** The 4 are Columbus Ave (2 rows), Beacon St
+  and Washington St.
+- **Correction.** Earlier entries here say station agreement was 92–94% (hold-out) and 98.2% (gate) of
+  the checkable rows. That overstated the evidence: most of those streets held a single block-span (a
+  block's odd and even rows), and one span can nearly always be fitted by choosing the start well, so
+  agreement on it proves little. **The honest figure is 99.5% (880 of 884) on the 884 rows a real fit
+  can test, which is 23.1% of the odd/even rows.** Those rows are also the easy ones (long streets with
+  many chained blocks), so it does not carry over to the other 77% as a measured accuracy. For those,
+  the evidence is the length band and the cross-street names only.
+- The 91.6% therefore means "length fits, cross streets resolved, and no measured station
+  contradiction", not "station-verified". Report both numbers whenever one is quoted.

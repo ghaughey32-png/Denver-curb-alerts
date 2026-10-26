@@ -121,8 +121,9 @@ async function main() {
   );
   console.log(`All rows: confident ${report.confidentRows} (${report.confidentLeafEndRows} using a leaf end), partial ${report.partialRows}, unpublished ${report.rows - report.confidentRows}`);
   console.log(
-    `Station check: ${report.stations.agree} agree, ${report.stations.mismatch} withdrawn, ${report.stations.unchecked} unchecked (alone on their street); ` +
-      `odd/even rows confident AND station-checked: ${percent(report.confidentCheckedOddEvenRows, report.oddEvenRows)}`
+    `Station check: ${report.stations.agree} confirmed, ${report.stations.mismatch} withdrawn, ${report.stations.unchecked} could not be tested ` +
+      `(alone on their street, fit anchored by under two spans, or out of reach); ` +
+      `odd/even rows confident AND station-confirmed: ${percent(report.confidentCheckedOddEvenRows, report.oddEvenRows)}`
   );
   console.log(`Length fit of confident rows: ${JSON.stringify(report.confidentRatios)}`);
   console.log(`Why rows are not published: ${JSON.stringify(report.statuses)}`);

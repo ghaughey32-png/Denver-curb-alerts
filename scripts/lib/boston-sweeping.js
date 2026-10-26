@@ -723,8 +723,9 @@ function stationsAgree(distances, item) {
   return Math.abs(Math.min(near, far) - item.low) <= tolerance && Math.abs(Math.max(near, far) - item.high) <= tolerance;
 }
 
-// Sets item.station to "agree", "mismatch" or "unchecked" (no usable stations, no clean pair of ends, or
-// the only confident row on its street, which has nothing to be fitted against).
+// Sets item.station to "agree", "mismatch" or "unchecked": no usable stations, no clean pair of ends, the
+// only confident row on its street, a street whose fit is anchored by under two distinct spans, or a path
+// the fitted start cannot reach. Only a measured disagreement is a mismatch.
 function checkStations(items, index) {
   const groups = new Map();
   items.forEach((item) => {
@@ -751,8 +752,19 @@ function checkStations(items, index) {
       const agreeing = group.filter((item) => stationsAgree(distance, item)).length;
       if (!best || agreeing > best.agreeing) best = { agreeing, distance };
     });
+    // A fit anchored by fewer than two distinct station spans proves nothing about the street (the
+    // street's real start is not in the map's graph: Porter St, Lomasney Way), so nothing on it is
+    // convicted. The duplicates of one block (its odd and even rows) are one span, not two.
+    const anchors = new Set(group.filter((item) => stationsAgree(best.distance, item)).map((item) => `${item.low}|${item.high}`));
+    if (anchors.size < 2) return;
     group.forEach((item) => {
+      // A path the fitted start cannot reach was not measured, which is not the same as disagreeing.
+      if (!item.ends.every((node) => best.distance.has(node))) return;
       item.station = stationsAgree(best.distance, item) ? "agree" : "mismatch";
+      // Kept for the report: where the path actually sits, to read a mismatch by.
+      item.measured = item.ends.map((node) => best.distance.get(node)).sort((a, b) => a - b);
+      item.groupAgreeing = best.agreeing;
+      item.groupSize = group.length;
     });
   });
 }

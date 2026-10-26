@@ -322,3 +322,12 @@ test("a gap wider than the bridge limit is not joined", () => {
   const { report } = build([scheduleRow({ from: "Oak St", to: "Pine St", miles: String(0.006 * 82000 / METRES_PER_MILE) })], features);
   assert.equal(report.confidentRows, 0);
 });
+
+test("a street whose stations only one block-span can vouch for is not convicted, however odd they look", () => {
+  // The odd and even rows of one block are one span. With nothing else on the street to fit against,
+  // far-off stations prove nothing, so the rows stay confident and are counted as untested.
+  const rows = [stationRow(1, "Oak St", "Elm St", 4000), stationRow(2, "Oak St", "Elm St", 4000, { side: "Odd" })];
+  const { report } = build(rows);
+  assert.deepEqual(report.stations, { agree: 0, mismatch: 0, unchecked: 2 });
+  assert.equal(report.confidentRows, 2);
+});
