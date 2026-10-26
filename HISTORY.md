@@ -2492,8 +2492,19 @@ fix went. The landing page has the same row.
   city. Not shown on a phone: the chips sit directly under the header there, and in the first build the hint
   covered them.
 - **Wording.** The landing eyebrow and text no longer say "Denver" ("when your city sweeps it"), and Minneapolis
-  got its own page wording (snow emergency alerts) where it had been showing Denver's. **Known gap:** the
-  colour legend under the map still explains Denver's side colours on a Minneapolis page, where the colours
-  are snow classes.
+  got its own page wording (snow emergency alerts) where it had been showing Denver's. (The colour legend
+  under the map still explained Denver's side colours on a Minneapolis page; fixed the same day, below.)
 - **Not measured.** Analytics counts only a few anonymous steps with no city field, so whether the chips change
   how many people switch city cannot be seen; adding that would be a Privacy and privacy-manifest change.
+
+## Minneapolis legend (2026-10-27)
+
+The "What do the colors mean?" legend was Denver's (north, south, east and west curbs, plus plum, pink and gray)
+on every city's page, so on a Minneapolis page it explained colours that were not on the map. A city record can
+now carry `pageCopy.legend`, a list of `{ colorKey, text }`; `applyCityLegend` replaces the legend entries and
+the swatches on its summary with them. `colorKey` names an entry of `colors` in app.js, the same entry the curbs
+are drawn with, so the two cannot drift, and a test checks that the colours Minneapolis's 24,591 curbs use are
+exactly the ones its legend lists (route, even side, odd side). The wording follows the data's day patterns: a
+route is banned on Day 1, the even-numbered side on Day 2, the odd-numbered side on Day 3. Denver's legend stays
+in the markup untouched (source-text tests guard it) and San Francisco, which uses the four side colours, shows
+those four with Denver's three extra states hidden.

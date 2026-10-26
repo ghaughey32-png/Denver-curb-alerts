@@ -11,6 +11,7 @@ function makeElement(id = "", className = "") {
     hidden: false,
     tabIndex: 0,
     dataset: {},
+    style: {},
     attributes: {},
     children: [],
     listeners: {},

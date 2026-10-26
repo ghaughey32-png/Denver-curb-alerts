@@ -4387,6 +4387,42 @@ function applyCityPageCopy() {
   document.querySelectorAll("[data-denver-only]").forEach((element) => {
     element.style.display = "none";
   });
+  applyCityLegend();
+}
+
+// A city whose curbs are not Denver's four side colours (Minneapolis's snow classes) replaces the legend
+// under the map, and the swatches on its summary, with its own. The Denver legend stays in the markup and
+// is only ever replaced here.
+function applyCityLegend() {
+  const entries = CITY_PAGE_COPY?.legend;
+  const legend = document.querySelector(".map-details .legend");
+  const swatches = document.querySelector(".map-details-swatches");
+  if (!Array.isArray(entries) || !entries.length || !legend) {
+    return;
+  }
+
+  const makeDot = (colorKey) => {
+    const dot = document.createElement("span");
+    dot.className = "legend-dot";
+    dot.style.background = colors[colorKey];
+    return dot;
+  };
+
+  legend.textContent = "";
+  entries.forEach((entry) => {
+    const item = document.createElement("span");
+    item.className = "legend-item";
+    item.appendChild(makeDot(entry.colorKey));
+    const text = document.createElement("span");
+    text.textContent = ` ${entry.text}`;
+    item.appendChild(text);
+    legend.appendChild(item);
+  });
+
+  if (swatches) {
+    swatches.textContent = "";
+    entries.forEach((entry) => swatches.appendChild(makeDot(entry.colorKey)));
+  }
 }
 
 // When the data was built, shown on the curb sheet so a driver can judge how fresh it is.

@@ -199,7 +199,15 @@
       heroTitle: "Know where you can park in a snow emergency.",
       heroText: "Tap the curb where you park. We'll show which days the city bans parking there during a snow emergency, and alert you when one is declared.",
       mapLabel: "Clickable Minneapolis curb-side map",
-      loadingTitle: "Loading Minneapolis curbs"
+      loadingTitle: "Loading Minneapolis curbs",
+      // What the colours under the map mean here, in place of Denver's side colours. `colorKey` names an
+      // entry of `colors` in app.js, which is where the curbs get theirs, so the two cannot drift. The days
+      // are the data's: a route is banned on Day 1, the even-numbered side on Day 2, the odd on Day 3.
+      legend: [
+        { colorKey: "snowRoute", text: "Snow emergency route: no parking on Day 1, and it stays banned until the street is plowed" },
+        { colorKey: "snowEven", text: "Even-numbered side of other streets: no parking on Day 2" },
+        { colorKey: "snowOdd", text: "Odd-numbered side of other streets: no parking on Day 3" }
+      ]
     },
     snowRules: {
       authority: "City of Minneapolis",
