@@ -97,6 +97,12 @@ us for free.
 4. **What the app is against Notify Boston.** The city's service is free and email-only, day-before.
    The app's case is push, user-set times, the moved-car nags and the map. Copy must not disparage it.
 5. **The unmatched state.** Rows that fail the length check are not published as confident. Either reuse
+   *First example of a second kind of case (2026-10-26):* Madeline St, Harriet St to Faneuil St, is placed correctly and
+   has a schedule row (Tue 12–4), yet the author found **no street-cleaning sign on the block**, only a moving-permit
+   Tow Zone notice. That is not "we could not place it", it is "the schedule says yes and the curb says nothing", and a
+   driver should not be told either "sweeping Tuesday" or "all clear". It needs its own curb colour, separate from
+   pink (no rule published) and gray (not maintained). Pick it by CIELAB distance under simulated deuteranopia, as the
+   AGENTS.md colour rule says. Decide with the unmatched state, not separately.
    pink (*no rule published for this curb; check the sign* is close to its meaning) or add a state.
    `getCurbColor` is the one place that decides; pick by CIELAB distance, not by eye.
 
