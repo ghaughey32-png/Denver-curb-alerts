@@ -2583,3 +2583,21 @@ plan keeps `public/` untouched while build 12 is in review. Downloads are cached
 - **Not done:** the ticket check (no current Boston ticket data), the address-points search, the
   hard-street sign checks, an unmatched-state colour, and the emailed question to the city. 438 median
   curbs are published as their own labelled curbs.
+
+### Boston hold-out check (2026-10-26)
+
+- **`losta`/`hista` are not house numbers.** On every row with a length, `hista − losta` equals
+  `miles × 5280` exactly: they are **feet along the street from its start**. That is why the spike's
+  "620 zero-match rows" never matched the segments' house-number ranges (a house-number test put 1–3% of
+  matched blocks inside the range, no better than a random block on the same street), and why the field
+  cannot be used to place a block by number.
+- **It is an independent validator of the join**, because the matching never used it. Test: per street,
+  take the origin node (among the matched rows' ends) that best explains the stations, then ask whether
+  each confident row's path ends sit at `losta` and `hista` feet from it, within 10% of the row's length
+  (60 m minimum). Result over the 3,146 confident rows on streets with at least two confident rows:
+  **92.5% agree for rows with both ends placed (2,496 of 2,698), 94.2% for rows using a leaf end
+  (422 of 448).** The leaf-end rule is not weaker than the rest. The origin is fitted once per street,
+  so this is optimistic by that one parameter; the disagreements (Amory St, A St, Adams St, Brooks St
+  first) are a mix of wrong matches and streets in several pieces or loops, not yet separated.
+- **Not done:** using the stations as a second gate in the build, and sign-checking a sample in Street
+  View. 170 confident rows are alone on their street and cannot be checked this way.
