@@ -26,6 +26,15 @@
   const DENVER = {
     id: "denver",
     name: "Denver",
+    // What the city sells and how its published file is read. "sweeping" curbs carry a schedule of
+    // dates; "snow" curbs carry the days parking is banned. inventoryFormat names the loader the page
+    // dispatches to, so a third city adds a format here rather than another test of a city id.
+    kind: "sweeping",
+    inventoryFormat: "denver-routes",
+    // Curb ids belong to a city by prefix: a saved curb says which city's inventory can vouch for it.
+    // Denver's ids are "<way>:<side>" and carry none, so the empty prefix is the default every id
+    // that matches no other city's falls back to.
+    idPrefix: "",
     // Appended to a typed address before it goes out to a geocoder. Denver's own address lookup has
     // answered HTTP 400 since before 2026-08-22, so in practice the local matcher below carries the
     // search; this is still what the query is normalised with.
@@ -162,6 +171,8 @@
     id: "minneapolis",
     name: "Minneapolis",
     kind: "snow",
+    inventoryFormat: "minneapolis-snow",
+    idPrefix: "mpls:",
     geocodeSuffix: "Minneapolis, MN",
     // The bounding box of the published curbs, padded a little so the map is not jammed against the
     // edge of the outermost street.
@@ -264,6 +275,14 @@
     return CITIES.find((city) => isWithinCityBounds(city, lat, lon)) || null;
   }
 
+  // The city a saved curb id belongs to. A city with a prefix claims the ids that start with it; any
+  // other id is Denver's, because Denver's ids have no prefix and every curb saved before the second
+  // city existed is one of them. Prefixes must not overlap, which test/city-registry.test.js checks.
+  function getCityForCurbId(segmentId) {
+    const id = String(segmentId);
+    return CITIES.find((city) => city.idPrefix && id.startsWith(city.idPrefix)) || getCity(DEFAULT_CITY_ID);
+  }
+
   // The boundary module for a city, or null when its script has not loaded. The map degrades to
   // drawing no city line rather than failing, which is what loadCityBoundary already did.
   function getCityLimits(city) {
@@ -282,6 +301,7 @@
     saveCityChoice,
     isWithinCityBounds,
     getCityForPoint,
+    getCityForCurbId,
     getCityLimits
   };
 });

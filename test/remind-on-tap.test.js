@@ -56,6 +56,7 @@ function loadCurbReminders({ curbs, savedSets = [], storage = {}, activeCity = "
   const store = new Map(Object.entries(storage).map(([key, value]) => [key, JSON.stringify(value)]));
   const sandbox = {
     ACTIVE_CITY: { id: activeCity },
+    window: { CityRegistry: require("../public/cities.js") },
     state: { curbSegments: curbs, savedSets, activeSourceLabel: "Test", activeLookupAddress: "" },
     lookupStatus: { textContent: "" },
     persistCount: 0,

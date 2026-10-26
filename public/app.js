@@ -2824,10 +2824,10 @@ function getMissingEmbeddedWays(embeddedWays, officialWays) {
   });
 }
 
-// Denver ids are "<way>:<side>"; Minneapolis snow curbs are "mpls:<hash>". The prefix is how a saved
-// curb says which city's inventory can vouch for it.
+// Denver ids are "<way>:<side>"; every other city's curbs carry the prefix on its record (Minneapolis
+// "mpls:<hash>"). The prefix is how a saved curb says which city's inventory can vouch for it.
 function getCurbIdCity(segmentId) {
-  return String(segmentId).startsWith("mpls:") ? "minneapolis" : "denver";
+  return window.CityRegistry.getCityForCurbId(segmentId).id;
 }
 
 function isCurbIdOfActiveCity(segmentId) {
