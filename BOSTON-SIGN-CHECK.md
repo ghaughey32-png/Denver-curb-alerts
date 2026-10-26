@@ -1,0 +1,24 @@
+# Boston sign check: 10 random untested rows (2026-10-26)
+
+Ten blocks drawn at random (seeded, one row per block) from the rows the station check could not test. For each, open the Street View link, stand on the block, and read the street cleaning sign on the **side named** side. Record what the sign says. A "match" means the sign agrees with the rule below (day, hours and weeks of the month); anything else is a miss, and a missing sign or unreadable image is "no sign / unreadable", not a miss.
+
+Odd or even is the side of the street by house number. The Street View imagery is dated in its bottom bar; note it. Check the sign sits on the stretch between the two cross streets named, not just anywhere on the street.
+
+| # | Block (side) | We say | Street View | Sign says | Match? |
+|---|---|---|---|---|---|
+| 1 | **Lyon St**, Dorchester Ave to Adams St, **Even** side (North Dorchester) | Thu 08:00-12:00, weeks 2,4 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.30648,-71.059797) | "Street Cleaning, 2nd & 4th THURSDAY, 8am-12noon, Tow Zone" (Jul 2019 imagery; pole near 45 Lyon St) | **Match.** Day, hours, weeks and side. The pole stands beside no. 38 (even); the opposite side is no-parking signs, so this is the only parkable curb. |
+| 2 | **Roys St**, Lamartine St to Chestnut Ave, **Even** side (Jamaica Plain) | Mon 12:00-16:00, weeks 2,4 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.321597,-71.101549) | Faded sign on a pole mid-block on Roys St, against the school wall (a separate pole from the Wise St corner sign): "1st & 3rd Tuesday 12noon-4pm", header worn off, above a school-days Tow Zone sign. Jun 2026 imagery. Wise St corner sign (other pole) says the same. | **Likely miss (day).** Roys St rows say Monday 12-4 (weeks 2,4 even; 1,3 odd). Sign says Tuesday, 12-4, weeks 1,3: hours and the odd row's weeks match, the day does not. School side is probably EVEN (southwest): from the Chestnut Ave end (18 Chestnut Ave, high-number end) looking down Roys St the school is on the right, and the map data puts even on the southwest. If so the sign's day AND weeks disagree with the even row (Mon, 2 & 4); its weeks (1 & 3) are the odd row's. Moderate confidence: camera direction not independently confirmed. Could be the city's schedule rather than our match.  **Decision (2026-10-26): go with the sign.** Both Roys St rows (2231, 2232) now carry the sign's rule, Tue 1st & 3rd 12-4, as a recorded override (`SIGN_OVERRIDES`).|
+| 3 | **Forest Hills St**, Washington St to Arborway, **Odd** side (DCR) | Thu 08:00-12:00, weeks 1,3 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.30808,-71.102545) |  |  |
+| 4 | **East Lenox St**, Washington St to Fellows St, **Odd** side (South End) | Thu 08:00-12:00, weeks 1,3,5, year-round | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.334536,-71.078123) |  |  |
+| 5 | **Rutherford Ave**, Union St to New Rutherford Ave, **Even** side (Charlestown) | Wed 08:00-12:00, weeks 2,4 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.373181,-71.064212) |  |  |
+| 6 | **Everett Ave**, Jerome St to Stoughton St, **Odd** side (North Dorchester) | Fri 08:00-12:00, weeks 1,3 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.315481,-71.062979) |  |  |
+| 7 | **Sayward St**, Bird St to Columbia Rd, **Odd** side (North Dorchester) | Thu 12:00-16:00, weeks 1,3 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.313991,-71.068702) |  |  |
+| 8 | **Rosedale St**, Washington St to Whitfield St, **Even** side (South Dorchester) | Wed 12:00-16:00, weeks 2,4 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.292607,-71.072681) |  |  |
+| 9 | **Clarkwood St**, Blue Hill Ave to Norfolk St, **Even** side (South Dorchester) | Thu 12:00-16:00, weeks 2,4 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.279952,-71.0904) |  |  |
+| 10 | **Blackwood St**, St Botolph St to Dead End, **Even** side (Back Bay) (ends at a dead end) | Fri 08:00-12:00, weeks 2,4 | [open](https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=42.342753,-71.082129) |  |  |
+
+Row ids, for tracing: 1631, 2231, 3667, 837, 2017, 3706, 3464, 2217, 131, 6 (the schedule's main_id).
+
+Weeks "2,4" means the 2nd and 4th occurrence of that weekday in the month; signs usually say "2nd & 4th Thursday". Season is April to November unless the row is year-round.
+
+Block 1 was read from a screenshot you sent. I could not reach a readable sign myself in the built-in browser.

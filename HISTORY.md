@@ -2673,3 +2673,17 @@ otherwise the row is untested, like a row alone on its street.
   the evidence is the length band and the cross-street names only.
 - The 91.6% therefore means "length fits, cross streets resolved, and no measured station
   contradiction", not "station-verified". Report both numbers whenever one is quoted.
+
+### Boston sign check, first two blocks (2026-10-26)
+
+Ten random untested blocks are in [BOSTON-SIGN-CHECK.md](BOSTON-SIGN-CHECK.md); the author reads them in
+Street View and sends screenshots (the built-in browser reached Street View but could not find a legible
+sign in four moves). **Lyon St: full match** (2nd & 4th Thursday 8–12, even side, the opposite side all
+no-parking). **Roys St: miss.** The schedule has Monday 12–4 (even weeks 2,4; odd 1,3); the school-side sign,
+a separate pole from the Wise St corner sign, reads **1st & 3rd Tuesday 12noon–4pm**. Roys St is the whole
+street (one 75 m block, two rows). Decision: go with the sign. `SIGN_OVERRIDES` in the lib replaces day, weeks
+and hours on rows 2231 and 2232, marks the rule `source: "sign"` and lists both in the report. Only one side
+was seen, so the other side's weeks are the sign's, unconfirmed. Wise St's own odd row (Tue 12–4, weeks 1,3)
+matches the clear corner sign beside it. Possible cause worth asking the city: Roys St's row may have taken
+the wrong day. Also seen: a side of a street can be no-parking (Lyon St, Roys St's school gate) while the
+schedule still lists both sides; see IDEAS.md if that is added.

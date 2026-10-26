@@ -127,6 +127,7 @@ async function main() {
   );
   console.log(`Length fit of confident rows: ${JSON.stringify(report.confidentRatios)}`);
   console.log(`Why rows are not published: ${JSON.stringify(report.statuses)}`);
+  console.log(`Sign overrides applied: ${report.signOverrides.length} (${report.signOverrides.map((o) => `${o.street} #${o.mainId}`).join(", ") || "none"})`);
   console.log(`Sides guessed from convention on ${report.ambiguousSideSegments} segment sides; ${report.rowsEndingBeforeStart.length} rows end before they start`);
   console.log(`Overnight curbs ${report.overnightCurbs}; standing (every-night) curbs ${report.standingCurbs}`);
   console.log(`Payload ${(serialized.length / 1e6).toFixed(2)} MB. Report written to ${path.relative(ROOT, REPORT_PATH)}.`);

@@ -129,6 +129,16 @@ const NAME_CORRECTIONS = new Map(Object.entries({
 // Where a street simply ends or leaves the city: "Dead End", "Brookline Town Line", "End of Street".
 const CROSS_STREET_NOISE = /^(dead end|end|end of street|\s*)$|\b(town|city) line$|^brookline line$/i;
 
+// Rules read off posted signs where the city's schedule disagrees with them. The signs are the law a driver
+// is held to, and the schedule is a 2012-era spreadsheet, so a sign someone has actually read wins. Each
+// entry names the row, the street it must still be on (a refreshed schedule may reuse a row id), the rule
+// the sign states, and what was seen. An override replaces day, weeks and hours only, and the curb's rule
+// carries `source: "sign"`. Every one is listed in the report. Add one only from a sign that was read.
+const SIGN_OVERRIDES = new Map([
+  [2231, { street: "Roys St", days: [2], weeks: [1, 3], start: "12:00", end: "16:00", seen: "Roys St, school side, Jun 2026 Street View: \"1st & 3rd Tuesday 12noon-4pm\" (header faded); schedule said Monday, even weeks 2,4. The other side was not seen." }],
+  [2232, { street: "Roys St", days: [2], weeks: [1, 3], start: "12:00", end: "16:00", seen: "Same sign as row 2231; this (odd) side was not seen, so its weeks are the sign's, unconfirmed." }]
+]);
+
 // ---- CSV ---------------------------------------------------------------------------------------
 
 // Reads CSV with quoted fields and either line ending. The city's export ends lines with CRLF, which
@@ -786,6 +796,7 @@ function buildBostonCurbs({ rows, features }) {
     unsupportedSideRows: 0,
     unreadableRows: 0,
     rowsEndingBeforeStart: [],
+    signOverrides: [],
     statuses: {},
     ambiguousSideSegments: 0,
     curbs: 0,
@@ -818,6 +829,11 @@ function buildBostonCurbs({ rows, features }) {
       report.unreadableRows += 1;
       record(reason);
       return;
+    }
+    const override = SIGN_OVERRIDES.get(schedule.mainId);
+    if (override && normalizeStreetName(override.street).core === normalizeStreetName(row.st_name).core) {
+      report.signOverrides.push({ mainId: schedule.mainId, street: row.st_name, was: { days: schedule.days, weeks: schedule.weeks, start: schedule.start, end: schedule.end }, seen: override.seen });
+      Object.assign(schedule, { days: override.days, weeks: override.weeks, start: override.start, end: override.end, nightBefore: readHour(override.start) < NIGHT_BEFORE_START_HOUR, source: "sign" });
     }
     if (endsBeforeStart) report.rowsEndingBeforeStart.push({ mainId: schedule.mainId, street: row.st_name, start: schedule.start, end: schedule.end });
     const miles = Number(row.miles);
@@ -921,6 +937,7 @@ module.exports = {
   indexSegments,
   findStreet,
   matchRow,
+  SIGN_OVERRIDES,
   checkStations,
   readSideLabel,
   pickSide,

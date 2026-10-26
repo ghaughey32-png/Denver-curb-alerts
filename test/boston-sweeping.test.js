@@ -331,3 +331,26 @@ test("a street whose stations only one block-span can vouch for is not convicted
   assert.deepEqual(report.stations, { agree: 0, mismatch: 0, unchecked: 2 });
   assert.equal(report.confidentRows, 2);
 });
+
+// ---- Sign overrides --------------------------------------------------------------------------------
+
+test("a row with a sign override takes the sign's day, weeks and hours, says so, and is reported", () => {
+  const rows = [scheduleRow({ main_id: "2231", st_name: "Roys St", from: "Oak St", to: "Pine St" })];
+  const features = grid().map((feature) => (feature.properties.ST_NAME === "Main" ? { ...feature, properties: { ...feature.properties, ST_NAME: "Roys" } } : feature));
+  const { curbs, report } = build(rows, features);
+  assert.equal(report.signOverrides.length, 1);
+  assert.deepEqual(report.signOverrides[0].was.days, [1]);
+  curbs.forEach((curb) => {
+    assert.deepEqual(curb.schedules[0].days, [2]);
+    assert.deepEqual(curb.schedules[0].weeks, [1, 3]);
+    assert.equal(curb.schedules[0].start, "12:00");
+    assert.equal(curb.schedules[0].source, "sign");
+  });
+});
+
+test("an override does not apply when the row id now belongs to another street", () => {
+  const { curbs, report } = build([scheduleRow({ main_id: "2231" })]);
+  assert.equal(report.signOverrides.length, 0);
+  assert.deepEqual(curbs[0].schedules[0].days, [1]);
+  assert.equal(curbs[0].schedules[0].source, undefined);
+});
