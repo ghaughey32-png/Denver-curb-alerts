@@ -84,3 +84,15 @@ Minneapolis. **Look at it again soon:** confirm each city's current sweeping fin
 (SF's is not yet checked), and decide whether the paywall should name the city the driver is in. The
 line beneath it (the daily cost) is unchanged. The paywall subtitle ("the evening before and the morning
 of every sweep") is also Denver-shaped: an SF overnight curb has no morning reminder.
+
+## Show where parking is not allowed at all
+
+Noted 2026-10-26 from the Boston sign check ([BOSTON-SIGN-CHECK.md](BOSTON-SIGN-CHECK.md)). The sweeping
+schedules (Boston's, and likely every city's) list a rule for both sides of a street and for every block,
+including curbs where nobody may park: one side of Lyon St was all no-parking signs, the Roys St school
+gate is *Tow Zone, No Stopping Any Time*, and East Lenox St turns no-parking further up. The map draws a
+sweeping rule there anyway. It is not wrong advice, but it clutters the map and a driver may wonder why a
+curb they cannot use has a rule. No city dataset says which curbs are no-parking (these are signs, not
+schedule rows), so this would need either the city's regulatory data (Boston has a separate
+no-parking / tow-zone sign inventory worth looking for) or crowd correction in the app. Look at it after
+the sweeping data itself is trusted.
