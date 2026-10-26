@@ -2423,6 +2423,47 @@ Phase 1 of SF-PLAN.md: `scripts/build-sf-sweeping.js` and `scripts/lib/sf-sweepi
   derived sides and the ranges all agree with what the city enforces. (Exploratory script in the
   scratchpad, not committed; the build's gate is unchanged.)
 
+## Boston research (2026-10-13)
+
+Feasibility check for Boston as the next city, after Denver, Minneapolis (snow) and SF. The plan is
+[BOSTON-PLAN.md](BOSTON-PLAN.md); this section holds the measurements. Spike scripts lived in the
+session scratchpad and were not committed.
+
+- **Candidates.** Chicago's schedule is dates per ward section with no side or curb geometry, and the
+  city runs its own alerts. DC publishes no sweeping schedule (signs only). NYC is sign text and was not
+  pursued. Boston has a downloadable schedule with sides and weeks, plus mayor-declared snow
+  emergencies, so it needs both pipelines the app already has.
+- **Data.** data.boston.gov: schedule CSV `9fdbdcad-67c8-4b23-b6ec-861e77d56227` (3,758 rows, 31
+  columns, no geometry, datastore SQL works) and SAM street segments (19,440, GeoJSON/CSV with
+  `shape_wkt`). **No shared key**: the schedule's `main_id` is its own id and the segments use
+  `SEGMENT_ID`. `side` is `Odd`/`Even` on 3,484 rows, null on 198, other labels on the rest.
+- **The city's lookup is the same data.** notify.boston.gov/street-alerts (a beta single-page app,
+  `/street-alerts/api/streets/search?q=`) returns variants whose ids equal `main_id`, and links to the
+  dataset for download. 31 predicted rows matched it exactly, typos included (`Cheslea St`). Its
+  address search ignores the house number for some queries (239 Columbus Ave returned 9 blocks) and
+  returns nothing for others (35 Bennett St, 11 Derne St). The Street Work map behind its "active street
+  work" link has only permit point layers (`sam_id`, no block ids); it is not a sweeping geometry source.
+- **The join.** Name match 99.2% (after East/West/North/South prefixes were mapped). Name + parity +
+  address range: 69% at the right length, because `losta`/`hista` is street-wide on 2,804 rows. Adding
+  the shortest path between the two cross streets: **86.1% of all Odd/Even rows within 0.8–1.25× the
+  row's own `miles`**; 96.3% where both cross streets resolve, 7.0% no path. Failures: a cross street
+  that names the street itself, guessed ends, and streets split into unconnected pieces.
+- **Commonwealth Ave, signs against data.** The lookup for 199 Commonwealth Ave returned one 4.76-mile
+  block with only the two Thursday overnight "Median" rows (2974, 3442); the Monday daytime rows for
+  Arlington St–Massachusetts Ave (558 even weeks 2,4; 560 odd weeks 1,3; 08:00–12:00) were missing.
+  Street View (Jun 2026) confirmed both Monday signs on the outer curbs, with a *Tow Zone* line and an
+  *Emergency Artery, No Parking During Snow Emergency* sign on the same pole. The median curb is a bike
+  lane or bus lane at four places between Back Bay and Kenmore; service lanes with parked cars appear
+  further west. What `Median` means is unresolved. The Monday rows date from 2012-02-14.
+- **Blue Hill Ave.** The lookup's two returned blocks were both every-day 12–7 a.m. and no house number
+  changed the answer; the odd row it did not return (id 401, Friday 00:00–07:00, year-round) is
+  covered by them. So the earlier suspicion that it hid a rule there was wrong.
+- **City page rules** (read 2026-10-13): daytime Apr 1–Nov 30, but Mar 1–Dec 31 in the North End, South
+  End and Beacon Hill; night sweeping year-round; weekly streets also clean in week 5, every-other-week
+  streets usually not unless the sign lists it; holidays cancel daytime sweeping; weather can cancel.
+- **Not found:** a current open ticket dataset (a 2018–Aug 2020 release exists), a dataset of snow
+  emergency arteries, a machine-readable cancellation feed.
+
 ## SF Phase 3 build (2026-10-26)
 
 SF's visible half, built behind `enabled: false` on its city record. The author approved the legal copy

@@ -48,6 +48,34 @@ APNs) are ahead of it.
 
 ---
 
+## Boston extras: holidays, weather cancellations, temporary no-parking alerts
+
+Noted 2026-10-13, from reading Boston's own Notify Boston page while feasibility-checking Boston as
+the next city. **Look at these only after Boston street sweeping and Minneapolis snow emergency
+alerts are done.** Boston's launch scope is the sweep schedule, per-district seasons and the
+fifth-week flag; none of this is in it.
+
+- **City holidays.** Boston cancels daytime sweeping on City-recognized holidays (nighttime
+  continues). Reminders are scheduled ahead on the phone, so this is a dated list in the app, kept
+  yearly from the city's own list. When unsure, remind: a missed reminder costs a ticket, one on a
+  cancelled day only annoys. Probably cheap enough to pull into the launch if the list is easy.
+- **Weather cancellations.** Announced day-of, so a phone cannot schedule around them. No
+  machine-readable feed was found. If one exists, poll it like the Minneapolis notice poller and only
+  email the author; if not, it is a person declaring it by hand each time. A cancellation push is a
+  new kind of Apple push, so it needs the "is this part of what is sold" decision AGENTS.md reserves
+  for when that kind exists.
+- **Temporary no-parking alerts** (moving trucks, dumpsters, construction, events). The city
+  publishes Active and Future street-occupancy permits as ArcGIS point layers, refreshed nightly
+  (`Analytics_Street_Access_Awareness_*_Permits`, fields include `permit_start_date`,
+  `permit_end_date`, `sam_id`, `sam_full_address`). That is a push the phone cannot schedule ahead,
+  so it fits the one kind of Apple push we allow. New work: match points to saved curbs, a server
+  poller, and Terms/Privacy copy. Signs go up about 48 hours before, so the lead time is short.
+
+Notify Boston, the city's free service, is email-only and sends a day before; push, the moved-car
+nags and the snow alerts are what the app adds.
+
+---
+
 ## Paywall ticket-cost line
 
 Noted 2026-10-26. `Paywall.swift` said "A Denver street sweeping ticket costs $50." Now a city-neutral
