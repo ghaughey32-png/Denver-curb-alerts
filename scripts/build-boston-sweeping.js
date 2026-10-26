@@ -10,8 +10,9 @@
 // layer one GeoJSON file (about 22 MB), both from data.boston.gov. Downloads are cached under
 // data/boston-sweeping-cache/, so a rebuild after a logic change needs no network at all.
 //
-// Boston publishes no current ticket data, so the gate is the join itself: a schedule row is published
-// only if the path found for it is within the length band of the row's own `miles`. Two gates stand
+// Boston publishes no current ticket data, so the gates are the join itself: a schedule row is published
+// only if the path found for it is within the length band of the row's own `miles` AND its `losta`/`hista`
+// stations (feet along the street, which the join never reads) agree with where the path sits. Two gates stand
 // between a build and the published file: the confident share of odd/even rows may not fall below
 // MIN_CONFIDENT_SHARE (nor more than a point below the published file's), and the curb count may not
 // fall more than MAX_CURB_DROP below the published file's (ALLOW_COVERAGE_DROP=1 overrides).
@@ -115,6 +116,10 @@ async function main() {
     `Odd/even rows placed confidently: ${report.confidentOddEvenRows} of ${report.oddEvenRows} (${percent(report.confidentOddEvenRows, report.oddEvenRows)})`
   );
   console.log(`All rows: confident ${report.confidentRows} (${report.confidentLeafEndRows} using a leaf end), partial ${report.partialRows}, unpublished ${report.rows - report.confidentRows}`);
+  console.log(
+    `Station check: ${report.stations.agree} agree, ${report.stations.mismatch} withdrawn, ${report.stations.unchecked} unchecked (alone on their street); ` +
+      `odd/even rows confident AND station-checked: ${percent(report.confidentCheckedOddEvenRows, report.oddEvenRows)}`
+  );
   console.log(`Length fit of confident rows: ${JSON.stringify(report.confidentRatios)}`);
   console.log(`Why rows are not published: ${JSON.stringify(report.statuses)}`);
   console.log(`Sides guessed from convention on ${report.ambiguousSideSegments} segment sides; ${report.rowsEndingBeforeStart.length} rows end before they start`);

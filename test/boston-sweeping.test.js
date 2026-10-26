@@ -221,3 +221,45 @@ test("the report counts the odd/even rows and the share placed confidently", () 
   assert.equal(report.confidentOddEvenRows, 1);
   assert.equal(report.confidentShare, 0.5);
 });
+
+// ---- The station check ---------------------------------------------------------------------------
+// losta/hista are feet along the street (hista - losta = miles x 5280). Two blocks of Main St, Oak to
+// Elm and Elm to Pine, each BLOCK_FEET long, starting at station 100 (the street's first 100 ft has no row).
+const BLOCK_FEET = MILES_PER_BLOCK * 5280;
+
+function stationRow(mainId, from, to, low, overrides = {}) {
+  return scheduleRow({
+    main_id: String(mainId),
+    from,
+    to,
+    miles: String(MILES_PER_BLOCK),
+    parent: "MAIN1",
+    losta: String(Math.round(low)),
+    hista: String(Math.round(low + BLOCK_FEET)),
+    ...overrides
+  });
+}
+
+test("rows whose stations chain along the street agree, even when the street's first feet have no row", () => {
+  const rows = [stationRow(1, "Oak St", "Elm St", 100), stationRow(2, "Elm St", "Pine St", 100 + BLOCK_FEET)];
+  const { report, curbs } = build(rows);
+  assert.deepEqual(report.stations, { agree: 2, mismatch: 0, unchecked: 0 });
+  assert.equal(report.confidentRows, 2);
+  assert.equal(curbs.length, 2);
+});
+
+test("a row whose stations put it somewhere else on the street is withdrawn, not published", () => {
+  const rows = [stationRow(1, "Oak St", "Elm St", 100), stationRow(2, "Elm St", "Pine St", 100 + BLOCK_FEET), stationRow(3, "Pine St", "Dead End", 9000, { side: "Odd" })];
+  const { report, curbs } = build(rows);
+  assert.equal(report.stations.mismatch, 1);
+  assert.equal(report.statuses["station-mismatch"], 1);
+  assert.equal(report.confidentRows, 2);
+  assert.ok(curbs.every((curb) => curb.schedules.every((schedule) => schedule.mainId !== 3)));
+});
+
+test("a row alone on its street cannot be checked and stays confident, counted as unchecked", () => {
+  const { report } = build([stationRow(1, "Oak St", "Elm St", 4000)]);
+  assert.deepEqual(report.stations, { agree: 0, mismatch: 0, unchecked: 1 });
+  assert.equal(report.confidentRows, 1);
+  assert.equal(report.confidentCheckedOddEvenRows, 0);
+});

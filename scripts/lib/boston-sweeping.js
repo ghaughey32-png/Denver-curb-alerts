@@ -595,6 +595,72 @@ function buildCurbId(segmentId, side, median) {
   return `bos:${crypto.createHash("sha1").update(`${segmentId}|${side}${median ? "|m" : ""}`).digest("hex").slice(0, 10)}`;
 }
 
+// ---- The station check -------------------------------------------------------------------------
+
+// `losta` and `hista` are not house numbers: on every row hista - losta is exactly miles x 5280, so they
+// are feet along the street from its start (HISTORY.md, "Boston hold-out check"). The join never reads
+// them, which makes them an independent test of where it put a row: a block placed correctly sits
+// `losta` feet from the street's start and its far end `hista` feet. The street's start is not known, so
+// each street (rows sharing the city's `parent` code) takes the one origin, among its matched rows'
+// ends, that best explains its rows; that one fitted choice per street is the only freedom the test has.
+const STATION_TOLERANCE_FRACTION = 0.1;
+const STATION_TOLERANCE_MIN_METRES = 60;
+const FEET_TO_METRES = 0.3048;
+
+// The two nodes where a path starts and ends: the nodes touched by an odd number of its segments. A
+// closed loop or a path that doubles back has none, and cannot be checked.
+function findPathEnds(segments) {
+  const counts = new Map();
+  segments.forEach((segment) => {
+    counts.set(segment.from, (counts.get(segment.from) || 0) + 1);
+    counts.set(segment.to, (counts.get(segment.to) || 0) + 1);
+  });
+  const ends = [...counts].filter(([, count]) => count % 2 === 1).map(([node]) => node);
+  return ends.length === 2 ? ends : null;
+}
+
+function stationsAgree(distances, item) {
+  const near = distances.get(item.ends[0]);
+  const far = distances.get(item.ends[1]);
+  if (near === undefined || far === undefined) return false;
+  const tolerance = Math.max(STATION_TOLERANCE_MIN_METRES, STATION_TOLERANCE_FRACTION * (item.high - item.low));
+  return Math.abs(Math.min(near, far) - item.low) <= tolerance && Math.abs(Math.max(near, far) - item.high) <= tolerance;
+}
+
+// Sets item.station to "agree", "mismatch" or "unchecked" (no usable stations, no clean pair of ends, or
+// the only confident row on its street, which has nothing to be fitted against).
+function checkStations(items, index) {
+  const groups = new Map();
+  items.forEach((item) => {
+    item.station = "unchecked";
+    item.low = Number(item.row.losta) * FEET_TO_METRES;
+    item.high = Number(item.row.hista) * FEET_TO_METRES;
+    item.ends = findPathEnds(item.match.segments);
+    if (!item.ends || !(item.high > item.low)) return;
+    const key = item.row.parent || item.row.st_name;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  groups.forEach((group) => {
+    if (group.length < 2) return;
+    const streetSegments = new Map();
+    new Set(group.map((item) => item.row.st_name)).forEach((name) => findStreet(index, name).forEach((segment) => streetSegments.set(segment.id, segment)));
+    const adjacency = buildAdjacency([...streetSegments.values()]);
+    // The street's start is rarely the end of a row (Amory St's first row begins 900 ft in), so the
+    // street's own leaves are candidates too.
+    const origins = new Set([...group.flatMap((item) => item.ends), ...findLeafNodes([...streetSegments.values()])]);
+    let best = null;
+    origins.forEach((origin) => {
+      const { distance } = shortestPaths(adjacency, origin, Infinity);
+      const agreeing = group.filter((item) => stationsAgree(distance, item)).length;
+      if (!best || agreeing > best.agreeing) best = { agreeing, distance };
+    });
+    group.forEach((item) => {
+      item.station = stationsAgree(best.distance, item) ? "agree" : "mismatch";
+    });
+  });
+}
+
 // ---- The build ---------------------------------------------------------------------------------
 
 function buildBostonCurbs({ rows, features }) {
@@ -604,6 +670,8 @@ function buildBostonCurbs({ rows, features }) {
     confidentOddEvenRows: 0,
     confidentRows: 0,
     confidentLeafEndRows: 0,
+    stations: { agree: 0, mismatch: 0, unchecked: 0 },
+    confidentCheckedOddEvenRows: 0,
     confidentRatios: { within10: 0, within20: 0, wider: 0 },
     partialRows: 0,
     unpublishedRows: 0,
@@ -620,6 +688,7 @@ function buildBostonCurbs({ rows, features }) {
   buildNodes(segments);
   const index = indexSegments(segments);
   const bySide = new Map();
+  const accepted = [];
 
   rows.forEach((row) => {
     const label = readSideLabel(row.side);
@@ -655,11 +724,24 @@ function buildBostonCurbs({ rows, features }) {
       record(match.status === "partial" ? `partial-${match.reason}` : match.status, { ratio: match.ratio ? Number(match.ratio.toFixed(2)) : undefined });
       return;
     }
+    accepted.push({ row, label, schedule, match, isOddEven, record });
+  });
+
+  // The length band has passed; now the stations. A row that fails them is withdrawn, not published.
+  checkStations(accepted, index);
+  accepted.forEach(({ row, label, schedule, match, isOddEven, record, station }) => {
+    report.stations[station] += 1;
+    if (station === "mismatch") {
+      report.unpublishedRows += 1;
+      record("station-mismatch", { ratio: Number(match.ratio.toFixed(2)) });
+      return;
+    }
     report.confidentRows += 1;
     if (match.leafEnds?.length) report.confidentLeafEndRows += 1;
     const spread = Math.abs(match.ratio - 1);
     report.confidentRatios[spread <= 0.1 ? "within10" : spread <= 0.2 ? "within20" : "wider"] += 1;
     if (isOddEven) report.confidentOddEvenRows += 1;
+    if (isOddEven && station === "agree") report.confidentCheckedOddEvenRows += 1;
     record("confident");
 
     match.segments.forEach((segment) => {
@@ -710,6 +792,8 @@ function buildBostonCurbs({ rows, features }) {
   report.overnightCurbs = curbs.filter((curb) => curb.schedules.some((schedule) => schedule.nightBefore)).length;
   report.standingCurbs = curbs.filter((curb) => curb.schedules.some((schedule) => schedule.standing)).length;
   report.confidentShare = report.oddEvenRows ? report.confidentOddEvenRows / report.oddEvenRows : 0;
+  // The stricter figure: only rows whose stations were checked and agreed.
+  report.confidentCheckedShare = report.oddEvenRows ? report.confidentCheckedOddEvenRows / report.oddEvenRows : 0;
   return { curbs, report };
 }
 
@@ -729,6 +813,7 @@ module.exports = {
   indexSegments,
   findStreet,
   matchRow,
+  checkStations,
   readSideLabel,
   pickSide,
   getSideKey,

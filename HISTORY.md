@@ -2601,3 +2601,21 @@ plan keeps `public/` untouched while build 12 is in review. Downloads are cached
   first) are a mix of wrong matches and streets in several pieces or loops, not yet separated.
 - **Not done:** using the stations as a second gate in the build, and sign-checking a sample in Street
   View. 170 confident rows are alone on their street and cannot be checked this way.
+
+### Boston station gate (2026-10-26)
+
+The station test is now a gate in `buildBostonCurbs` (`checkStations`): a row that passes the length band
+is withdrawn as `station-mismatch` if its path does not sit at its `losta`/`hista` feet from the street's
+start. Rows alone on their street (162) cannot be fitted and stay confident, counted as `unchecked`.
+
+- **Result: 88.6% of the 3,486 odd/even rows (3,088), down from 90.4%.** 3,121 rows agree, 72 are
+  withdrawn, 162 unchecked. Only rows both confident and station-checked: **86.7%**. **The build now
+  refuses to publish** (floor 90%, the plan's bar); the floor was deliberately not lowered to fit.
+- **A first version of the test withdrew 231 rows (84.3%)**, almost all because it tried only row ends as
+  the street's start, and a street's first feet often have no row (Amory St's rows chain 900 → 1,919 →
+  2,459 → 6,191 ft). Adding the street's own leaves as candidate origins fixed that (231 → 72). That is
+  a change to the test, made after seeing it fail a correct join, and it widens the fitted choice per
+  street, so the 88.6% is slightly optimistic. It was not tuned further to reach 90%.
+- **Open decision for the user:** keep the 90% floor (the build refuses until the join improves: the 72
+  withdrawn rows, the 137 out-of-band and the 67 no-path rows are the work), or set the floor to the
+  measured figure. 156 of the unplaced odd/even rows have `miles` = 0 and cannot be helped by either.
