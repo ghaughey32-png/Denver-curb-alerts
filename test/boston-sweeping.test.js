@@ -263,3 +263,62 @@ test("a row alone on its street cannot be checked and stays confident, counted a
   assert.equal(report.confidentRows, 1);
   assert.equal(report.confidentCheckedOddEvenRows, 0);
 });
+
+// ---- Name corrections, short blocks and gaps ------------------------------------------------------
+
+test("the city's misspellings and renamed streets find the layer's spelling", () => {
+  assert.deepEqual(normalizeStreetName("Westminister Ave"), normalizeStreetName("WESTMINSTER AVE"));
+  assert.deepEqual(normalizeStreetName("Thonrdike St"), normalizeStreetName("Thorndike ST"));
+  assert.deepEqual(normalizeStreetName("Joe L Smith Way"), normalizeStreetName("Bishop Joe L Smith WAY"));
+  assert.deepEqual(normalizeStreetName("Morrissey William T Blvd"), normalizeStreetName("William T Morrissey BLVD"));
+  assert.deepEqual(normalizeStreetName("Newcroft Cr"), normalizeStreetName("Newcroft CIR"));
+});
+
+test("a misspelled cross street still places the row when the corrected street meets it", () => {
+  const features = grid();
+  features[5] = segment(12, "Hartford", "ST", [[LONS[2], LAT], [LONS[2], LAT + 0.002]], { L_F_ADD: "0", L_T_ADD: "0", R_F_ADD: "0", R_T_ADD: "0" });
+  const { report } = build([scheduleRow({ to: "Hartfold St" })], features);
+  assert.equal(report.confidentRows, 1);
+});
+
+test("a name that is not on the corrections list is not guessed at", () => {
+  assert.equal(build([scheduleRow({ st_name: "Mian St" })]).report.statuses["street-not-found"], 1);
+});
+
+test("a short block passes the length gate on metres when the ratio alone would fail it", () => {
+  // 0.0005 degrees of longitude is about 41 m; the row says 66 m (ratio 0.62), 25 m longer.
+  const features = [
+    segment(21, "Tiny", "ST", [[LONS[0], LAT], [LONS[0] + 0.0005, LAT]]),
+    segment(22, "Ax", "ST", [[LONS[0], LAT], [LONS[0], LAT + 0.002]], { L_F_ADD: "0", L_T_ADD: "0", R_F_ADD: "0", R_T_ADD: "0" }),
+    segment(23, "Bx", "ST", [[LONS[0] + 0.0005, LAT], [LONS[0] + 0.0005, LAT + 0.002]], { L_F_ADD: "0", L_T_ADD: "0", R_F_ADD: "0", R_T_ADD: "0" })
+  ];
+  const near = build([scheduleRow({ st_name: "Tiny St", from: "Ax St", to: "Bx St", miles: String(66 / METRES_PER_MILE) })], features);
+  assert.equal(near.report.confidentRows, 1);
+  const far = build([scheduleRow({ st_name: "Tiny St", from: "Ax St", to: "Bx St", miles: String(120 / METRES_PER_MILE) })], features);
+  assert.equal(far.report.confidentRows, 0);
+});
+
+test("two pieces of one street the map leaves 30 m apart are joined, and the gap counts toward the length", () => {
+  const gap = 0.00036;
+  const features = [
+    segment(31, "Main", "ST", [[LONS[0], LAT], [LONS[1], LAT]]),
+    segment(32, "Main", "ST", [[LONS[1] + gap, LAT], [LONS[2], LAT]]),
+    grid()[3],
+    grid()[5]
+  ];
+  const total = (LONS[2] - LONS[0]) * 82000;
+  const { report, curbs } = build([scheduleRow({ from: "Oak St", to: "Pine St", miles: String(total / METRES_PER_MILE) })], features);
+  assert.equal(report.confidentRows, 1);
+  assert.equal(curbs.length, 2);
+});
+
+test("a gap wider than the bridge limit is not joined", () => {
+  const features = [
+    segment(31, "Main", "ST", [[LONS[0], LAT], [LONS[1], LAT]]),
+    segment(32, "Main", "ST", [[LONS[1] + 0.002, LAT], [LONS[1] + 0.004, LAT]]),
+    grid()[3],
+    segment(12, "Pine", "ST", [[LONS[1] + 0.004, LAT], [LONS[1] + 0.004, LAT + 0.002]], { L_F_ADD: "0", L_T_ADD: "0", R_F_ADD: "0", R_T_ADD: "0" })
+  ];
+  const { report } = build([scheduleRow({ from: "Oak St", to: "Pine St", miles: String(0.006 * 82000 / METRES_PER_MILE) })], features);
+  assert.equal(report.confidentRows, 0);
+});

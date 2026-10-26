@@ -2628,3 +2628,26 @@ acceptedAt }` into the payload, so a published file always says it did not clear
 itself is unchanged and the flag is per run: the next build refuses again unless it is passed again.
 The 398 unplaced odd/even rows: 156 no length in the city's data, 117 length does not fit, 63 stations
 disagree, 50 no path, 10 street name not in the layer, 2 one end only.
+
+### Boston: name corrections, short blocks and gaps (2026-10-26)
+
+Done with the 90% floor waived (see above). **Result: 90.2% of odd/even rows (3,146 of 3,486)**, up from
+88.6%; station agreement among checked rows 98.2% (3,179 of 3,238), up from 97.7%, so the rescued rows
+are not the bad ones.
+
+- **Name corrections** (`NAME_CORRECTIONS`): 27 of the city's misspellings, short forms and renames,
+  each read against the street layer; for cross streets each was also confirmed by the corrected street
+  meeting the row's street on the map (27 of 27 did). Examples: `Westminister Ave`, `Thonrdike St`,
+  `Commonweath Ave`, `Yawkey Way` (now Jersey St), `Joe L Smith Way` (`Bishop Joe L Smith`),
+  `Morrissey William T Blvd` (`William T Morrissey Blvd`). `Town Line`, `End of Street` and
+  `Brookline line` count as open ends. Not corrected, because the layer has no such street: `SW Corridor
+  Path`, `Susi Yard`, `MBTA`, `Shore Rd`, `Public Alley 301/705`, the Commonwealth and Huntington
+  underpasses.
+- **Short blocks:** a path within 25 m of the row's length passes the length gate even outside the 0.8–1.25
+  band (rows measure between intersection centres, the map between snapped nodes; Frederick St is 71 m
+  against 94 m).
+- **Gaps:** pieces of one street the map leaves apart are joined if the nearest ends are within 60 m, the
+  gap counted in the length (East Fourth St G St to K St).
+- **Still unplaced, not fixed:** Morton St (overlaps American Legion Hwy), Chester Park (the layer holds
+  42 m of a 289 m street under another name), Brighton St (the row's dead end is not the layer's), the
+  160 rows with `miles` = 0.

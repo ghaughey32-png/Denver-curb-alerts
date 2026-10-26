@@ -55,6 +55,13 @@ const CURB_OFFSET_METRES = 4;
 const NODE_SNAP_METRES = 3;
 const LENGTH_BAND_LOW = 0.8;
 const LENGTH_BAND_HIGH = 1.25;
+// A short block's length cannot be measured to 20%: the row measures between intersections' centres and
+// the map between snapped nodes, which differ by a road's width at each end. A path within this many
+// metres of the row's length passes the length gate even when the ratio is outside the band.
+const LENGTH_SLACK_METRES = 25;
+// Pieces of one street that the map leaves apart (a gap, a bridge under another name) are joined if the
+// nearest ends are this close. The gap counts toward the path's length.
+const STREET_GAP_METRES = 60;
 const METRES_PER_MILE = 1609.344;
 const NIGHT_BEFORE_START_HOUR = 5;
 const ORIGIN_LATITUDE = 42.36;
@@ -72,7 +79,7 @@ const SUFFIXES = {
   hwy: "hwy", highway: "hwy", cir: "cir", circle: "cir", wharf: "wharf", whf: "wharf", pk: "pk", park: "park",
   path: "path", walk: "walk", row: "row", alley: "aly", aly: "aly", plz: "plz", plaza: "plz", bridge: "brg",
   brg: "brg", tpke: "tpke", turnpike: "tpke", xing: "xing", crossing: "xing", ext: "ext", extension: "ext",
-  hl: "hl", hill: "hl", pt: "pt", point: "pt", ctr: "ctr", center: "ctr", sq: "sq", cswy: "cswy", causeway: "cswy"
+  cr: "cir", hl: "hl", hill: "hl", pt: "pt", point: "pt", ctr: "ctr", center: "ctr", sq: "sq", cswy: "cswy", causeway: "cswy"
 };
 const DIRECTIONS = { n: "n", north: "n", s: "s", south: "s", e: "e", east: "e", w: "w", west: "w" };
 const NUMBER_WORDS = {
@@ -83,7 +90,44 @@ const NUMBER_WORDS = {
 const TOKEN_ALIASES = { mt: "mount", ft: "fort" };
 // Generational suffixes the two files use inconsistently ("Martin Luther King Jr Blvd").
 const DROPPED_TOKENS = new Set(["jr", "sr"]);
-const CROSS_STREET_NOISE = /^(dead end|town line|city line|end|\s*)$/i;
+// The city's own spelling mistakes and short forms, corrected so the schedule can find its street. Each
+// was read against the street layer and, for cross streets, confirmed by the corrected street actually
+// meeting the row's street (see test/boston-sweeping.test.js and HISTORY.md, "Boston name corrections").
+// Keys are the normalised words of the schedule's spelling; values the street layer's. Add a name only
+// when the corrected street exists in the layer; a guess here would publish a rule on the wrong block.
+const NAME_CORRECTIONS = new Map(Object.entries({
+  "south hobbart st": "s hobart st",
+  "westminister ave": "westminster ave",
+  "st cecelia st": "st cecilia st",
+  "thonrdike st": "thorndike st",
+  "wenoah st": "wenonah st",
+  "patson ave": "payson ave",
+  "parson st": "parsons st",
+  "merill st": "merrill st",
+  "schulyer st": "schuyler st",
+  "seldon st": "selden st",
+  "colbourne rd": "colborne rd",
+  "colburne street": "colborne rd",
+  "commonweath ave": "commonwealth ave",
+  "cheslea st": "chelsea st",
+  "albany at": "albany st",
+  "colmubus ave": "columbus ave",
+  "harrrison ave": "harrison ave",
+  "constitition rd": "constitution rd",
+  "hartfold st": "hartford st",
+  "washingston st": "washington st",
+  "gevena ave": "geneva ave",
+  // Reordered, spelled out, or renamed in the street layer.
+  "joe l smith way": "bishop joe l smith way",
+  "morrissey william t blvd": "william t morrissey blvd",
+  "msgr jacobbe rd": "monsignor albert a jacobbe rd",
+  "songin father anthony way": "father anthony songin way",
+  "charles street fw": "charles street footway",
+  "yawkey way": "jersey st"
+}));
+
+// Where a street simply ends or leaves the city: "Dead End", "Brookline Town Line", "End of Street".
+const CROSS_STREET_NOISE = /^(dead end|end|end of street|\s*)$|\b(town|city) line$|^brookline line$/i;
 
 // ---- CSV ---------------------------------------------------------------------------------------
 
@@ -149,7 +193,9 @@ function tokenize(name) {
 // are { core: "brighton", suffix: "ave" }. A leading direction stays in the core ("n washington").
 // A name with no recognisable type keeps suffix "".
 function normalizeStreetName(name) {
-  const tokens = tokenize(name);
+  let tokens = tokenize(name);
+  const corrected = NAME_CORRECTIONS.get(tokens.join(" "));
+  if (corrected) tokens = tokenize(corrected);
   if (tokens[0] === "saint") tokens[0] = "st";
   let suffix = "";
   if (tokens.length > 1 && SUFFIXES[tokens[tokens.length - 1]]) suffix = SUFFIXES[tokens.pop()];
@@ -425,8 +471,57 @@ function findStreet(index, name) {
 
 // ---- The join ----------------------------------------------------------------------------------
 
+// Virtual segments joining pieces of the same street that the map does not connect. Union-find groups
+// the street's nodes; for each pair of groups the closest pair of nodes within STREET_GAP_METRES is joined.
+function findGapBridges(segments) {
+  const parent = new Map();
+  const find = (node) => {
+    while (parent.get(node) !== node) {
+      parent.set(node, parent.get(parent.get(node)));
+      node = parent.get(node);
+    }
+    return node;
+  };
+  segments.forEach((segment) => {
+    [segment.from, segment.to].forEach((node) => {
+      if (!parent.has(node)) parent.set(node, node);
+    });
+    parent.set(find(segment.from), find(segment.to));
+  });
+  const groups = new Map();
+  segments.forEach((segment) => {
+    [segment.from, segment.to].forEach((node) => {
+      const root = find(node);
+      if (!groups.has(root)) groups.set(root, new Set());
+      groups.get(root).add(node);
+    });
+  });
+  if (groups.size < 2 || groups.size > 12) return [];
+  const nodeXY = new Map();
+  segments.forEach((segment) => {
+    nodeXY.set(segment.from, toXY(segment.line[0]));
+    nodeXY.set(segment.to, toXY(segment.line[segment.line.length - 1]));
+  });
+  const roots = [...groups.keys()];
+  const bridges = [];
+  for (let first = 0; first < roots.length; first += 1) {
+    for (let second = first + 1; second < roots.length; second += 1) {
+      let best = null;
+      groups.get(roots[first]).forEach((a) => {
+        groups.get(roots[second]).forEach((b) => {
+          const distance = Math.hypot(nodeXY.get(a)[0] - nodeXY.get(b)[0], nodeXY.get(a)[1] - nodeXY.get(b)[1]);
+          if (distance <= STREET_GAP_METRES && (!best || distance < best.distance)) best = { a, b, distance };
+        });
+      });
+      if (best) bridges.push({ virtual: true, from: best.a, to: best.b, length: best.distance });
+    }
+  }
+  return bridges;
+}
+
 function buildAdjacency(segments) {
   const adjacency = new Map();
+  segments = [...segments, ...findGapBridges(segments)];
   const add = (node, segment, other) => {
     if (!adjacency.has(node)) adjacency.set(node, []);
     adjacency.get(node).push({ segment, other });
@@ -539,7 +634,8 @@ function matchRow(row, index, miles) {
     if (!best) return { status: "no-path", from: from.reason, to: to.reason };
     const segments = walkBack(best.via, best.end);
     const ratio = best.length / target;
-    const status = ratio >= LENGTH_BAND_LOW && ratio <= LENGTH_BAND_HIGH ? "confident" : "out-of-band";
+    const fits = (ratio >= LENGTH_BAND_LOW && ratio <= LENGTH_BAND_HIGH) || Math.abs(best.length - target) <= LENGTH_SLACK_METRES;
+    const status = fits ? "confident" : "out-of-band";
     return { status, ratio, segments, leafEnds };
   }
 
@@ -744,7 +840,7 @@ function buildBostonCurbs({ rows, features }) {
     if (isOddEven && station === "agree") report.confidentCheckedOddEvenRows += 1;
     record("confident");
 
-    match.segments.forEach((segment) => {
+    match.segments.filter((segment) => !segment.virtual).forEach((segment) => {
       const placements = label.both
         ? [{ side: 1 }, { side: -1 }]
         : [pickSide(segment, label.parity)];
