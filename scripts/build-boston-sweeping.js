@@ -15,7 +15,8 @@
 // stations (feet along the street, which the join never reads) agree with where the path sits. Two gates stand
 // between a build and the published file: the confident share of odd/even rows may not fall below
 // MIN_CONFIDENT_SHARE (nor more than a point below the published file's), and the curb count may not
-// fall more than MAX_CURB_DROP below the published file's (ALLOW_COVERAGE_DROP=1 overrides).
+// fall more than MAX_CURB_DROP below the published file's (ALLOW_COVERAGE_DROP=1 overrides). The floor can
+// be waived once with --accept-below-floor, which is written into the payload as `belowFloor`.
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -80,6 +81,9 @@ async function main() {
   const args = process.argv.slice(2);
   const refresh = args.includes("--refresh");
   const dryRun = args.includes("--dry-run");
+  // A deliberate, recorded exception to the confident-share floor. The payload says so, so a published
+  // file can never be mistaken for one that cleared the bar.
+  const acceptBelowFloor = args.includes("--accept-below-floor");
 
   const schedule = await loadCached("schedule.csv", SCHEDULE_URL, refresh);
   const segments = await loadCached("segments.geojson", SEGMENTS_URL, refresh);
@@ -127,9 +131,14 @@ async function main() {
   console.log(`Payload ${(serialized.length / 1e6).toFixed(2)} MB. Report written to ${path.relative(ROOT, REPORT_PATH)}.`);
 
   if (report.confidentShare < MIN_CONFIDENT_SHARE) {
-    throw new Error(
-      `Refusing to publish: ${(report.confidentShare * 100).toFixed(1)}% of odd/even rows placed confidently (floor ${MIN_CONFIDENT_SHARE * 100}%).`
-    );
+    if (!acceptBelowFloor) {
+      throw new Error(
+        `Refusing to publish: ${(report.confidentShare * 100).toFixed(1)}% of odd/even rows placed confidently (floor ${MIN_CONFIDENT_SHARE * 100}%). ` +
+          "Pass --accept-below-floor to publish anyway; the payload will record that."
+      );
+    }
+    console.log(`NOTE: ${(report.confidentShare * 100).toFixed(1)}% is below the ${MIN_CONFIDENT_SHARE * 100}% floor; publishing anyway because --accept-below-floor was passed.`);
+    payload.belowFloor = { floor: MIN_CONFIDENT_SHARE, share: Number(report.confidentShare.toFixed(4)), acceptedAt: new Date().toISOString() };
   }
   const previousShare = previous?.confidentShare;
   if (previousShare && report.confidentShare < previousShare - MAX_SHARE_DROP) {

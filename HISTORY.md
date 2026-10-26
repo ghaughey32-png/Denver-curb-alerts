@@ -2619,3 +2619,12 @@ start. Rows alone on their street (162) cannot be fitted and stay confident, cou
 - **Open decision for the user:** keep the 90% floor (the build refuses until the join improves: the 72
   withdrawn rows, the 137 out-of-band and the 67 no-path rows are the work), or set the floor to the
   measured figure. 156 of the unplaced odd/even rows have `miles` = 0 and cannot be helped by either.
+
+### Boston: the 90% floor waived once (2026-10-26)
+
+At the author's instruction the 90% confident-share floor is **waived this time**, at 88.6% (3,088 of
+3,486 odd/even rows). The build takes `--accept-below-floor` and writes `belowFloor: { floor, share,
+acceptedAt }` into the payload, so a published file always says it did not clear the bar. The floor
+itself is unchanged and the flag is per run: the next build refuses again unless it is passed again.
+The 398 unplaced odd/even rows: 156 no length in the city's data, 117 length does not fit, 63 stations
+disagree, 50 no path, 10 street name not in the layer, 2 one end only.
