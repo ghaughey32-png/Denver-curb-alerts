@@ -1,6 +1,6 @@
 # Boston expansion plan (draft, 2026-10-13)
 
-Status: **proposal, not instructions.** Nothing here is built. The research behind it is in
+Status: **proposal, not instructions.** Phase 0's join and Phase 1's build script exist as of 2026-10-26 (`npm run build:boston-sweeping -- --dry-run`, 90.4% of Odd/Even rows confident; see HISTORY.md § Boston Phase 0 and 1); nothing is in `public/`, `cities.js` or `ios/`. The research behind it is in
 [HISTORY.md](HISTORY.md) § Boston research (2026-10-13); the spike scripts were scratchpad-only and
 are not committed. Per AGENTS.md, nothing in `public/` or `ios/` changes while a TestFlight build is
 waiting on App Review; Phases 0–1 live in `scripts/` and `data/` only. Boston follows San Francisco

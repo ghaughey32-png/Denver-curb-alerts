@@ -2549,3 +2549,37 @@ exactly the ones its legend lists (route, even side, odd side). The wording foll
 route is banned on Day 1, the even-numbered side on Day 2, the odd-numbered side on Day 3. Denver's legend stays
 in the markup untouched (source-text tests guard it) and San Francisco, which uses the four side colours, shows
 those four with Denver's three extra states hidden.
+
+## Boston Phase 0 and 1 (2026-10-26)
+
+The spike scripts of 2026-10-13 were scratchpad-only and gone, so the join was rebuilt as
+[scripts/lib/boston-sweeping.js](scripts/lib/boston-sweeping.js) and
+[scripts/build-boston-sweeping.js](scripts/build-boston-sweeping.js) (`npm run build:boston-sweeping`,
+`test/boston-sweeping.test.js`). Nothing is written to `public/` yet: `--dry-run` only, because the
+plan keeps `public/` untouched while build 12 is in review. Downloads are cached in
+`data/boston-sweeping-cache/` and the report lands in `data/boston-sweeping-report.json` (both ignored).
+
+- **Method:** names normalised (suffix, `Mt`→`Mount`, `Jr`/`Sr` dropped, ordinals, `Saint`), segment
+  endpoints snapped into nodes at 3 m, then the shortest path along the row's own street between a
+  from-node and a to-node, taking the pair whose length best fits the row's `miles`. A row is confident
+  only inside 0.8–1.25× `miles`.
+- **Result:** first pass 76.2% of the 3,486 Odd/Even rows confident. Treating `Dead End`, `Town Line`,
+  a self-referencing cross street and an unplaceable cross street as a *leaf* of the street (a node
+  touched by one of its own segments) took it to **90.4% (3,151)**; 484 of the 3,355 confident rows use
+  a leaf end, which is a constraint and not a free pass, since the length band still has to hold.
+  Confident rows fit tightly: 3,261 within 10% of `miles`, 83 within 20%, 11 wider.
+- **The remaining 9.6% (335 Odd/Even rows):** **156 have `miles` = 0 in the city's own data**, so the
+  length gate cannot judge them and they stay unpublished; the rest are out-of-band (137 rows overall),
+  no path (67) or a street the layer lacks (12). Morton St, Washington St, West Newton St, Arlington
+  St, Neponset Ave and Chester Park lead the misses.
+- **Sides:** 1,276 segment sides had no usable parity in the layer and used odd-right/even-left; they
+  are counted, not hidden. Commonwealth Ave rows 558 (even, 2nd & 4th Monday) and 560 (odd, 1st & 3rd)
+  both land on curbs, one per outer side, alongside the Thursday night rows (102 of 317 Commonwealth
+  curbs carry more than one rule, the union the plan calls for).
+- **Data quirks to keep reporting:** the CSV ends lines with CRLF (a naive split names the last column
+  `hista\r`); 7 rows end before they start (`12:00-04:00` and friends); 24 rows carry a side label we do
+  not publish (Inbound, Ramp, Bridge, ...); `Edison Green` is `Edison GRN` in the street layer and is
+  still unmatched.
+- **Not done:** the ticket check (no current Boston ticket data), the address-points search, the
+  hard-street sign checks, an unmatched-state colour, and the emailed question to the city. 438 median
+  curbs are published as their own labelled curbs.

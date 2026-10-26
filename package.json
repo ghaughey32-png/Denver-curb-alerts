@@ -21,6 +21,7 @@
     "push": "node scripts/send-push.js",
     "build:mpls-snow": "node scripts/build-minneapolis-snow.js",
     "build:sf-sweeping": "node scripts/build-sf-sweeping.js",
+    "build:boston-sweeping": "node scripts/build-boston-sweeping.js",
     "snow": "node scripts/snow.js"
   },
   "dependencies": {
