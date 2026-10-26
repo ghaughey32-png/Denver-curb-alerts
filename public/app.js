@@ -1585,10 +1585,19 @@ const DEFAULT_DAY_OF_REMINDERS = [
   { enabled: false, time: "09:00" },
   { enabled: false, time: "11:00" }
 ];
+// An overnight sweep (San Francisco's posted start before 5 am) is over by morning, so it has no
+// sweep-day half: the same three slots sit on the evening before instead. Decided 2026-10-09 in
+// SF-PLAN.md, three jobs per sweep at most.
+const DEFAULT_OVERNIGHT_REMINDERS = [
+  { enabled: true, time: "18:00" },
+  { enabled: true, time: "20:00" },
+  { enabled: false, time: "22:00" }
+];
 const DEFAULT_REMINDERS = {
   dayBeforeEnabled: true,
   dayBeforeTime: "18:00",
   dayOfReminders: DEFAULT_DAY_OF_REMINDERS,
+  overnightReminders: DEFAULT_OVERNIGHT_REMINDERS,
   nagUntilMoved: true
 };
 // One reminder is how people get the ticket anyway: an alert swiped away at 7am is forgotten by
@@ -1599,7 +1608,7 @@ const DEFAULT_REMINDERS = {
 const EVENING_CHECK_IN_TIME = "21:00";
 const SWEEP_DAY_FOLLOW_UP_MINUTES = [30, 60];
 // Least to most urgent. A job that lands on two stages at once takes the copy of the later one.
-const JOB_KIND_URGENCY = ["day-before", "evening-check", "day-of", "follow-up", "last-call"];
+const JOB_KIND_URGENCY = ["day-before", "night-before", "evening-check", "day-of", "follow-up", "last-call"];
 
 const colors = {
   north: "#2f9e44",
@@ -2644,12 +2653,23 @@ function buildDefaultReminders(reminders = {}) {
       typeof reminders.dayBeforeEnabled === "boolean" ? reminders.dayBeforeEnabled : DEFAULT_REMINDERS.dayBeforeEnabled,
     dayBeforeTime: isValidTimeValue(reminders.dayBeforeTime) ? reminders.dayBeforeTime : DEFAULT_REMINDERS.dayBeforeTime,
     dayOfReminders,
+    overnightReminders: buildOvernightReminderSlots(reminders),
     nagUntilMoved: typeof reminders.nagUntilMoved === "boolean" ? reminders.nagUntilMoved : DEFAULT_REMINDERS.nagUntilMoved
   };
 }
 
 function isValidTimeValue(value) {
   return typeof value === "string" && /^\d{2}:\d{2}$/.test(value);
+}
+
+function buildOvernightReminderSlots(reminders = {}) {
+  return DEFAULT_OVERNIGHT_REMINDERS.map((slot, index) => {
+    const candidate = (Array.isArray(reminders.overnightReminders) && reminders.overnightReminders[index]) || {};
+    return {
+      enabled: typeof candidate.enabled === "boolean" ? candidate.enabled : slot.enabled,
+      time: isValidTimeValue(candidate.time) ? candidate.time : slot.time
+    };
+  });
 }
 
 function buildDayOfReminderSlots(reminders = {}) {
@@ -7341,6 +7361,116 @@ function renderSavedSets() {
     });
 }
 
+// Denver's model, and San Francisco's daytime blocks: an evening heads-up the night before, then the
+// sweep-day reminders, with follow-ups hung off the first of them while the driver has not moved.
+// What to plan reminders for, one entry per sweep: the posted day, whether the car has to move the
+// evening before (an overnight window), and which hedge applies when the data cannot confirm the day.
+// Other cities' curbs keep the dates they always had.
+function getReminderEntriesForSegment(segment) {
+  if (Array.isArray(segment.schedule?.sf)) {
+    return getSfReminderEntries(segment);
+  }
+
+  return getUpcomingSweepDates(segment).map((sweepDate) => ({ sweepDate, nightBefore: false, hedge: null }));
+}
+
+// San Francisco entries come from the curb's own windows, at planning time. A date two windows share
+// is one entry: a window that confirms it beats one that only hedges it (a 5th Tuesday the even-week
+// row cannot confirm but the odd-week row lists).
+function getSfReminderEntries(segment, count = 8) {
+  const today = getStartOfToday();
+  const fromDate = formatLocalDateKey(today);
+  const sweeps = window.SfSchedule.getUpcomingSweeps({ schedules: segment.schedule.sf }, fromDate, count * 2);
+  const byKey = new Map();
+
+  sweeps.forEach((sweep) => {
+    const key = `${sweep.date}|${sweep.nightBefore ? "night" : "day"}`;
+    const hedge = sweep.status === "unconfirmed" ? "fifth-week" : sweep.status === "holiday-skip" ? "holiday" : null;
+    const existing = byKey.get(key);
+    if (existing && (!hedge || existing.hedge)) {
+      existing.hedge = existing.hedge && hedge;
+      return;
+    }
+
+    if (!existing) {
+      const { year, month, day } = window.SfSchedule.parseDate(sweep.date);
+      byKey.set(key, { sweepDate: new Date(year, month - 1, day), nightBefore: Boolean(sweep.nightBefore), hedge });
+    }
+  });
+
+  return Array.from(byKey.values())
+    .sort((a, b) => a.sweepDate - b.sweepDate)
+    .slice(0, count);
+}
+
+function buildSweepCandidates(sweepDate, reminders) {
+  const candidates = [];
+
+  if (reminders.dayBeforeEnabled) {
+    candidates.push({
+      kind: "day-before",
+      label: "Day before",
+      scheduledAt: applyTimeToDate(addDays(sweepDate, -1), reminders.dayBeforeTime)
+    });
+
+    if (reminders.nagUntilMoved && EVENING_CHECK_IN_TIME > reminders.dayBeforeTime) {
+      candidates.push({
+        kind: "evening-check",
+        label: "Day before check-in",
+        scheduledAt: applyTimeToDate(addDays(sweepDate, -1), EVENING_CHECK_IN_TIME)
+      });
+    }
+  }
+
+  reminders.dayOfReminders.forEach((slot, index) => {
+    if (!slot.enabled) {
+      return;
+    }
+
+    candidates.push({
+      kind: "day-of",
+      label: `Day of reminder ${index + 1}`,
+      scheduledAt: applyTimeToDate(sweepDate, slot.time)
+    });
+  });
+
+  const firstDayOfSlot = reminders.dayOfReminders
+    .filter((slot) => slot.enabled)
+    .sort((a, b) => a.time.localeCompare(b.time))[0];
+
+  if (reminders.nagUntilMoved && firstDayOfSlot) {
+    const firstAlertAt = applyTimeToDate(sweepDate, firstDayOfSlot.time);
+    SWEEP_DAY_FOLLOW_UP_MINUTES.forEach((minutes, index) => {
+      const scheduledAt = new Date(firstAlertAt.getTime() + minutes * 60 * 1000);
+      if (formatLocalDateKey(scheduledAt) !== formatLocalDateKey(sweepDate)) {
+        return;
+      }
+
+      const isLast = index === SWEEP_DAY_FOLLOW_UP_MINUTES.length - 1;
+      candidates.push({
+        kind: isLast ? "last-call" : "follow-up",
+        label: isLast ? "Day of last call" : `Day of follow-up ${index + 1}`,
+        scheduledAt
+      });
+    });
+  }
+
+  return candidates;
+}
+
+// An overnight block: the evening before the posted day, at up to three user-set times. With
+// "keep reminding until I move" off, only the first enabled time fires, as the extras do for Denver.
+function buildOvernightCandidates(sweepDate, reminders) {
+  const eveningBefore = addDays(sweepDate, -1);
+  const slots = reminders.overnightReminders.filter((slot) => slot.enabled).sort((a, b) => a.time.localeCompare(b.time));
+
+  return (reminders.nagUntilMoved ? slots : slots.slice(0, 1)).map((slot, index) => ({
+    kind: "night-before",
+    label: `Evening reminder ${index + 1}`,
+    scheduledAt: applyTimeToDate(eveningBefore, slot.time)
+  }));
+}
+
 function buildNotificationJobs() {
   const now = new Date();
   const groupedJobs = new Map();
@@ -7354,12 +7484,13 @@ function buildNotificationJobs() {
         return;
       }
 
-      const sweepDates = getUpcomingSweepDates(segment);
-      if (!sweepDates.length) {
+      const sweepEntries = getReminderEntriesForSegment(segment);
+      if (!sweepEntries.length) {
         return;
       }
 
-      sweepDates.forEach((sweepDate) => {
+      sweepEntries.forEach((entry) => {
+        const sweepDate = entry.sweepDate;
         // A confirmed sweep schedules nothing at all. Dropping the jobs here, rather than flagging
         // them, is what stops the server too: the next plan sync replaces the device's job list
         // wholesale, so the follow-ups it was holding for this sweep simply stop existing.
@@ -7374,56 +7505,9 @@ function buildNotificationJobs() {
           return;
         }
 
-        const candidates = [];
-
-        if (reminders.dayBeforeEnabled) {
-          candidates.push({
-            kind: "day-before",
-            label: "Day before",
-            scheduledAt: applyTimeToDate(addDays(sweepDate, -1), reminders.dayBeforeTime)
-          });
-
-          if (reminders.nagUntilMoved && EVENING_CHECK_IN_TIME > reminders.dayBeforeTime) {
-            candidates.push({
-              kind: "evening-check",
-              label: "Day before check-in",
-              scheduledAt: applyTimeToDate(addDays(sweepDate, -1), EVENING_CHECK_IN_TIME)
-            });
-          }
-        }
-
-        reminders.dayOfReminders.forEach((slot, index) => {
-          if (!slot.enabled) {
-            return;
-          }
-
-          candidates.push({
-            kind: "day-of",
-            label: `Day of reminder ${index + 1}`,
-            scheduledAt: applyTimeToDate(sweepDate, slot.time)
-          });
-        });
-
-        const firstDayOfSlot = reminders.dayOfReminders
-          .filter((slot) => slot.enabled)
-          .sort((a, b) => a.time.localeCompare(b.time))[0];
-
-        if (reminders.nagUntilMoved && firstDayOfSlot) {
-          const firstAlertAt = applyTimeToDate(sweepDate, firstDayOfSlot.time);
-          SWEEP_DAY_FOLLOW_UP_MINUTES.forEach((minutes, index) => {
-            const scheduledAt = new Date(firstAlertAt.getTime() + minutes * 60 * 1000);
-            if (formatLocalDateKey(scheduledAt) !== formatLocalDateKey(sweepDate)) {
-              return;
-            }
-
-            const isLast = index === SWEEP_DAY_FOLLOW_UP_MINUTES.length - 1;
-            candidates.push({
-              kind: isLast ? "last-call" : "follow-up",
-              label: isLast ? "Day of last call" : `Day of follow-up ${index + 1}`,
-              scheduledAt
-            });
-          });
-        }
+        const candidates = entry.nightBefore
+          ? buildOvernightCandidates(sweepDate, reminders)
+          : buildSweepCandidates(sweepDate, reminders);
 
         candidates.forEach((candidate) => {
           if (!candidate.scheduledAt || candidate.scheduledAt.getTime() <= now.getTime()) {
@@ -7442,6 +7526,7 @@ function buildNotificationJobs() {
               triggerLabels: [],
               kinds: [],
               sweepKeys: [],
+              hedges: {},
               nagUntilMoved: reminders.nagUntilMoved,
               parked: set.kind === "parked"
             });
@@ -7464,12 +7549,23 @@ function buildNotificationJobs() {
           if (!job.sweepKeys.includes(sweepKey)) {
             job.sweepKeys.push(sweepKey);
           }
+
+          // A curb whose sweep the data cannot confirm carries a hedge; a confirmed one in the same
+          // job on the same curb wins, so the plain wording is used whenever any sweep is certain.
+          job.hedges[segment.id] = segment.id in job.hedges ? job.hedges[segment.id] && entry.hedge : entry.hedge;
         });
       });
     });
   });
 
   state.notificationJobs = Array.from(groupedJobs.values())
+    .map(({ hedges, ...rest }) => {
+      // The hedged wording speaks for every curb in the job, so it is used only when all of them are
+      // uncertain; otherwise the plain "move your car" copy is already right for the hedged ones too.
+      const hedgeValues = Object.values(hedges);
+      const hedge = hedgeValues.length && hedgeValues.every(Boolean) ? hedgeValues[0] : null;
+      return { ...rest, hedge };
+    })
     .map((job) => ({
       ...job,
       title: buildJobTitle(job),
@@ -8541,7 +8637,13 @@ function getJobKind(job) {
 // Firmer as the sweep gets closer, never guilt. The point is a nudge that is hard to ignore, not
 // one that makes someone dread opening the app.
 function buildJobTitle(job) {
+  if (job.hedge) {
+    return getHedgedJobCopy(job).title;
+  }
+
   switch (getJobKind(job)) {
+    case "night-before":
+      return "Move your car tonight";
     case "day-before":
       return "Move your car tomorrow";
     case "evening-check":
@@ -8555,7 +8657,33 @@ function buildJobTitle(job) {
   }
 }
 
+// The sweep the data cannot confirm: a 5th-week day it does not list, or a holiday the street is
+// usually spared. Never "clear", and a leading marker stands in for colour, which a notification
+// cannot carry. Wording agreed 2026-10-09 in SF-PLAN.md.
+function getHedgedJobCopy(job) {
+  const segmentPreview = formatSegmentPreview(job.segmentLabels);
+  const kind = getJobKind(job);
+  const when = kind === "night-before" ? "overnight" : kind === "day-before" || kind === "evening-check" ? "tomorrow" : "today";
+  const stopHint = job.nagUntilMoved ? " Moved it? Open this and tap I moved my car." : "";
+
+  if (job.hedge === "holiday") {
+    return {
+      title: `🗓️ Holiday ${when}: probably no sweeping`,
+      body: `${when === "today" ? "Today" : "Tomorrow"} is a holiday. Street sweeping is usually skipped on ${segmentPreview}, but double-check the posted sign before you leave your car.${stopHint}`
+    };
+  }
+
+  return {
+    title: `⚠️ Sweeping may happen ${when}`,
+    body: `Street sweeping may happen ${when} (a 5th-week day) on ${segmentPreview}. The schedule doesn't confirm it. Check the sign, and move your car to be safe.${stopHint}`
+  };
+}
+
 function buildJobBody(job) {
+  if (job.hedge) {
+    return getHedgedJobCopy(job).body;
+  }
+
   const segmentPreview = formatSegmentPreview(job.segmentLabels);
   const segmentLead = job.segmentLabels.length === 1 ? "Street sweeping is scheduled for" : "Street sweeping is scheduled for these curb sides:";
   const stopHint = job.nagUntilMoved ? " Moved it? Open this and tap I moved my car." : "";
@@ -8563,6 +8691,8 @@ function buildJobBody(job) {
   // A pin is one curb the car is known to be on, so its alerts can say so plainly.
   if (job.parked) {
     switch (getJobKind(job)) {
+      case "night-before":
+        return `Overnight sweeping is scheduled where you parked, on ${segmentPreview}. Move your car tonight to avoid a ticket.${stopHint}`;
       case "day-before":
         return `Sweeping is tomorrow where you parked, on ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.${stopHint}`;
       case "evening-check":
@@ -8577,6 +8707,8 @@ function buildJobBody(job) {
   }
 
   switch (getJobKind(job)) {
+    case "night-before":
+      return `Overnight street sweeping is scheduled for ${segmentPreview}. Move your car tonight to avoid a ticket.${stopHint}`;
     case "day-before":
       return `${segmentLead} ${segmentPreview}. Move your car tonight to avoid a ticket tomorrow.${stopHint}`;
     case "evening-check":
