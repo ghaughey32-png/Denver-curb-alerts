@@ -1,24 +1,24 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v238",
+    "cacheName": "curb-alerts-shell-v240",
     "files": {
-      "index.html": "798f533be71f1672705bd1a5a18eab367b9c02b1eae036f97f2901f00564f6c5",
-      "sw.js": "bca85b2866eee13a41bffd2ff0422ae99c74275c832e927974001f23854d5582"
+      "index.html": "c8506382e74e0746d1d08f7c2b126698ee7ab47e44afde19b95a200d6925cdb8",
+      "sw.js": "29db7ec81dc762d8aec0ee51dc5b1b4302e702f6e6f5418c4fe21fe504123905"
     }
   },
   "assets": {
     "app.js": {
-      "version": "20261026-city-ids",
-      "sha256": "ff9f5a7609e4bfa8d47b499efaf9abb2cfc085d4606697214b34a5c037197f36"
+      "version": "20261026-sf-city",
+      "sha256": "5ca9acae43fcd6abb033ac5d4076441fd518bb2d0b3158e5fca524a17b4264f8"
     },
     "apple-touch-icon.png": {
       "version": "20260916-two-sides",
       "sha256": "c91650dc433935215c41dd1f99481df859ebbf0134def27b98c799f1a78f640b"
     },
     "cities.js": {
-      "version": "20261026-city-ids-inv98",
-      "sha256": "4eadbe59908486fa05d39d6d5681df43c78a6b17b2098b47b31b123f615146f6"
+      "version": "20261026-sf-record-inv98",
+      "sha256": "e7a05efa54f324106cbd9bef46515697970074ace8ecdf18c7e152b8f934197b"
     },
     "curb-geometry.js": {
       "version": "20260813b",
@@ -43,6 +43,10 @@
     "minneapolis-city-limits.js": {
       "version": "20261001-mpls-limits",
       "sha256": "b06894aa757daa207aae2ba00e582f573e382eca45ac9ac657edee00593d4131"
+    },
+    "sf-schedule.js": {
+      "version": "20261026-sf-schedule",
+      "sha256": "e3cbe964d988df7a292472f85d3e1f3b3949fc04942bffa4e392a0cb17fa865a"
     },
     "styles.css": {
       "version": "20261008-narrow-shell",

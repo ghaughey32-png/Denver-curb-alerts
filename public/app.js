@@ -4277,6 +4277,105 @@ function buildSnowDataset(payload) {
   return { streetWays, curbSegments };
 }
 
+// One SF curb into the shape the map and the reminder planner already read. The posted windows ride
+// along as `schedule.sf` (see getSfSweepDates) and no dates are baked in. `sweepType` is "Scheduled" so
+// the Denver-shaped code that asks "is this swept on a schedule" answers yes; colours and the sheet's
+// wording are Phase 3, so `color` is a neutral placeholder here.
+function buildSfSchedule(curb) {
+  const windows = Array.isArray(curb.schedules) ? curb.schedules : [];
+  const nightBefore = windows.some((item) => item.nightBefore);
+  return {
+    sweepType: "Scheduled",
+    cityId: "san-francisco",
+    sf: windows,
+    nightBefore,
+    remindersAllowed: windows.length > 0,
+    relocationRequired: windows.length > 0 ? true : null,
+    // Nothing for the monthly-rule projection to parse, and no baked dates.
+    rule: "",
+    allDates: []
+  };
+}
+
+function buildSfDataset(payload) {
+  const curbs = Array.isArray(payload.curbs) ? payload.curbs : [];
+  const streetWays = [];
+  const curbSegments = [];
+
+  curbs.forEach((curb) => {
+    if (!curb?.id || !Array.isArray(curb.geometry) || curb.geometry.length < 2) {
+      return;
+    }
+
+    const name = curb.street || "San Francisco street";
+    // As in Minneapolis the curb line is already on the curb's side, so the way carries the same line
+    // for street search.
+    streetWays.push({
+      id: curb.id,
+      name,
+      highway: "residential",
+      geometry: curb.geometry,
+      orientation: getStreetOrientation(curb.geometry)
+    });
+    curbSegments.push({
+      id: curb.id,
+      street: name,
+      sideKey: curb.sideKey,
+      sideLabel: `${capitalize(curb.sideKey)} curb`,
+      // The other side of the same centreline, written by the build; SF ids are hashes, so the
+      // parked-car pin cannot derive it the way it does for Denver's "<way>:<side>" ids.
+      oppositeId: curb.opposite || null,
+      addresses: Array.isArray(curb.addresses) ? curb.addresses : null,
+      color: "#7b8790",
+      geometry: curb.geometry,
+      highway: "residential",
+      schedule: buildSfSchedule(curb)
+    });
+  });
+
+  return { streetWays, curbSegments };
+}
+
+async function loadSfInventory() {
+  try {
+    const response = await fetch(STATIC_ROUTE_INVENTORY_URL);
+    if (!response.ok) {
+      throw new Error(`The saved ${ACTIVE_CITY.name} street sweeping map could not be loaded.`);
+    }
+    const payload = await response.json();
+    const { streetWays, curbSegments } = buildSfDataset(payload);
+    if (!curbSegments.length) {
+      throw new Error(`The saved ${ACTIVE_CITY.name} street sweeping map is empty.`);
+    }
+
+    setMapDataset({
+      streetWays,
+      curbSegments,
+      areaLabel: `${ACTIVE_CITY.name} street sweeping rules`,
+      geometryLabel: `${ACTIVE_CITY.name} curbs (${curbSegments.length})`,
+      mapTitleText: `All mapped ${ACTIVE_CITY.name} curbs`,
+      mapKickerText: "Ready to use",
+      sourceLabel: `Saved ${ACTIVE_CITY.name} street sweeping map`,
+      context: [],
+      mapNoteText: "Tap a curb to see its posted street sweeping hours."
+    });
+    refreshMapViewport();
+    renderAll();
+    hideMapLoadingOverlay();
+    if (returnToPilotButton) {
+      returnToPilotButton.disabled = false;
+    }
+    if (lookupAddressButton) {
+      lookupAddressButton.disabled = false;
+    }
+    return true;
+  } catch (error) {
+    hideMapLoadingOverlay();
+    renderMapFailure(error.message);
+    return false;
+  }
+}
+
 async function loadSnowInventory() {
   try {
     const response = await fetch(STATIC_ROUTE_INVENTORY_URL);
@@ -5400,6 +5499,11 @@ function findParkingCurbCandidates(point, radiusMetres = PARKING_SEARCH_RADIUS_M
 
 // Both curbs of a way share an id up to the side: "<way>:north" and "<way>:south".
 function getOppositeCurb(segment) {
+  // A city whose ids are hashes (San Francisco) names the other side in the data.
+  if (segment?.oppositeId) {
+    return getSegmentById(segment.oppositeId);
+  }
+
   const separator = String(segment?.id || "").lastIndexOf(":");
   const oppositeSide = PARKING_SIDE_OPPOSITES[segment?.sideKey];
   if (separator < 0 || !oppositeSide) {
@@ -6832,12 +6936,32 @@ function getUpcomingSweepDates(segment) {
   allDates.forEach((item) => addDate(item?.Date));
   addDate(segment.schedule?.nextDate);
   getRuleBasedSweepDates(segment).forEach(addDate);
+  getSfSweepDates(segment).forEach(addDate);
 
   return upcomingDates.sort((a, b) => a.getTime() - b.getTime()).slice(0, 8);
 }
 
 function getNextSweepDate(segment) {
   return getUpcomingSweepDates(segment)[0] || null;
+}
+
+// San Francisco curbs carry their posted windows rather than dates, so each saved curb projects its own
+// upcoming sweeps here, at the moment reminders are planned. That keeps a saved set honest without the
+// SF page being open: the rules do not expire, so nothing in the set goes stale. This is the posted
+// weekday; an overnight window's reminder falls the evening before (SfSchedule.getReminderDate), which
+// the reminder planner reads from `schedule.sf` itself.
+function getSfSweepDates(segment, count = 8) {
+  const windows = segment.schedule?.sf;
+  if (!Array.isArray(windows) || !window.SfSchedule) {
+    return [];
+  }
+
+  const today = getStartOfToday();
+  const fromDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return window.SfSchedule.getUpcomingSweeps({ schedules: windows }, fromDate, count).map((entry) => {
+    const { year, month, day } = window.SfSchedule.parseDate(entry.date);
+    return new Date(year, month - 1, day);
+  });
 }
 
 function getRuleBasedSweepDates(segment, monthCount = 8) {
@@ -9834,8 +9958,8 @@ function registerEvents() {
 purgeLegacyInventoryCache();
 
 try {
-  // The small built-in dataset is Denver's. A snow city draws nothing until its own file arrives.
-  if (!IS_SNOW_CITY) {
+  // The small built-in dataset is Denver's. Any other city draws nothing until its own file arrives.
+  if (ACTIVE_CITY.inventoryFormat === "denver-routes") {
     buildStreetData();
   }
   showMapLoadingOverlay(
@@ -9877,6 +10001,8 @@ if (IS_SNOW_CITY) {
       refreshSnowEmergency();
     }
   });
+} else if (ACTIVE_CITY.inventoryFormat === "sf-sweeping") {
+  loadSfInventory();
 } else {
   loadStaticRouteInventory();
 }

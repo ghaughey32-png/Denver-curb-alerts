@@ -36,6 +36,7 @@ function loadDateFunctions(today, season) {
   const functions = [
     "getUpcomingSweepDates",
     "getRuleBasedSweepDates",
+    "getSfSweepDates",
     "isInSweepSeason",
     "parseMonthlySweepRule",
     "getMonthlyOrdinalWeekdayDate",

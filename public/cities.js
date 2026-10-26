@@ -202,7 +202,38 @@
     }
   };
 
-  const CITIES = [DENVER, MINNEAPOLIS];
+  // San Francisco's street sweeping, built in the registry ahead of the switcher: `enabled: false`
+  // keeps it out of the switcher, out of the choice a phone can store and out of location matching,
+  // while getCity and getCityForCurbId still know it so the loader and its tests can use the record.
+  // Turning it on is Phase 3 of SF-PLAN.md, once the copy, colours, limits and reminders exist.
+  const SAN_FRANCISCO = {
+    id: "san-francisco",
+    name: "San Francisco",
+    kind: "sweeping",
+    inventoryFormat: "sf-sweeping",
+    idPrefix: "sf:",
+    enabled: false,
+    geocodeSuffix: "San Francisco, CA",
+    // The bounding box of the published curbs, padded a little like Minneapolis's.
+    bounds: {
+      north: 37.8355,
+      south: 37.6972,
+      west: -122.5236,
+      east: -122.3601
+    },
+    minZoom: 11,
+    // Not in the service worker's precache, like Minneapolis: cached on first use. Its "?v=" moves
+    // with the file, and cities.js's own tag moves with it.
+    inventoryUrl: "./sf-sweeping.json?v=1",
+    // No boundary module yet; getCityLimits answers null and the map draws no line.
+    cityLimitsGlobal: null,
+    // SF sweeps all year, and its rules arrive as posted windows, not dated rule text.
+    sweepSeason: null,
+    webReminders: false,
+    appStoreUrl: null
+  };
+
+  const CITIES = [DENVER, MINNEAPOLIS, SAN_FRANCISCO];
   const DEFAULT_CITY_ID = DENVER.id;
 
   // The choice made with the header switcher. It is a per-device convenience, so it lives in
@@ -214,14 +245,14 @@
   function readStoredCityId() {
     try {
       const stored = typeof localStorage !== "undefined" ? localStorage.getItem(CITY_CHOICE_KEY) : null;
-      return CITIES.some((city) => city.id === stored) ? stored : DEFAULT_CITY_ID;
+      return listCities().some((city) => city.id === stored) ? stored : DEFAULT_CITY_ID;
     } catch (error) {
       return DEFAULT_CITY_ID;
     }
   }
 
   function saveCityChoice(id) {
-    const city = getCity(id);
+    const city = listCities().find((candidate) => candidate.id === id);
     if (!city) {
       throw new Error(`Unknown city ${JSON.stringify(id)}`);
     }
@@ -236,8 +267,10 @@
 
   let activeCityId = readStoredCityId();
 
+  // The cities a person can choose: the switcher, a stored choice and location matching all read
+  // this, so a city still being built (`enabled: false`) never appears in any of them.
   function listCities() {
-    return CITIES.slice();
+    return CITIES.filter((city) => city.enabled !== false);
   }
 
   function getCity(id) {
@@ -272,7 +305,7 @@
   // Which city a point falls in, for choosing from the phone's position rather than asking. Returns
   // null outside every city, which is the case a picker exists to answer.
   function getCityForPoint(lat, lon) {
-    return CITIES.find((city) => isWithinCityBounds(city, lat, lon)) || null;
+    return listCities().find((city) => isWithinCityBounds(city, lat, lon)) || null;
   }
 
   // The city a saved curb id belongs to. A city with a prefix claims the ids that start with it; any
