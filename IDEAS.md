@@ -96,3 +96,7 @@ curb they cannot use has a rule. No city dataset says which curbs are no-parking
 schedule rows), so this would need either the city's regulatory data (Boston has a separate
 no-parking / tow-zone sign inventory worth looking for) or crowd correction in the app. Look at it after
 the sweeping data itself is trusted.
+
+**Resident permit parking is the same family.** The Blackwood St pole (Back Bay) also carries *Back Bay, Permit
+Parking Only* and a handicap-plate Tow Zone sign, rules the sweeping schedule knows nothing about; a driver
+without a permit cannot park there at all. Boston's permit zones are a city dataset worth checking for.
