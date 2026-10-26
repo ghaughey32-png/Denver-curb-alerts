@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20261027-city-menu" />
+    <link rel="stylesheet" href="./styles.css?v=20261027-city-chips" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -49,6 +49,12 @@
             </svg>
           </button>
           <ul id="city-switcher-list" class="city-switcher-list" role="listbox" aria-label="City" tabindex="-1" aria-hidden="true"></ul>
+          <!-- Shown once to a first-time visitor, then never again: says there is more than one city and
+               where to change it. -->
+          <div id="city-hint" class="city-hint" role="note" hidden>
+            <span id="city-hint-text"></span>
+            <button id="city-hint-dismiss" class="city-hint-dismiss" type="button" aria-label="Dismiss">&times;</button>
+          </div>
         </div>
         <button id="account-chip" class="account-chip" type="button" data-view-target="account">Sign in</button>
       </nav>
@@ -88,11 +94,12 @@
       <section class="app-view landing-view is-active" data-view="landing">
         <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow" id="hero-eyebrow">Denver street sweeping alerts</p>
-          <h1>Avoid surprise street sweeping tickets.</h1>
+          <p class="eyebrow" id="hero-eyebrow">Street sweeping alerts</p>
+          <h1 id="hero-title">Avoid surprise street sweeping tickets.</h1>
           <p class="hero-text" id="hero-text">
-            Tap the curb where you park. We'll show you when Denver sweeps it, and remind you before it happens.
+            Tap the curb where you park. We'll show you when your city sweeps it, and remind you before it happens.
           </p>
+          <div class="city-chips city-chips-hero" data-city-chips role="group" aria-label="City" hidden></div>
           <div class="hero-cta-row">
             <button class="primary-button hero-cta" type="button" data-view-target="setup">Open the map</button>
           </div>
@@ -152,6 +159,9 @@
       <section class="app-view setup-view" data-view="setup" hidden>
         <main class="workspace">
         <section class="map-card">
+          <!-- The cities, one tap each, so nobody has to find the dropdown to learn there is more than one.
+               Filled from CityRegistry by app.js; hidden while only one city is available. -->
+          <div class="city-chips" data-city-chips role="group" aria-label="City" hidden></div>
           <div class="map-frame">
             <div class="map-overlay-top">
               <form id="map-search-form" class="map-search-bar">
@@ -1247,8 +1257,8 @@
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
     <script src="./minneapolis-city-limits.js?v=20261001-mpls-limits"></script>
     <script src="./sf-city-limits.js?v=20261026-sf-limits2"></script>
-    <script src="./cities.js?v=20261027-no-locate-inv98"></script>
+    <script src="./cities.js?v=20261027-city-chips-inv98"></script>
     <script src="./sf-schedule.js?v=20261026-sf-schedule"></script>
-    <script src="./app.js?v=20261027-city-menu"></script>
+    <script src="./app.js?v=20261027-city-chips2"></script>
   </body>
 </html>

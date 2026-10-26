@@ -1,17 +1,17 @@
-const CACHE_NAME = "curb-alerts-shell-v250";
+const CACHE_NAME = "curb-alerts-shell-v253";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/vendor/leaflet/leaflet.css?v=1.9.4",
   "/vendor/leaflet/leaflet.js?v=1.9.4",
-  "/styles.css?v=20261027-city-menu",
+  "/styles.css?v=20261027-city-chips",
   "/curb-geometry.js?v=20260813b",
   "/denver-city-limits.js?v=20260825-enclave-pink-withdrawn",
   "/minneapolis-city-limits.js?v=20261001-mpls-limits",
   "/sf-city-limits.js?v=20261026-sf-limits2",
-  "/cities.js?v=20261027-no-locate-inv98",
+  "/cities.js?v=20261027-city-chips-inv98",
   "/sf-schedule.js?v=20261026-sf-schedule",
-  "/app.js?v=20261027-city-menu",
+  "/app.js?v=20261027-city-chips2",
   "/denver-west-routes.json?v=98",
   "/manifest.webmanifest?v=20260808d",
   "/icon.svg?v=20260916-two-sides",

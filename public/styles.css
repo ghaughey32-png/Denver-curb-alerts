@@ -3577,3 +3577,180 @@ a.ghost-button {
     transition: none;
   }
 }
+
+/* The cities as chips, so a visitor sees there is more than one without finding the dropdown. */
+.city-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.city-chips[hidden] {
+  display: none;
+}
+
+.city-chips-hero {
+  margin: 4px 0 18px;
+}
+
+.city-chips-label {
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.city-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid rgba(31, 47, 55, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.city-chip:hover {
+  border-color: rgba(31, 47, 55, 0.4);
+  background: #fff;
+}
+
+.city-chip:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* The open city is filled and carries aria-pressed, so it is not marked by colour alone. */
+.city-chip.is-active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.city-chip.is-more {
+  border-style: dashed;
+  background: transparent;
+}
+
+.city-chip-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* The one-time hint under the dropdown. Hung from the right edge, or the left (.is-left) where that would
+   run off the screen. A closed hint is `hidden`; the fade runs on .is-shown. */
+.city-hint {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 4;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 32px));
+  padding: 11px 38px 11px 14px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 14px 32px rgba(31, 47, 55, 0.28);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.city-hint[hidden] {
+  display: none;
+}
+
+.city-hint.is-shown {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.city-hint::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 30px;
+  width: 12px;
+  height: 12px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+
+.city-hint.is-left {
+  right: auto;
+  left: 0;
+}
+
+.city-hint.is-left::before {
+  right: auto;
+  left: 30px;
+}
+
+.city-hint-dismiss {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.city-hint-dismiss:hover,
+.city-hint-dismiss:focus-visible {
+  color: #fff;
+  outline: none;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+@media (max-width: 720px) {
+  /* One row that scrolls sideways, so a long list never pushes the map down. */
+  .city-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .city-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .city-chips-label,
+  .city-chip {
+    flex: 0 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .city-hint {
+    transition: none;
+  }
+}

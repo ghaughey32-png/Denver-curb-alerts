@@ -2473,3 +2473,27 @@ colour alone. A closed list is hidden with `visibility`, not the `hidden` attrib
 `prefers-reduced-motion` turns the animation off. The list hangs from the button's right edge, or its left edge
 where that would run off the screen (the button sits at the left of its row on a phone). Checked in the browser
 on desktop and at phone width, and selecting a city saves it and reloads into it.
+
+## City chips and the one-time hint (2026-10-27)
+
+The worry: someone opens the site, sees "Denver", and takes it for a Denver-only product, because the city
+dropdown reads as a heading. The first screen is the map (the default view is `setup`), so that is where the
+fix went. The landing page has the same row.
+
+- **Chips.** A row of one-tap city chips above the map, and under the landing hero text, built from
+  `CityRegistry.listCities()` (so a new city appears with no other work). The open city is first and filled
+  (`aria-pressed`), the rest keep the registry's order, and a snow city says "snow" on its chip. At most
+  four show; with more, a dashed "More cities (N)" chip opens the dropdown. The dropdown is expected to become a
+  searchable list grouped by state at about six cities, when that many are real. On a phone the row is one
+  line that scrolls sideways, with the next chip cut off at the edge as the cue.
+- **One-time hint.** After 1.2 s on a first visit, a small dark bubble under the dropdown says "Also covering
+  X and Y. Change city here." It goes after 14 s, on dismissal, or when the dropdown or a chip is used, and is
+  remembered on the device (`curb-alerts-city-hint-seen`). Not shown to anyone who has already chosen a
+  city. Not shown on a phone: the chips sit directly under the header there, and in the first build the hint
+  covered them.
+- **Wording.** The landing eyebrow and text no longer say "Denver" ("when your city sweeps it"), and Minneapolis
+  got its own page wording (snow emergency alerts) where it had been showing Denver's. **Known gap:** the
+  colour legend under the map still explains Denver's side colours on a Minneapolis page, where the colours
+  are snow classes.
+- **Not measured.** Analytics counts only a few anonymous steps with no city field, so whether the chips change
+  how many people switch city cannot be seen; adding that would be a Privacy and privacy-manifest change.

@@ -22,39 +22,10 @@ function extractFunctionBlock(name) {
   return APP_LINES.slice(start, end + 1).join("\n");
 }
 
-function makeElement(id = "", className = "") {
-  const element = {
-    id,
-    className,
-    hidden: false,
-    textContent: "",
-    tabIndex: 0,
-    dataset: {},
-    attributes: {},
-    children: [],
-    listeners: {},
-    offsetWidth: 180,
-    rect: { left: 700, right: 850 },
-    classList: {
-      contains: (name) => element.className.split(/\s+/).includes(name),
-      add: (name) => { if (!element.classList.contains(name)) element.className = `${element.className} ${name}`.trim(); },
-      remove: (name) => { element.className = element.className.split(/\s+/).filter((item) => item && item !== name).join(" "); },
-      toggle: (name, force) => (force ? element.classList.add(name) : element.classList.remove(name))
-    },
-    setAttribute: (name, value) => { element.attributes[name] = String(value); },
-    getAttribute: (name) => element.attributes[name],
-    removeAttribute: (name) => { delete element.attributes[name]; },
-    appendChild: (child) => { child.parent = element; element.children.push(child); },
-    addEventListener: (type, handler) => { (element.listeners[type] = element.listeners[type] || []).push(handler); },
-    getBoundingClientRect: () => element.rect,
-    contains: (target) => target === element || element.children.some((child) => child.contains(target)),
-    closest: (selector) => (element.className.split(/\s+/).includes(selector.replace(".", "")) ? element : null),
-    focus: () => { document.activeElement = element; }
-  };
-  return element;
-}
+const { makeElement } = require("./lib/fake-dom.js");
 
 const document = {};
+makeElement.onFocus = (element) => { document.activeElement = element; };
 
 function setup({ cities, active = "denver", saveResult = true }) {
   const switcher = makeElement("city-switcher", "city-switcher");
@@ -71,9 +42,10 @@ function setup({ cities, active = "denver", saveResult = true }) {
   document.listeners = {};
   document.activeElement = null;
 
-  const calls = { saved: [], reloaded: 0 };
+  const calls = { saved: [], reloaded: 0, hintDismissed: 0 };
   const sandbox = {
     document,
+    dismissCityHint: () => { calls.hintDismissed += 1; },
     ACTIVE_CITY: { id: active, name: cities.find((city) => city.id === active).name },
     window: {
       CityRegistry: { listCities: () => cities, saveCityChoice: (id) => { calls.saved.push(id); return saveResult; } },
@@ -81,7 +53,7 @@ function setup({ cities, active = "denver", saveResult = true }) {
     }
   };
   vm.createContext(sandbox);
-  vm.runInContext(`${extractFunctionBlock("initializeCitySwitcher")}\ninitializeCitySwitcher();`, sandbox);
+  vm.runInContext(`${extractFunctionBlock("switchCity")}\n${extractFunctionBlock("initializeCitySwitcher")}\ninitializeCitySwitcher();`, sandbox);
   const fire = (target, type, extra = {}) => (target.listeners[type] || []).forEach((handler) => handler({ preventDefault() {}, target, ...extra }));
   return { switcher, button, label, list, calls, fire, options: list.children };
 }
@@ -103,8 +75,9 @@ test("it is hidden when there is only one city to choose", () => {
 });
 
 test("the button opens the list, which drops down, and a second press closes it", () => {
-  const { switcher, button, list, fire } = setup({ cities: CITIES });
+  const { switcher, button, list, fire, calls } = setup({ cities: CITIES });
   fire(button, "click");
+  assert.equal(calls.hintDismissed, 1, "opening the dropdown answers the one-time hint");
   assert.ok(switcher.classList.contains("is-open"));
   assert.equal(button.getAttribute("aria-expanded"), "true");
   assert.equal(list.getAttribute("aria-hidden"), undefined);

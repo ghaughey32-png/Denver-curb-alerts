@@ -4379,6 +4379,7 @@ function applyCityPageCopy() {
     }
   };
   setText("#hero-eyebrow", CITY_PAGE_COPY.eyebrow);
+  setText("#hero-title", CITY_PAGE_COPY.heroTitle);
   setText("#hero-text", CITY_PAGE_COPY.heroText);
   setText("#map-loading-title", CITY_PAGE_COPY.loadingTitle);
   document.querySelector("#map")?.setAttribute("aria-label", CITY_PAGE_COPY.mapLabel);
@@ -5902,6 +5903,129 @@ function renderParkSheet() {
 // The header's city choice. Saving it and reloading is the whole mechanism: ACTIVE_CITY and
 // everything derived from it are resolved once at load, so a reload is what makes them all right.
 // A failed save (storage blocked) leaves the page as it is rather than reloading into the same city.
+// Saves the city and reloads into it, since the client settles on its city once at load. Returns false when
+// nothing changed: the city is already open, or storage refused the save (the page stays as it is).
+function switchCity(cityId) {
+  if (cityId === ACTIVE_CITY.id || !window.CityRegistry.saveCityChoice(cityId)) {
+    return false;
+  }
+
+  window.location.reload();
+  return true;
+}
+
+// At most this many cities are shown as chips; any more sit behind one "More cities" chip, which opens the
+// dropdown. The open city is always among them, first, and the rest keep the registry's order.
+const CITY_CHIP_LIMIT = 4;
+
+// The cities as a row of chips on the map screen and the landing page, so nobody has to find the dropdown
+// to learn there is more than one. Hidden while only one city is available.
+function renderCityChips() {
+  const containers = document.querySelectorAll("[data-city-chips]");
+  const cities = window.CityRegistry.listCities();
+  const ordered = [cities.find((city) => city.id === ACTIVE_CITY.id), ...cities.filter((city) => city.id !== ACTIVE_CITY.id)].filter(Boolean);
+  const shown = ordered.slice(0, ordered.length > CITY_CHIP_LIMIT ? CITY_CHIP_LIMIT : ordered.length);
+  const hiddenCount = ordered.length - shown.length;
+
+  containers.forEach((container) => {
+    container.textContent = "";
+    container.hidden = cities.length < 2;
+    if (cities.length < 2) {
+      return;
+    }
+
+    const label = document.createElement("span");
+    label.className = "city-chips-label";
+    label.textContent = "City";
+    container.appendChild(label);
+
+    shown.forEach((city) => {
+      const chip = document.createElement("button");
+      const isActive = city.id === ACTIVE_CITY.id;
+      chip.type = "button";
+      chip.className = isActive ? "city-chip is-active" : "city-chip";
+      chip.dataset.city = city.id;
+      chip.setAttribute("aria-pressed", String(isActive));
+      chip.textContent = city.name;
+      if (city.kind === "snow") {
+        // This city is snow emergencies, not street sweeping; say so before the tap.
+        const tag = document.createElement("span");
+        tag.className = "city-chip-tag";
+        tag.textContent = "snow";
+        chip.appendChild(tag);
+      }
+      chip.addEventListener("click", () => {
+        dismissCityHint();
+        switchCity(city.id);
+      });
+      container.appendChild(chip);
+    });
+
+    if (hiddenCount > 0) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "city-chip is-more";
+      more.textContent = `More cities (${hiddenCount})`;
+      more.addEventListener("click", () => {
+        dismissCityHint();
+        document.querySelector("#city-switcher-button")?.click();
+      });
+      container.appendChild(more);
+    }
+  });
+}
+
+// A first-time visitor is told once, next to the dropdown, that there is more than one city. It is gone
+// after a dismissal, after the dropdown or a chip is used, or after CITY_HINT_VISIBLE_MS; a visitor who has
+// already chosen a city never sees it. The flag only says it has been shown; nothing else is stored.
+const CITY_HINT_SEEN_KEY = "curb-alerts-city-hint-seen";
+const CITY_HINT_DELAY_MS = 1200;
+const CITY_HINT_VISIBLE_MS = 14000;
+let cityHintTimers = [];
+
+function dismissCityHint() {
+  cityHintTimers.forEach((timer) => clearTimeout(timer));
+  cityHintTimers = [];
+  // Using the dropdown or a chip before the hint appears answers it too, so it is remembered either way.
+  saveJson(CITY_HINT_SEEN_KEY, true);
+  const hint = document.querySelector("#city-hint");
+  if (!hint || hint.hidden) {
+    return;
+  }
+
+  hint.classList.remove("is-shown");
+  // After the fade, so `hidden` never cuts the animation short.
+  cityHintTimers.push(setTimeout(() => { hint.hidden = true; }, 220));
+}
+
+function initializeCityHint() {
+  const hint = document.querySelector("#city-hint");
+  const text = document.querySelector("#city-hint-text");
+  const switcher = document.querySelector("#city-switcher");
+  const others = window.CityRegistry.listCities().filter((city) => city.id !== ACTIVE_CITY.id);
+  // On a phone the chips sit directly under the header, so the hint would only cover them.
+  if (window.matchMedia?.("(max-width: 720px)").matches) {
+    return;
+  }
+
+  if (!hint || !text || !switcher || !others.length || window.CityRegistry.hasStoredCityChoice() || loadJson(CITY_HINT_SEEN_KEY, false)) {
+    return;
+  }
+
+  text.textContent = `Also covering ${joinWithAnd(others.map((city) => city.name))}. Change city here.`;
+  document.querySelector("#city-hint-dismiss")?.addEventListener("click", dismissCityHint);
+  cityHintTimers.push(
+    setTimeout(() => {
+      // Hung from the dropdown's right edge, or its left where that would run off the screen.
+      hint.classList.toggle("is-left", switcher.getBoundingClientRect().right - 260 < 8);
+      hint.hidden = false;
+      // A frame later, so the fade has a starting state to run from.
+      requestAnimationFrame(() => hint.classList.add("is-shown"));
+      cityHintTimers.push(setTimeout(dismissCityHint, CITY_HINT_VISIBLE_MS));
+    }, CITY_HINT_DELAY_MS)
+  );
+}
+
 function initializeCitySwitcher() {
   const switcher = document.querySelector("#city-switcher");
   const button = document.querySelector("#city-switcher-button");
@@ -5952,18 +6076,23 @@ function initializeCitySwitcher() {
     list.removeAttribute("aria-hidden");
     focusOption(Math.max(0, cities.findIndex((city) => city.id === ACTIVE_CITY.id)));
   };
-  // Choosing saves the city and reloads, since the client settles on its city once at load. Choosing the
-  // city already open just closes the list; a failed save (storage blocked) leaves the page as it is.
+  // Choosing the city already open just closes the list; a failed save (storage blocked) leaves the page as
+  // it is. See switchCity.
   const choose = (cityId) => {
-    if (cityId === ACTIVE_CITY.id || !window.CityRegistry.saveCityChoice(cityId)) {
+    if (!switchCity(cityId)) {
       close(true);
-      return;
     }
-
-    window.location.reload();
   };
 
-  button.addEventListener("click", () => (isOpen() ? close() : open()));
+  button.addEventListener("click", () => {
+    // Opening the list is the answer to the hint, so it is not shown again.
+    dismissCityHint();
+    if (isOpen()) {
+      close();
+    } else {
+      open();
+    }
+  });
   button.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -10639,6 +10768,8 @@ loadEmailConfig();
 // doing that before the first load would race it.
 loadCurrentAccount().then(handleEmailLinks);
 initializeCitySwitcher();
+renderCityChips();
+initializeCityHint();
 applyCityPageCopy();
 if (IS_SNOW_CITY) {
   loadSnowInventory();

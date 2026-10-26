@@ -193,6 +193,14 @@
     // Same split as Denver: the website is the map, the iPhone app sells the alerts.
     webReminders: false,
     appStoreUrl: null,
+    // Wording for the page where it names the city or what is sold, in place of Denver's sweeping copy.
+    pageCopy: {
+      eyebrow: "Minneapolis snow emergency alerts",
+      heroTitle: "Know where you can park in a snow emergency.",
+      heroText: "Tap the curb where you park. We'll show which days the city bans parking there during a snow emergency, and alert you when one is declared.",
+      mapLabel: "Clickable Minneapolis curb-side map",
+      loadingTitle: "Loading Minneapolis curbs"
+    },
     snowRules: {
       authority: "City of Minneapolis",
       // When each day's ban takes effect, local time.
@@ -278,6 +286,17 @@
     return true;
   }
 
+  // Whether the visitor has ever chosen a city. A first-time visitor gets the hint that there is more than
+  // one; someone who has chosen already knows.
+  function hasStoredCityChoice() {
+    try {
+      return typeof localStorage !== "undefined" && localStorage.getItem(CITY_CHOICE_KEY) !== null;
+    } catch (error) {
+      // Unreadable storage cannot hold a choice, and must not nag on every load either.
+      return true;
+    }
+  }
+
   let activeCityId = readStoredCityId();
 
   // The cities a person can choose: the switcher, a stored choice and location matching all read
@@ -347,6 +366,7 @@
     getActiveCity,
     setActiveCity,
     saveCityChoice,
+    hasStoredCityChoice,
     isWithinCityBounds,
     getCityForPoint,
     getCityForCurbId,
