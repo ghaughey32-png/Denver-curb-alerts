@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v255",
+    "cacheName": "curb-alerts-shell-v257",
     "files": {
-      "index.html": "1ea146a9ab99f8083263d8a17328667762cdc7c11c1c49d3f96d75314a2a87d1",
-      "sw.js": "4e089d7764e3ab4738d5ed1b841eedb44c5edf27cba093cb67d4dbddfda19f8b"
+      "index.html": "7927166d95fd513481619f46b60111a369032e9ee75a3c2379c62aaa997f9ee4",
+      "sw.js": "b5968e436b974d4b83aeab03dc99b8269d7ab57966fa8e2e0aa9de5699ddec89"
     }
   },
   "assets": {
@@ -53,8 +53,8 @@
       "sha256": "e3cbe964d988df7a292472f85d3e1f3b3949fc04942bffa4e392a0cb17fa865a"
     },
     "styles.css": {
-      "version": "20261027-city-chips",
-      "sha256": "4bcc86d3ee5ffbf7e25cb3da2ac636fbb4b7b0cf02f636cbdb87779e5e6190ff"
+      "version": "20261027-mobile-nav-rows",
+      "sha256": "31a48fc98942916fb0cfe8bc45fa0193732877365c71210501cf385c8f5b52bc"
     },
     "vendor/leaflet/leaflet.css": {
       "version": "1.9.4",

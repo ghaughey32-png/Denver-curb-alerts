@@ -2125,17 +2125,18 @@ a.ghost-button {
     border-radius: 22px;
   }
 
-  /* Only the tabs scroll. The chip stays pinned at the right edge, so the account - and the dot on
-     it - is reachable without discovering that this row scrolls at all. */
+  /* Two rows on a phone: the tabs get the whole first row, and the city switcher and account chip
+     share the second. Squeezing all five controls into one row hid tabs behind the chip once the
+     city switcher was added. The chip stays outside the scroller so its notice dot is always visible. */
+  .app-tabs {
+    flex-wrap: wrap;
+  }
+
   .app-tabs-scroll {
-    flex: 1 1 auto;
+    flex: 1 1 100%;
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
-    /* Fade the last few pixels so a tab passing behind the chip reads as "this row scrolls" rather
-       than as a word that has been chopped in half. */
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
-    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
   }
 
   .app-tab {
@@ -2145,16 +2146,24 @@ a.ghost-button {
   }
 
   .city-switcher {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
     min-height: 46px;
-    padding: 10px 8px;
+    padding: 10px 12px;
+    margin-left: 0;
   }
 
   .account-chip {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
     min-height: 46px;
     padding: 10px 12px;
-    max-width: 116px;
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .city-switcher + .account-chip {
+    margin-left: 0;
   }
 
   .landing-next-card {
