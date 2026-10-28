@@ -99,5 +99,5 @@ the sweeping data itself is trusted.
 
 **Resident permit parking is the same family.** The Blackwood St pole (Back Bay) also carries *Back Bay, Permit
 Parking Only* and a handicap-plate Tow Zone sign, rules the sweeping schedule knows nothing about; a driver
-without a permit cannot park there at all. Boston's permit zones are a city dataset worth checking for. Taylor St (South End) is another: its pole carries *No Parking, Either Side* above the cleaning sign. Time limits belong here too: the Gay Head St corner pole
+without a permit cannot park there at all. Boston's permit zones are a city dataset worth checking for. Taylor St (South End) is another: its pole carries *No Parking, Either Side* above the cleaning sign, and so does Emmet St (South Boston). Time limits belong here too: the Gay Head St corner pole
 (Centre St end) also carries *Parking 2 Hour Limit, Mon–Fri 8am–6pm*.
