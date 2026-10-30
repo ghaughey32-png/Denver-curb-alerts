@@ -3,7 +3,7 @@
 Paste the text below into App Store Connect → App Review Information → Notes for each submission.
 Check it against the build before pasting: the paywall trigger and the notification-permission timing
 were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt at launch); the sandbox testing
-steps were written from AGENTS.md and should be confirmed. Keep it in step with the Terms, Privacy and paywall copy.
+steps were written from AGENTS.md and should be confirmed. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
 Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and snow-emergency tickets in Minneapolis.
@@ -25,6 +25,9 @@ Snow alerts are push notifications sent only when the City of Minneapolis declar
 
 NOTIFICATIONS
 We use notifications for reminders the device schedules locally, and for snow-emergency alerts sent through Apple Push Notification service. The app asks for notification permission only after you tap "Turn on reminders" or "Send test now".
+
+LOCATION
+Location is optional and is never requested at launch. The "Find my curb" and "Mark my spot" buttons on the map are the driver's own action; tapping one shows the standard iOS location prompt directly, with no custom screen in front of it. If the driver declines, the map still works and they can search an address or tap a curb. The parking pin's coordinates stay on the device.
 
 DEVICES
 Runs natively on iPhone and iPad, in all iPad orientations.
