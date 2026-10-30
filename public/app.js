@@ -5847,7 +5847,7 @@ function clearParkedCar() {
   state.parkSheetOpen = false;
   saveJson(PARKED_CAR_KEY, null);
   if (lookupStatus) {
-    lookupStatus.textContent = "Parking pin cleared. Tap Park here the next time you park.";
+    lookupStatus.textContent = "Parking pin cleared. Drop a new pin the next time you park.";
   }
   renderAll();
 }
@@ -8341,7 +8341,7 @@ function renderSweepCheck() {
     sweepCheckKicker.textContent = "Nice work";
     sweepCheckTitle.textContent = "Car moved. That's it for this sweep.";
     sweepCheckBody.textContent = confirmed.released
-      ? "We cleared your parking pin, since the car isn't there anymore. Tap Park here wherever you leave it next."
+      ? "We cleared your parking pin, since the car isn't there anymore. Drop a new pin wherever you leave it next."
       : `No more reminders for ${confirmed.setName}. We'll start again before the next sweep.`;
     sweepCheckConfirmButton.hidden = true;
     sweepCheckUndoButton.hidden = false;
@@ -10675,8 +10675,26 @@ function applyTimeToDate(baseDate, timeValue) {
   );
 }
 
+// Apple (Guideline 5.1.1(iv), build 12) asks that a button leading to the system location prompt
+// not be worded as a request for the permission, so inside the app these two say what they do for
+// the driver instead. The website keeps the plain wording. Help text never names either button.
+function applyNativeLocationButtonLabels() {
+  if (!canUseNativeReminders()) {
+    return;
+  }
+
+  if (useMyLocationButton) {
+    useMyLocationButton.textContent = "Find my curb";
+  }
+
+  if (parkHereButton) {
+    parkHereButton.textContent = "Mark my spot";
+  }
+}
+
 function registerEvents() {
   registerAccountEvents();
+  applyNativeLocationButtonLabels();
   useMyLocationButton?.addEventListener("click", requestUserLocation);
   curbSheetClose?.addEventListener("click", closeCurbSheet);
   parkHereButton?.addEventListener("click", parkHere);
