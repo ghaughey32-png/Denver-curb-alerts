@@ -7,6 +7,9 @@ import UIKit
 /// links exactly the way App Review expects a subscription screen to, so the part of the app most
 /// likely to be rejected is the part written least by us.
 struct PaywallView: View {
+    /// A line about the city being between seasons, written by the page (which knows the active city
+    /// and its season) and shown only when there is one. Nil for the notice-driven paths.
+    var note: String? = nil
     /// Closes the sheet, after a purchase. Main-actor, because the purchase callback below resumes
     /// off the main thread after its awaits and dismissing a view controller must not happen there.
     let close: @MainActor () -> Void
@@ -41,6 +44,14 @@ struct PaywallView: View {
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+                if let note, !note.isEmpty {
+                    Text(note)
+                        .font(.subheadline.weight(.semibold))
+                        .multilineTextAlignment(.center)
+                        .padding(10)
+                        .frame(maxWidth: .infinity)
+                        .background(Self.logoOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
                 VStack(spacing: 2) {
                     // Placeholder range, to revisit soon: each city's fine differs (Denver's was $50), and
                     // this line should say what a ticket costs where the driver parks. See IDEAS.md,
@@ -102,7 +113,7 @@ enum SubscriptionActions {
 
     /// Shows the paywall and returns once it is gone, bought from or not. The caller asks
     /// `ReminderAccess` what happened rather than trusting how the sheet was closed.
-    static func showPaywall() async {
+    static func showPaywall(note: String? = nil) async {
         if let presented, presented.presentingViewController != nil { return }
         guard let presenter = topViewController() else { return }
 
@@ -117,7 +128,7 @@ enum SubscriptionActions {
 
             // Weak: the view holds this closure, and the controller holds the view.
             weak var host: UIHostingController<PaywallView>?
-            let view = PaywallView(close: { host?.dismiss(animated: true) }, gone: finish)
+            let view = PaywallView(note: note, close: { host?.dismiss(animated: true) }, gone: finish)
             let controller = UIHostingController(rootView: view)
             host = controller
             presented = controller

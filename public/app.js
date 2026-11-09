@@ -2470,6 +2470,24 @@ function getAppReminderLabel() {
   return ACTIVE_CITY.appStoreUrl ? "Get reminders in the iPhone app" : "Reminders are coming in the iPhone app";
 }
 
+// One line for the top of the plans when the active city is between seasons, so a driver who
+// subscribes in January is told why nothing arrives until April. A city with no season (San
+// Francisco sweeps all year) or a date inside the season says nothing. Plain text; the shell draws it.
+function getOffSeasonPaywallNote(now = new Date()) {
+  const season = ACTIVE_CITY.sweepSeason;
+  if (!season) {
+    return null;
+  }
+
+  const month = now.getMonth() + 1;
+  if (month >= season.firstMonth && month <= season.lastMonth) {
+    return null;
+  }
+
+  const monthName = new Date(2000, season.firstMonth - 1, 1).toLocaleString("en-US", { month: "long" });
+  return `${ACTIVE_CITY.name}'s sweeping season is on break. Reminders start again in ${monthName}.`;
+}
+
 // Resolves to the subscription as it stands once the sheet closes, bought from or not.
 async function openReminderPaywall() {
   const bridge = getNativeReminderBridge();
@@ -2480,7 +2498,7 @@ async function openReminderPaywall() {
   trackEvent("paywall_shown");
   let subscription = null;
   try {
-    subscription = await bridge.showPaywall();
+    subscription = await bridge.showPaywall(getOffSeasonPaywallNote());
   } catch (error) {
     lookupStatus.textContent = error.message || "The App Store could not be reached. Try again in a moment.";
   }

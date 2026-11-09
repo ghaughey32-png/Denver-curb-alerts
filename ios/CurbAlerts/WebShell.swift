@@ -168,8 +168,8 @@ final class WebShell: NSObject {
         movedSweepKeys: initial.movedSweepKeys,
         subscription: initial.subscription,
         appVersion: initial.appVersion,
-        showPaywall: function () {
-          return call("showPaywall").then(function (subscription) {
+        showPaywall: function (note) {
+          return call("showPaywall", { note: note || null }).then(function (subscription) {
             bridge.subscription = subscription;
             return subscription;
           });
@@ -264,7 +264,7 @@ extension WebShell: WKScriptMessageHandlerWithReply {
                 return (true, nil)
 
             case "showPaywall":
-                await SubscriptionActions.showPaywall()
+                await SubscriptionActions.showPaywall(note: payload["note"] as? String)
                 return (await SubscriptionManager.shared.refresh().bridgeValue, nil)
 
             case "manageSubscription":
