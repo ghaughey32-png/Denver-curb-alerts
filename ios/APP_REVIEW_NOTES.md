@@ -3,10 +3,17 @@
 Paste the text below into App Store Connect → App Review Information → Notes for each submission.
 Check it against the build before pasting: the paywall trigger and the notification-permission timing
 were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt at launch); the sandbox testing
-steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
+steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The THREE CITIES (Guideline 4.3) and SAN FRANCISCO sections were added 2026-11-09 for version 1.1 (build 14); confirm the switcher wording and the winter paywall line against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
-Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and snow-emergency tickets in Minneapolis.
+Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and San Francisco, and snow-emergency tickets in Minneapolis.
+
+THREE CITIES, ONE APP (Guideline 4.3)
+This is one app with one codebase and one subscription, not the same app repeated per city. Each city has its own data and its own rules, built from that city's own public records:
+- Denver: the city's street sweeping routes, with left and right sides of each street separated, sweeping dates, and a schedule that only runs April to November.
+- San Francisco: the city's posted street cleaning windows per block side, including overnight sweeping (remind the evening before) and 5th-week days the schedule does not confirm. San Francisco sweeps all year.
+- Minneapolis: snow-emergency parking bans, which are not sweeping at all. They are day 1, 2 and 3 rules that apply only when the city declares an emergency.
+The app picks the city from the driver's location, and a switcher in the header changes it by hand. We did not publish a separate app per city, because the map, reminders and subscription are shared and a driver who travels between cities should not need three apps.
 
 ACCOUNTS AND ACCOUNT DELETION
 Accounts are optional (they back up saved curbs across devices). Every screen works signed out, so no demo account is needed.
@@ -20,6 +27,9 @@ HOW TO TEST
 1. Open the map and tap any colored curb to see its sweeping rules.
 2. Tap "Remind me about this curb" to reach the paywall, then subscribe in the sandbox. Tap "Turn on reminders" when prompted and allow notifications.
 3. Reminders are scheduled on the device as local notifications. "Send test now" sends a test notification immediately.
+
+SAN FRANCISCO
+Use the city switcher in the header to choose San Francisco. The curb map and posted sweeping windows work at any time and can be reviewed now. Tapping a curb shows its sweeping schedule; "Remind me about this curb" uses the same paywall and subscription as Denver. San Francisco sweeps all year, so reminders there have no off-season. Denver's season runs April to November, so in winter the paywall shows a line saying Denver reminders resume in April. That is expected, not a fault.
 
 MINNEAPOLIS SNOW EMERGENCIES
 The city switcher in the header changes the map to Minneapolis. The curb map and rules there work at any time and can be reviewed now.
