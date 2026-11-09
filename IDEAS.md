@@ -101,3 +101,11 @@ the sweeping data itself is trusted.
 Parking Only* and a handicap-plate Tow Zone sign, rules the sweeping schedule knows nothing about; a driver
 without a permit cannot park there at all. Boston's permit zones are a city dataset worth checking for. Taylor St (South End) is another: its pole carries *No Parking, Either Side* above the cleaning sign, and so does Emmet St (South Boston). Time limits belong here too: the Gay Head St corner pole
 (Centre St end) also carries *Parking 2 Hour Limit, Mon–Fri 8am–6pm*.
+
+## Notification button: top of the list and more prominent (1.2)
+
+Noted 2026-11-09 from TestFlight testing of build 14. The iPhone app's "Turn on reminders" button on the
+alerts page could sit at the top of its list and look more prominent (a shiny primary style). **Keep its
+label neutral.** Apple rejected build 12 under Guideline 5.1.1(iv) because a button leading to a system
+permission prompt was worded as a request for the permission, which is why "Use my location" became "Find
+my curb". "Allow notifications" is that same wording; something like "Set up reminders" is not. Not for 1.1.
