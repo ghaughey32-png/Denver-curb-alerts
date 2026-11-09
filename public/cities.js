@@ -64,7 +64,7 @@
     // The Curb Alerts App Store listing, offered on the website in place of reminders. Null until
     // Apple approves the app, because the listing does not exist before then; set it on launch day to
     // "https://apps.apple.com/app/id6812789158" (Apple ID 6812789158).
-    appStoreUrl: null,
+    appStoreUrl: "https://apps.apple.com/app/id6812789158",
     // The published inventory, about 12 MB. Its "?v=" is rewritten by
     // scripts/lib/asset-versions.js on every pipeline bump and has to keep agreeing with the copy
     // in public/index.html and public/sw.js; test/static-cache-version.test.js reads this literal.
@@ -192,7 +192,7 @@
     sweepSeason: null,
     // Same split as Denver: the website is the map, the iPhone app sells the alerts.
     webReminders: false,
-    appStoreUrl: null,
+    appStoreUrl: "https://apps.apple.com/app/id6812789158",
     // Wording for the page where it names the city or what is sold, in place of Denver's sweeping copy.
     pageCopy: {
       eyebrow: "Minneapolis snow emergency alerts",
@@ -246,7 +246,7 @@
     // SF sweeps all year, and its rules arrive as posted windows, not dated rule text.
     sweepSeason: null,
     webReminders: false,
-    appStoreUrl: null,
+    appStoreUrl: "https://apps.apple.com/app/id6812789158",
     // The page's own wording where it names the city, in place of Denver's, which stays hardcoded in
     // index.html and app.js because source-text tests guard it (see the note at the top). A record
     // without `pageCopy` leaves the page as it is.
