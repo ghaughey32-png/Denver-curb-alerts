@@ -3,13 +3,13 @@
 Paste the text below into App Store Connect → App Review Information → Notes for each submission.
 Check it against the build before pasting: the paywall trigger and the notification-permission timing
 were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt at launch); the sandbox testing
-steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The THREE CITIES (Guideline 4.3) and SAN FRANCISCO sections were added 2026-11-09 for version 1.1 (build 14); confirm the switcher wording and the winter paywall line against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
+steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The THREE CITIES (Guideline 4.3) and SAN FRANCISCO sections were added 2026-11-09 for version 1.1 (build 14). San Francisco and Minneapolis were already in build 13, which Apple approved, so these sections explain existing behaviour rather than announcing new cities; the only app change in 1.1 is the winter line on the paywall. Confirm the switcher wording and that line against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
 Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and San Francisco, and snow-emergency tickets in Minneapolis.
 
 THREE CITIES, ONE APP (Guideline 4.3)
-This is one app with one codebase and one subscription, not the same app repeated per city. Each city has its own data and its own rules, built from that city's own public records:
+This is one app with one codebase and one subscription, not the same app repeated per city. The previous version (1.0, build 13) already included all three cities. Each city has its own data and its own rules, built from that city's own public records:
 - Denver: the city's street sweeping routes, with left and right sides of each street separated, sweeping dates, and a schedule that only runs April to November.
 - San Francisco: the city's posted street cleaning windows per block side, including overnight sweeping (remind the evening before) and 5th-week days the schedule does not confirm. San Francisco sweeps all year.
 - Minneapolis: snow-emergency parking bans, which are not sweeping at all. They are day 1, 2 and 3 rules that apply only when the city declares an emergency.
@@ -29,7 +29,7 @@ HOW TO TEST
 3. Reminders are scheduled on the device as local notifications. "Send test now" sends a test notification immediately.
 
 SAN FRANCISCO
-Use the city switcher in the header to choose San Francisco. The curb map and posted sweeping windows work at any time and can be reviewed now. Tapping a curb shows its sweeping schedule; "Remind me about this curb" uses the same paywall and subscription as Denver. San Francisco sweeps all year, so reminders there have no off-season. Denver's season runs April to November, so in winter the paywall shows a line saying Denver reminders resume in April. That is expected, not a fault.
+Use the city switcher in the header to choose San Francisco. The curb map and posted sweeping windows work at any time and can be reviewed now. Tapping a curb shows its sweeping schedule; "Remind me about this curb" uses the same paywall and subscription as Denver. San Francisco sweeps all year, so reminders there have no off-season. WHAT IS NEW IN THIS VERSION: when Denver is the active city and it is December to March, the plans screen shows one line saying Denver's sweeping season is on break and reminders resume in April. San Francisco never shows it. Nothing else in the app changed. That line is expected, not a fault.
 
 MINNEAPOLIS SNOW EMERGENCIES
 The city switcher in the header changes the map to Minneapolis. The curb map and rules there work at any time and can be reviewed now.
