@@ -3,13 +3,15 @@
 Paste the text below into App Store Connect → App Review Information → Notes for each submission.
 Check it against the build before pasting: the paywall trigger and the notification-permission timing
 were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt at launch); the sandbox testing
-steps were written from AGENTS.md and should be confirmed. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
+steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
 Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and snow-emergency tickets in Minneapolis.
 
-NO SIGN-IN REQUIRED
-Accounts are optional. Every screen works signed out, so no demo account is needed.
+ACCOUNTS AND ACCOUNT DELETION
+Accounts are optional (they back up saved curbs across devices). Every screen works signed out, so no demo account is needed.
+To create an account: tap the "Sign in" button at the top right of the header, choose "Create account", enter any email and a password of 10+ characters.
+To delete it: tap the account button at the top right (it now shows the email), then tap "Delete account", enter the password, and tap "Delete my account". Deletion is immediate and permanent: it removes the account, saved curb sets, sessions and push registrations from our server. No website or email is needed. The screen recording is attached to the reply to App Review.
 
 WHAT IS FREE AND WHAT IS SOLD
 The map is free. Reminders are sold by auto-renewable subscription: yearly (14-day free trial) and monthly. The paywall appears when you tap "Remind me about this curb". Prices are shown by StoreKit.
