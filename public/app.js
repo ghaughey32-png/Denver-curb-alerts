@@ -2466,6 +2466,38 @@ function openAppStoreListing() {
   }
 }
 
+// The alerts page says up front that this website sends nothing, and a link to the app follows the
+// page. Both appear only where areWebRemindersOff() is true, so the iPhone app never shows them.
+function renderAppOnlyNotices() {
+  const websiteOnly = areWebRemindersOff();
+  const url = ACTIVE_CITY.appStoreUrl;
+  const notice = document.querySelector("#app-only-notice");
+  const noticeLink = document.querySelector("#app-only-notice-link");
+  const floatLink = document.querySelector("#app-float");
+
+  if (notice) {
+    notice.hidden = !websiteOnly;
+  }
+  // Test sends have nothing to test on a website that sends no reminders.
+  for (const button of [sendTestButton, scheduleTestButton]) {
+    if (button) {
+      button.hidden = websiteOnly;
+    }
+  }
+  if (noticeLink) {
+    noticeLink.hidden = !(websiteOnly && url);
+    if (url) {
+      noticeLink.href = url;
+    }
+  }
+  if (floatLink) {
+    floatLink.hidden = !(websiteOnly && url);
+    if (url) {
+      floatLink.href = url;
+    }
+  }
+}
+
 function getAppReminderLabel() {
   return ACTIVE_CITY.appStoreUrl ? "Get reminders in the iPhone app" : "Reminders are coming in the iPhone app";
 }
@@ -8965,8 +8997,8 @@ function renderNotificationStatus() {
 
   if (areWebRemindersOff()) {
     notificationStatus.textContent = ACTIVE_CITY.appStoreUrl
-      ? "Sweep reminders are in the Curb Alerts iPhone app. This website shows every curb's schedule."
-      : "Sweep reminders are coming in the Curb Alerts iPhone app. This website shows every curb's schedule.";
+      ? "This website does not send sweep reminders. They are in the Curb Alerts iPhone app. This website shows every curb's schedule."
+      : "This website does not send sweep reminders. They are coming in the Curb Alerts iPhone app. This website shows every curb's schedule.";
     enableNotificationsButton.textContent = getAppReminderLabel();
     enableNotificationsButton.classList.remove("notifications-on");
     enableNotificationsButton.disabled = !ACTIVE_CITY.appStoreUrl;
@@ -10576,6 +10608,7 @@ function renderAll() {
   renderSavedSets();
   renderNotificationJobs();
   renderNotificationStatus();
+  renderAppOnlyNotices();
   renderPushPrimer();
   renderSweepCheck();
   renderSubscriptionBanner();

@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20261027-mobile-nav-rows" />
+    <link rel="stylesheet" href="./styles.css?v=20261109-app-only-notice-c" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -291,6 +291,15 @@
       <section class="app-view alerts-view" data-view="alerts" hidden>
         <main class="single-panel-view">
           <aside class="panel-card">
+
+          <!-- The website sends no reminders (cities.js, webReminders). This page is where someone sets
+               them up, so it says so first and plainly, with the way to get them. Shown only where
+               areWebRemindersOff() is true: never inside the iPhone app. -->
+          <section id="app-only-notice" class="panel-section app-only-notice" hidden>
+            <h3 id="app-only-notice-title">This website does not send alerts</h3>
+            <p id="app-only-notice-text">Reminders only come from the Curb Alerts iPhone app. Curbs you save here are a list for you to look at. They will not notify you, so do not count on this page to warn you before a sweep.</p>
+            <a id="app-only-notice-link" class="primary-button app-only-notice-link" href="#" target="_blank" rel="noopener" hidden>Get the iPhone app</a>
+          </section>
 
           <!-- The one progress system. This page used to carry journey pills at the top AND this
                checklist AND "Step 1/2/3" badges over on the map panel: three competing accounts of
@@ -1252,6 +1261,10 @@
       </article>
     </template>
 
+    <!-- A link to the app that stays on screen while the website scrolls. Shown only when the website
+         sends no reminders and the listing exists; app.js fills the address and unhides it. -->
+    <a id="app-float" class="app-float" href="#" target="_blank" rel="noopener" hidden>Get the iPhone app</a>
+
     <script src="./vendor/leaflet/leaflet.js?v=1.9.4"></script>
     <script src="./curb-geometry.js?v=20260813b"></script>
     <script src="./denver-city-limits.js?v=20260825-enclave-pink-withdrawn"></script>
@@ -1259,6 +1272,6 @@
     <script src="./sf-city-limits.js?v=20261026-sf-limits2"></script>
     <script src="./cities.js?v=20261109-app-store-link-inv98"></script>
     <script src="./sf-schedule.js?v=20261026-sf-schedule"></script>
-    <script src="./app.js?v=20261030-offseason-paywall-note"></script>
+    <script src="./app.js?v=20261109-app-only-notice-b"></script>
   </body>
 </html>

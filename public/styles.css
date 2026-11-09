@@ -3763,3 +3763,58 @@ a.ghost-button {
     transition: none;
   }
 }
+
+/* The website sends no reminders, so the alerts page says so up top and a link to the app follows the
+   page. [hidden] has to be restated: both classes set display, which beats the attribute. */
+.app-only-notice {
+  border: 2px solid var(--accent);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fff4e8;
+}
+
+.app-only-notice h3 {
+  margin: 0 0 6px;
+}
+
+.app-only-notice p {
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.app-only-notice-link {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+.app-only-notice[hidden],
+.app-only-notice-link[hidden],
+.app-float[hidden] {
+  display: none;
+}
+
+.app-float {
+  position: fixed;
+  /* Sits just above the Report an issue button, which owns the bottom-right corner. */
+  right: max(18px, env(safe-area-inset-right));
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 1300;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(31, 47, 55, 0.28);
+}
+
+.app-float:hover {
+  filter: brightness(0.96);
+}
+
+/* The test buttons are hidden on a website that sends no reminders; their button class sets display. */
+#send-test-button[hidden],
+#schedule-test-button[hidden] {
+  display: none;
+}
