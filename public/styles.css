@@ -1481,6 +1481,16 @@ button {
   opacity: 1;
 }
 
+/* The one thing the alerts page exists for, shown only inside the iPhone app while the permission is
+   still to be asked: app.js sets .needs-attention in that state and nowhere else. */
+#enable-notifications-button.needs-attention {
+  width: 100%;
+  padding: 18px 16px;
+  font-size: 1.1rem;
+  background: linear-gradient(180deg, #e3874a 0%, var(--accent) 100%);
+  box-shadow: 0 6px 16px rgba(211, 113, 53, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
 a.primary-button,
 a.ghost-button {
   display: inline-flex;

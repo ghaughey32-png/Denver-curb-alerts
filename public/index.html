@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="./manifest.webmanifest?v=20260808d" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="./styles.css?v=20261109-app-only-notice-c" />
+    <link rel="stylesheet" href="./styles.css?v=20261110-reminders-first" />
     <link rel="icon" href="./icon.svg?v=20260916-two-sides" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20260916-two-sides" />
   </head>
@@ -301,6 +301,36 @@
             <a id="app-only-notice-link" class="primary-button app-only-notice-link" href="#" target="_blank" rel="noopener" hidden>Get the iPhone app</a>
           </section>
 
+          <!-- First on the page, with the one big button, because turning reminders on is what the
+               rest of this page leads to. The readiness checklist follows it. -->
+          <!-- Push lives here, not on the map page. It used to sit between selecting a curb and
+               saving it, which asked for the commitment before the user had anything to be
+               reminded about. -->
+          <section class="panel-section panel-step-section save-section">
+            <div class="mini-head">
+              <h3>Reminders on this device</h3>
+            </div>
+
+            <div class="save-set-card">
+              <div class="notification-status-block">
+                <p id="notification-status" class="notification-status-text">This app is not connected to push on this device yet.</p>
+              </div>
+              <div id="subscription-row" class="notification-status-block subscription-row" hidden>
+                <p id="subscription-status" class="subscription-status-text"></p>
+                <div class="notification-action-row">
+                  <button id="subscription-manage-button" class="ghost-button" type="button">See plans</button>
+                  <button id="subscription-restore-button" class="ghost-button" type="button">Restore purchases</button>
+                </div>
+              </div>
+              <div class="notification-action-row">
+                <button id="enable-notifications-button" class="primary-button" type="button">Turn on push for this device</button>
+                <button id="install-help-button" class="ghost-button" type="button" hidden>How to install on iPhone</button>
+                <button id="send-test-button" class="ghost-button" type="button">Send test now</button>
+                <button id="schedule-test-button" class="ghost-button" type="button">2-minute hosted test</button>
+              </div>
+            </div>
+          </section>
+
           <!-- The one progress system. This page used to carry journey pills at the top AND this
                checklist AND "Step 1/2/3" badges over on the map panel: three competing accounts of
                the same four-step flow. The checklist is the one that says what is actually still
@@ -332,34 +362,6 @@
                   <strong>Queue reminders</strong>
                   <span class="readiness-detail">Your next sweep and its reminders will appear below.</span>
                 </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Push lives here, not on the map page. It used to sit between selecting a curb and
-               saving it, which asked for the commitment before the user had anything to be
-               reminded about. -->
-          <section class="panel-section panel-step-section save-section">
-            <div class="mini-head">
-              <h3>Reminders on this device</h3>
-            </div>
-
-            <div class="save-set-card">
-              <div class="notification-status-block">
-                <p id="notification-status" class="notification-status-text">This app is not connected to push on this device yet.</p>
-              </div>
-              <div id="subscription-row" class="notification-status-block subscription-row" hidden>
-                <p id="subscription-status" class="subscription-status-text"></p>
-                <div class="notification-action-row">
-                  <button id="subscription-manage-button" class="ghost-button" type="button">See plans</button>
-                  <button id="subscription-restore-button" class="ghost-button" type="button">Restore purchases</button>
-                </div>
-              </div>
-              <div class="notification-action-row">
-                <button id="enable-notifications-button" class="primary-button" type="button">Turn on push for this device</button>
-                <button id="install-help-button" class="ghost-button" type="button" hidden>How to install on iPhone</button>
-                <button id="send-test-button" class="ghost-button" type="button">Send test now</button>
-                <button id="schedule-test-button" class="ghost-button" type="button">2-minute hosted test</button>
               </div>
             </div>
           </section>
@@ -1272,6 +1274,6 @@
     <script src="./sf-city-limits.js?v=20261026-sf-limits2"></script>
     <script src="./cities.js?v=20261109-app-store-link-inv98"></script>
     <script src="./sf-schedule.js?v=20261026-sf-schedule"></script>
-    <script src="./app.js?v=20261109-app-only-notice-b"></script>
+    <script src="./app.js?v=20261110-reminders-first"></script>
   </body>
 </html>

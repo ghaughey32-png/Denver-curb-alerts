@@ -8965,6 +8965,7 @@ function renderNotificationStatus() {
     ? "Push Notifications On"
     : "Turn on push for this device";
   enableNotificationsButton.classList.toggle("notifications-on", notificationsAllowed);
+  enableNotificationsButton.classList.remove("needs-attention");
 
   // Ahead of the browser checks, because in a shell every one of them answers false and the
   // message below is both wrong and a dead end -- there is no browser setting to go and change.
@@ -8986,6 +8987,7 @@ function renderNotificationStatus() {
 
     enableNotificationsButton.textContent = nativePermission === "granted" ? "Reminders On" : "Turn on reminders";
     enableNotificationsButton.classList.toggle("notifications-on", nativePermission === "granted");
+    enableNotificationsButton.classList.toggle("needs-attention", nativePermission === "default");
     enableNotificationsButton.disabled = nativePermission !== "default";
     sendTestButton.disabled = !(canShowNativeTest && nativePermission === "granted");
     scheduleTestButton.disabled = true;
