@@ -3,7 +3,7 @@
 Paste the text below into App Store Connect → App Review Information → Notes for each submission.
 Check it against the build before pasting: the paywall trigger and the notification-permission timing
 were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt at launch); the sandbox testing
-steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The THREE CITIES (Guideline 4.3) and SAN FRANCISCO sections were added 2026-11-09 for version 1.1 (build 14). San Francisco and Minneapolis were already in build 13, which Apple approved, so these sections explain existing behaviour rather than announcing new cities; the only app change in 1.1 is the winter line on the paywall. Confirm the switcher wording and that line against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
+steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The THREE CITIES (Guideline 4.3) and SAN FRANCISCO sections were added 2026-11-09. San Francisco and Minneapolis were already in build 13, which Apple approved, so these sections explain existing behaviour rather than announcing new cities. WHAT IS NEW IN THIS VERSION was rewritten 2026-11-10 for 1.2 (build 15); build 14 (1.1) was never submitted, so 1.2 carries its winter line too. Confirm the switcher wording and the changes listed against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
 Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and San Francisco, and snow-emergency tickets in Minneapolis.
@@ -20,6 +20,13 @@ Accounts are optional (they back up saved curbs across devices). Every screen wo
 To create an account: tap the "Sign in" button at the top right of the header, choose "Create account", enter any email and a password of 10+ characters.
 To delete it: tap the account button at the top right (it now shows the email), then tap "Delete account", enter the password, and tap "Delete my account". Deletion is immediate and permanent: it removes the account, saved curb sets, sessions and push registrations from our server. No website or email is needed. The screen recording is attached to the reply to App Review.
 
+WHAT IS NEW IN THIS VERSION (1.2)
+Small changes to existing screens, no new features or cities:
+- The alerts page now starts with "Reminders on this device", and the "Turn on reminders" button is larger.
+- The plans screen names the driver's city and what a ticket or tow costs there (Denver, San Francisco, Minneapolis), and Minneapolis wording says snow emergencies instead of sweeping.
+- The alerts-page status line in Minneapolis describes snow-emergency alerts.
+- When Denver is the active city and it is December to March, the plans screen shows one line saying Denver's sweeping season is on break and reminders resume in April. San Francisco never shows it. That line is expected, not a fault.
+
 WHAT IS FREE AND WHAT IS SOLD
 The map is free. Reminders are sold by auto-renewable subscription: yearly (14-day free trial) and monthly. The paywall appears when you tap "Remind me about this curb". Prices are shown by StoreKit.
 
@@ -29,7 +36,7 @@ HOW TO TEST
 3. Reminders are scheduled on the device as local notifications. "Send test now" sends a test notification immediately.
 
 SAN FRANCISCO
-Use the city switcher in the header to choose San Francisco. The curb map and posted sweeping windows work at any time and can be reviewed now. Tapping a curb shows its sweeping schedule; "Remind me about this curb" uses the same paywall and subscription as Denver. San Francisco sweeps all year, so reminders there have no off-season. WHAT IS NEW IN THIS VERSION: when Denver is the active city and it is December to March, the plans screen shows one line saying Denver's sweeping season is on break and reminders resume in April. San Francisco never shows it. Nothing else in the app changed. That line is expected, not a fault.
+Use the city switcher in the header to choose San Francisco. The curb map and posted sweeping windows work at any time and can be reviewed now. Tapping a curb shows its sweeping schedule; "Remind me about this curb" uses the same paywall and subscription as Denver. San Francisco sweeps all year, so reminders there have no off-season.
 
 MINNEAPOLIS SNOW EMERGENCIES
 The city switcher in the header changes the map to Minneapolis. The curb map and rules there work at any time and can be reviewed now.
