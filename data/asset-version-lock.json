@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v273",
+    "cacheName": "curb-alerts-shell-v274",
     "files": {
-      "index.html": "1a5351394429b5a48906358c1e1c455d270087c9898566a8ebbdebad09c55a5b",
-      "sw.js": "b44fcb1b4c094c4bb86da8069ecd92662ef219af87db0b0aed15b70e19a2d30f"
+      "index.html": "d4a9468f0a403409d339d29df5b053578571adefeaef441b02cdf230b49e462c",
+      "sw.js": "f5266135a03882540812bc4fe97b3b2923f46768b2f95831f1b63a32d2436b58"
     }
   },
   "assets": {
@@ -17,8 +17,8 @@
       "sha256": "c91650dc433935215c41dd1f99481df859ebbf0134def27b98c799f1a78f640b"
     },
     "cities.js": {
-      "version": "20261110-boston-nosign2-inv98",
-      "sha256": "b87e95288efafca25e6a210eb505affcfd5d421242fc1a1e14232ae258319796"
+      "version": "20261110-boston-nosign3-inv98",
+      "sha256": "8447c717825799687b8940229ae4f1bdb34119a9f1fe23ecee167ce76b633a2c"
     },
     "curb-geometry.js": {
       "version": "20260813b",
