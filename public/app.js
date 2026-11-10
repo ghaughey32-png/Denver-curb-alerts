@@ -1572,6 +1572,7 @@ const IS_SNOW_CITY = ACTIVE_CITY.kind === "snow";
 // its curb lines alone and loads its own file.
 const IS_DENVER_FORMAT = ACTIVE_CITY.inventoryFormat === "denver-routes";
 const IS_SF_CITY = ACTIVE_CITY.inventoryFormat === "sf-sweeping";
+const IS_BOSTON_CITY = ACTIVE_CITY.inventoryFormat === "boston-sweeping";
 // The city page's own wording, where its record has any; Denver's stays in index.html and below.
 const CITY_PAGE_COPY = ACTIVE_CITY.pageCopy || null;
 const ONBOARDING_DISMISSED_KEY = "denver-curb-alerts-onboarding-dismissed";
@@ -4414,6 +4415,136 @@ function buildSfDataset(payload) {
   return { streetWays, curbSegments };
 }
 
+// Boston's curbs. A curb carries every posted rule that covers it (see scripts/lib/boston-sweeping.js),
+// riding along as `schedule.boston`. No reminders yet, so `remindersAllowed` is false and the curb sheet
+// offers none; the map and the rules are what this city has so far.
+function buildBostonSchedule(curb) {
+  const windows = Array.isArray(curb.schedules) ? curb.schedules : [];
+  return {
+    sweepType: "Scheduled",
+    cityId: "boston",
+    boston: windows,
+    median: Boolean(curb.median),
+    remindersAllowed: false,
+    relocationRequired: windows.length > 0 ? true : null,
+    rule: "",
+    allDates: []
+  };
+}
+
+function buildBostonDataset(payload) {
+  const curbs = Array.isArray(payload.curbs) ? payload.curbs : [];
+  const streetWays = [];
+  const curbSegments = [];
+
+  curbs.forEach((curb) => {
+    if (!curb?.id || !Array.isArray(curb.geometry) || curb.geometry.length < 2) {
+      return;
+    }
+
+    const name = curb.street || "Boston street";
+    const schedule = buildBostonSchedule(curb);
+    streetWays.push({
+      id: curb.id,
+      name,
+      highway: "residential",
+      geometry: curb.geometry,
+      orientation: getStreetOrientation(curb.geometry)
+    });
+    curbSegments.push({
+      id: curb.id,
+      street: name,
+      sideKey: curb.sideKey,
+      sideLabel: curb.median ? "Median" : `${capitalize(curb.sideKey)} curb`,
+      oppositeId: curb.opposite || null,
+      addresses: Array.isArray(curb.addresses) ? curb.addresses : null,
+      color: getCurbColor(schedule, colors[curb.sideKey] || colors.north),
+      geometry: curb.geometry,
+      highway: "residential",
+      schedule
+    });
+  });
+
+  return { streetWays, curbSegments };
+}
+
+const BOSTON_WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const BOSTON_SEASON_TEXT = {
+  "apr-nov": "April 1 to November 30",
+  "mar-dec": "March 1 to December 31",
+  "year-round": "year-round"
+};
+
+function formatBostonClock(value) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || ""));
+  if (!match) {
+    return String(value || "");
+  }
+  const hour = Number(match[1]);
+  const minute = match[2];
+  if (hour === 12 && minute === "00") {
+    return "noon";
+  }
+  const suffix = hour < 12 ? "am" : "pm";
+  return `${hour % 12 || 12}${minute === "00" ? "" : `:${minute}`}${suffix}`;
+}
+
+function formatBostonWeeks(weeks) {
+  const list = Array.isArray(weeks) ? [...weeks].sort((a, b) => a - b) : [];
+  if (list.length >= 5) {
+    return "every week";
+  }
+  const names = ["", "1st", "2nd", "3rd", "4th", "5th"];
+  const named = list.map((week) => names[week]).filter(Boolean);
+  return named.length > 1 ? `${named.slice(0, -1).join(", ")} & ${named[named.length - 1]}` : named[0] || "";
+}
+
+// One posted rule in the sign's own order: which days and weeks, the hours, the season.
+function describeBostonRule(item) {
+  const days = Array.isArray(item.days) ? item.days : [];
+  const dayText = days.length === 7 ? "Every day" : days.map((day) => BOSTON_WEEKDAY_NAMES[day]).join(" & ");
+  const parts = [dayText];
+  if (!item.standing) {
+    const weeks = formatBostonWeeks(item.weeks);
+    if (weeks) {
+      parts.push(weeks);
+    }
+  }
+  parts.push(`${formatBostonClock(item.start)} to ${formatBostonClock(item.end)}`);
+  const season = BOSTON_SEASON_TEXT[item.season];
+  if (season && season !== "year-round") {
+    parts.push(season);
+  }
+  const text = parts.join(", ");
+  return item.standing ? `${text} (standing night rule, not a sweep)` : item.nightBefore ? `${text} (overnight: move the night before)` : text;
+}
+
+function buildBostonCurbSheetCopy(segment) {
+  const windows = Array.isArray(segment.schedule?.boston) ? segment.schedule.boston : [];
+  const built = formatCityDataDate(bostonDataGeneratedAt);
+  const freshness = built ? ` Schedule data from ${built}.` : "";
+  const posted = "Posted hours are the sign's, not our promise. Check the sign before you leave your car.";
+  const median = segment.schedule?.median
+    ? " The city does not say what its median rows cover, so this rule may not apply to the curbs either side."
+    : "";
+
+  if (!windows.length) {
+    return {
+      headline: "No sweeping schedule found",
+      rule: "",
+      notice: `We did not find street sweeping information for this curb in the City of Boston's data. That is not the same as no sweeping. ${posted}`,
+      canRemind: false
+    };
+  }
+
+  return {
+    headline: windows.length > 1 ? "Posted rules for this curb" : "Posted rule for this curb",
+    rule: windows.map(describeBostonRule).join("; "),
+    notice: `${posted}${median}${freshness}`,
+    canRemind: false
+  };
+}
+
 // Puts a city's own wording on the landing page and map where it names the city. Denver's copy is the
 // markup's default and is never touched here.
 function applyCityPageCopy() {
@@ -4478,15 +4609,38 @@ function applyCityLegend() {
 // When the data was built, shown on the curb sheet so a driver can judge how fresh it is.
 let sfDataGeneratedAt = null;
 
-async function loadSfInventory() {
+let bostonDataGeneratedAt = null;
+
+function formatCityDataDate(value) {
+  const built = value ? new Date(value) : null;
+  return built && !Number.isNaN(built.getTime())
+    ? built.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+}
+
+function loadSfInventory() {
+  return loadCityFileInventory(buildSfDataset, (payload) => {
+    sfDataGeneratedAt = payload.generatedAt || null;
+  });
+}
+
+function loadBostonInventory() {
+  return loadCityFileInventory(buildBostonDataset, (payload) => {
+    bostonDataGeneratedAt = payload.generatedAt || null;
+  });
+}
+
+// One published file per city, read the same way: fetch it, let the city's own builder turn curbs into
+// segments, and hand the map the result.
+async function loadCityFileInventory(buildDataset, onPayload) {
   try {
     const response = await fetch(STATIC_ROUTE_INVENTORY_URL);
     if (!response.ok) {
       throw new Error(`The saved ${ACTIVE_CITY.name} street sweeping map could not be loaded.`);
     }
     const payload = await response.json();
-    sfDataGeneratedAt = payload.generatedAt || null;
-    const { streetWays, curbSegments } = buildSfDataset(payload);
+    onPayload(payload);
+    const { streetWays, curbSegments } = buildDataset(payload);
     if (!curbSegments.length) {
       throw new Error(`The saved ${ACTIVE_CITY.name} street sweeping map is empty.`);
     }
@@ -5504,6 +5658,23 @@ function searchSfAddress(cleanedAddress) {
   }
 }
 
+function searchBostonStreet(cleanedAddress) {
+  const match = findLocalSearchMatch(cleanedAddress);
+  if (!match || !isWithinMappedCity(match.lat, match.lon)) {
+    throw new Error(`I couldn't find that in Boston. ${CITY_PAGE_COPY.addressHint}`);
+  }
+
+  state.searchedLocation = { ...match, label: match.label || cleanedAddress };
+  renderContext();
+  focusMapOnSearchedLocation();
+  if (lookupAddressInput) {
+    lookupAddressInput.value = cleanedAddress;
+  }
+  if (lookupStatus) {
+    lookupStatus.textContent = `I matched this to ${match.matchedStreet} on the curb map. Tap a colored curb nearby to see its rules.`;
+  }
+}
+
 async function searchAddressAndCenter(address) {
   const cleanedAddress = String(address || "").trim();
   if (!cleanedAddress) {
@@ -5525,6 +5696,12 @@ async function searchAddressAndCenter(address) {
     // San Francisco is searched from its own curb file; Denver's lookup service knows nothing of it.
     if (IS_SF_CITY) {
       searchSfAddress(cleanedAddress);
+      return;
+    }
+
+    // Boston has no address service of ours yet: it is searched by street name from its own curbs.
+    if (IS_BOSTON_CITY) {
+      searchBostonStreet(cleanedAddress);
       return;
     }
 
@@ -7160,6 +7337,10 @@ function buildCurbSheetCopy(segment) {
     return buildSfCurbSheetCopy(segment);
   }
 
+  if (Array.isArray(schedule?.boston)) {
+    return buildBostonCurbSheetCopy(segment);
+  }
+
   if (schedule?.sweepType === "Snow") {
     return buildSnowCurbSheetCopy(segment);
   }
@@ -7461,6 +7642,11 @@ function buildSelectionMeta(segment) {
 
   if (Array.isArray(segment.schedule?.sf)) {
     const copy = buildSfCurbSheetCopy(segment);
+    return `${segment.sideLabel} of ${segment.street} | ${copy.headline}${copy.rule ? ` | ${copy.rule}` : ""}`;
+  }
+
+  if (Array.isArray(segment.schedule?.boston)) {
+    const copy = buildBostonCurbSheetCopy(segment);
     return `${segment.sideLabel} of ${segment.street} | ${copy.headline}${copy.rule ? ` | ${copy.rule}` : ""}`;
   }
 
@@ -10889,6 +11075,8 @@ if (IS_SNOW_CITY) {
   });
 } else if (ACTIVE_CITY.inventoryFormat === "sf-sweeping") {
   loadSfInventory();
+} else if (IS_BOSTON_CITY) {
+  loadBostonInventory();
 } else {
   loadStaticRouteInventory();
 }

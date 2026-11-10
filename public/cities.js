@@ -285,7 +285,49 @@
     }
   };
 
-  const CITIES = [DENVER, MINNEAPOLIS, SAN_FRANCISCO];
+
+  // Boston's street sweeping, being built behind `enabled: false` (see San Francisco above): out of the
+  // switcher, out of the choice a phone can store and out of location matching. It is switched on only in
+  // the commit that puts Boston into the Terms, Privacy and Disclaimer. Seasons are per curb (the North
+  // End, South End and Beacon Hill start in March and end in December; elsewhere April to November), so
+  // the record carries none: each schedule in the file names its own.
+  const BOSTON = {
+    id: "boston",
+    name: "Boston",
+    kind: "sweeping",
+    inventoryFormat: "boston-sweeping",
+    idPrefix: "bos:",
+    enabled: false,
+    geocodeSuffix: "Boston, MA",
+    // The bounding box of the published curbs, padded a little like the others.
+    bounds: {
+      north: 42.4,
+      south: 42.237,
+      west: -71.18,
+      east: -70.99
+    },
+    minZoom: 11,
+    // Not in the service worker's precache, like Minneapolis and San Francisco. Its "?v=" moves with
+    // the file, and cities.js's own tag moves with it.
+    inventoryUrl: "./boston-sweeping.json?v=1",
+    // No city line yet: the map draws none until a boundary module (like public/sf-city-limits.js) exists.
+    cityLimitsGlobal: null,
+    sweepSeason: null,
+    webReminders: false,
+    appStoreUrl: "https://apps.apple.com/app/id6812789158",
+    pageCopy: {
+      eyebrow: "Boston street sweeping alerts",
+      heroText: "Tap the curb where you park. We'll show you the posted street sweeping rules for that side of the street.",
+      mapLabel: "Clickable Boston curb-side map",
+      loadingTitle: "Loading Boston curbs",
+      locating: "Finding your location in Boston now...",
+      outsideMap: "That spot looks outside the Boston map, so there is no Boston sweeping schedule for us to follow there.",
+      noCurb: "No sweeping schedule found in the city's data for this street. Check the sign.",
+      addressHint: 'Try a Boston street name, like "Commonwealth Ave".'
+    }
+  };
+
+  const CITIES = [DENVER, MINNEAPOLIS, SAN_FRANCISCO, BOSTON];
   const DEFAULT_CITY_ID = DENVER.id;
 
   // The choice made with the header switcher. It is a per-device convenience, so it lives in

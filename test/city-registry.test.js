@@ -25,3 +25,12 @@ test("id prefixes never overlap, so an id can only ever belong to one city", () 
   assert.equal(new Set(prefixes).size, prefixes.length);
   assert.equal(registry.getCity(registry.DEFAULT_CITY_ID).idPrefix, "");
 });
+
+test("Boston is on the registry but stays out of the switcher and location matching until it is enabled", () => {
+  const boston = registry.getCity("boston");
+  assert.ok(boston, "Boston has a record");
+  assert.equal(boston.enabled, false);
+  assert.ok(!registry.listCities().some((city) => city.id === "boston"));
+  assert.equal(registry.getCityForPoint(42.3601, -71.0589), null);
+  assert.equal(registry.getCityForCurbId("bos:000eb872b5").id, "boston");
+});
