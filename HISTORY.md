@@ -2440,6 +2440,16 @@ alone. The sample only holds 5th Thursdays to Saturdays; Monday to Wednesday 5th
 they occur. Daytime misses outside the 5th week are low and scattered. (Analysis script in the scratchpad,
 not committed.)
 
+**The three streets, looked at in the tickets (2026-11-10).** *Howard St* (32) and *Van Ness Ave* (17): the
+weekday and week are right, but the tickets were written at about 02:36 to 02:59 against a posted 4–6 am
+window, a few minutes outside the one-hour slack. Day-level alerts are unaffected (reminders are the evening
+before); only the posted hours shown on the curb sheet could be early, and those are labelled as the
+sign's. *Great Hwy* (18): 17 of them are one midday run, about 12:10–12:19 on Wed 2026-10-21 (3rd Wednesday),
+on the 1500–1591 block, where the data lists only overnight weekday windows. That is either a daytime
+rule the dataset omits (a driver would get no reminder) or a one-off enforcement run. **Open: if the
+2026-12-01 dry run shows another 3rd-Wednesday midday cluster on Great Hwy, the rule is real; check that
+block on Street View and fix the build.** No Street View check was done.
+
 ## Boston research (2026-10-13)
 
 Feasibility check for Boston as the next city, after Denver, Minneapolis (snow) and SF. The plan is

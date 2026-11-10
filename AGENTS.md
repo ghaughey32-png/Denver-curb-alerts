@@ -337,7 +337,8 @@ address search keeps suffix and direction ("5th St" is not "5th Ave"); do not ro
 - **Refresh monthly, by hand, dry run first.** On the 1st run `npm run build:sf-sweeping -- --refresh --dry-run`
   (about 15 requests, minutes). Publish (rerun without `--dry-run`, bump `sf-sweeping.json`'s `?v=` and
   `cities.js`'s, `npm run lock:assets`) only if the report shows a change, `retired` is 0 or understood, and
-  tickets stay consistent; otherwise leave `public/` alone. A web release delivers it to the site, and phones
+  tickets stay consistent; otherwise leave `public/` alone. Also check Great Hwy's 1500–1591 block for midday
+  Wednesday tickets the curbs do not explain (HISTORY.md § SF build, 2026-11-10); drop this once settled. A web release delivers it to the site, and phones
   get it only in the next build. It is not scheduled, because a refused build needs a person. *Why:*
   HISTORY.md § SF build (2026-11-10 dry run: 22,556 curbs, 0 retired, 97.1% consistent, no change).
 - **Two gates refuse a bad build:** over 5% of matched street cleaning tickets unexplained by the curbs,
