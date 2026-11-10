@@ -309,8 +309,8 @@
     // Not in the service worker's precache, like Minneapolis and San Francisco. Its "?v=" moves with
     // the file, and cities.js's own tag moves with it.
     inventoryUrl: "./boston-sweeping.json?v=2",
-    // No city line yet: the map draws none until a boundary module (like public/sf-city-limits.js) exists.
-    cityLimitsGlobal: null,
+    // public/boston-city-limits.js: the OpenStreetMap boundary, with the same 20 m wash as the others.
+    cityLimitsGlobal: "BostonCityLimits",
     sweepSeason: null,
     webReminders: false,
     appStoreUrl: "https://apps.apple.com/app/id6812789158",

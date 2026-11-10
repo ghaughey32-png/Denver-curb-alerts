@@ -2714,3 +2714,14 @@ was seen, so the other side's weeks are the sign's, unconfirmed. Wise St's own o
 matches the clear corner sign beside it. Possible cause worth asking the city: Roys St's row may have taken
 the wrong day. Also seen: a side of a street can be no-parking (Lyon St, Roys St's school gate) while the
 schedule still lists both sides; see IDEAS.md if that is added.
+
+### Boston city line (2026-11-10)
+
+`public/boston-city-limits.js` is OpenStreetMap relation 2315704 (Boston), fetched from Overpass on 2026-11-10. The
+relation has one outer ring (1,527 points; legal line, so it runs through Boston Harbor and the Charles River)
+and seven inner rings that are harbor islands east of the map's bounds (lon > -70.99), which were dropped. The
+ring was thinned to about 2 m (743 points) and the outline cut to the 14 stretches within 400 m of a curb (the
+land borders with Cambridge, Brookline, Newton, Dedham, Milton, Quincy, Chelsea, Revere and Winthrop), as for
+San Francisco. **0 of 56,725 curb points sit under the wash.** One oddity: the line leaves a point at Logan
+Airport's terminals (42.3656, -71.0096) outside the city, in the source relation too (a long straight edge
+near lat 42.364); no curb is there, so it is left as OSM has it.
