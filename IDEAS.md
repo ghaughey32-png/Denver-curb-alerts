@@ -83,7 +83,11 @@ placeholder, "A street sweeping ticket can cost $50 to $200.", written so it sta
 Minneapolis. **Look at it again soon:** confirm each city's current sweeping fine from its own source
 (SF's is not yet checked), and decide whether the paywall should name the city the driver is in. The
 line beneath it (the daily cost) is unchanged. The paywall subtitle ("the evening before and the morning
-of every sweep") is also Denver-shaped: an SF overnight curb has no morning reminder.
+of every sweep") was also Denver-shaped (an SF overnight curb has no morning reminder); fixed 2026-11-10
+to the city-neutral "Reminders ahead of every sweep on your curb, and they keep coming until you've moved
+your car." SF's fine is confirmed: $105 (Transportation Code §7.2.22, SFMTA "Fees and Fines (Effective July 1, 2026)",
+$105 for both July 2026 and July 2027), inside the line's $50 to $200 range. Still open: Minneapolis's fine,
+and whether to name the city.
 
 ## Show where parking is not allowed at all
 

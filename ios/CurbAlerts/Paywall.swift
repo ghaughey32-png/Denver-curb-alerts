@@ -40,7 +40,7 @@ struct PaywallView: View {
                 Text("Never get a sweeping ticket")
                     .font(.title2.weight(.bold))
                     .multilineTextAlignment(.center)
-                Text("Reminders the evening before and the morning of every sweep on your curb, and they keep coming until you've moved your car.")
+                Text("Reminders ahead of every sweep on your curb, and they keep coming until you've moved your car.")
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
