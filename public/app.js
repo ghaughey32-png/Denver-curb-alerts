@@ -7107,7 +7107,7 @@ function buildSfCurbSheetCopy(segment) {
   const windows = Array.isArray(segment.schedule?.sf) ? segment.schedule.sf : [];
   const built = formatSfDataDate();
   const freshness = built ? ` Schedule data from ${built}.` : "";
-  const posted = "Posted hours are the sign's, not our promise. Check the sign before you leave your car.";
+  const posted = "Sweeping hours here come from city data and may be out of date. If the street sign says something different, follow the sign.";
 
   if (!windows.length) {
     return {

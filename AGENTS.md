@@ -325,7 +325,7 @@ address search keeps suffix and direction ("5th St" is not "5th Ave"); do not ro
 - **`weeks` is the Nth occurrence of the weekday in the month (`ceil(day / 7)`), never the calendar week.**
   An overnight window (posted start before 5 am) carries `nightBefore`: the reminder date is the evening
   before the posted weekday. A schedule without a 5th week carries `week5Unconfirmed`, and the app must
-  never call a 5th-week day clear on the data alone. Posted hours are the sign's, not our promise.
+  never call a 5th-week day clear on the data alone. The street sign has the final word; hours here come from city data.
 - **Each curb carries `sideKey` (north/south/east/west), `opposite` and `addresses`.** `sideKey` is derived
   from the line's direction and the city's L/R flag (the city's own `blockside` word is kept only for
   display and is empty on ~2% of curbs). The city draws both sides on one identical centreline, so the

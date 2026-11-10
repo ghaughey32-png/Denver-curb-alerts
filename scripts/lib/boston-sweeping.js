@@ -32,7 +32,7 @@
 //   days        weekday numbers, 0 = Sunday ... 6 = Saturday
 //   weeks       which weeks of the month the row lists (1-5). The city lists the 5th week where it
 //               applies, so it is used as given and never inferred
-//   start/end   the POSTED window as "HH:MM" strings. Posted hours are the sign's, not our promise.
+//   start/end   the POSTED window as "HH:MM" strings. The street sign has the final word; hours here come from city data.
 //               A window that ends before it starts is a typo in the city's data; it is kept as given
 //               and counted in the report
 //   season      "apr-nov", "mar-dec" (North End, South End, Beacon Hill) or "year-round"

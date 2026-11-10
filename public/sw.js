@@ -1,4 +1,4 @@
-const CACHE_NAME = "curb-alerts-shell-v269";
+const CACHE_NAME = "curb-alerts-shell-v270";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -11,7 +11,7 @@ const APP_SHELL = [
   "/sf-city-limits.js?v=20261026-sf-limits2",
   "/cities.js?v=20261110-snow-status-inv98",
   "/sf-schedule.js?v=20261026-sf-schedule",
-  "/app.js?v=20261110-snow-status",
+  "/app.js?v=20261110-sign-wording",
   "/denver-west-routes.json?v=98",
   "/manifest.webmanifest?v=20260808d",
   "/icon.svg?v=20260916-two-sides",

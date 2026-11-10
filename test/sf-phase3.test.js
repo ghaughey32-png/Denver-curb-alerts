@@ -111,7 +111,7 @@ test("the sheet says what is certain, hedges what is not, and shows the data's d
 
   const confirmed = buildSfCurbSheetCopy(curb({ ...TUESDAY_DAY, weeks: [1, 2, 3, 4, 5], week5Unconfirmed: false }));
   assert.match(confirmed.headline, /^Next sweep: Tue, Mar 31, 2099$/);
-  assert.match(confirmed.notice, /Posted hours are the sign's, not our promise\. Check the sign/);
+  assert.match(confirmed.notice, /Sweeping hours here come from city data and may be out of date\. If the street sign says something different, follow the sign\./);
   assert.match(confirmed.notice, /Schedule data from Oct 26, 2026\./);
   assert.equal(confirmed.hedgeWord, undefined);
 
