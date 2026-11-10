@@ -2530,7 +2530,7 @@ async function openReminderPaywall() {
   trackEvent("paywall_shown");
   let subscription = null;
   try {
-    subscription = await bridge.showPaywall(getOffSeasonPaywallNote());
+    subscription = await bridge.showPaywall(getOffSeasonPaywallNote(), ACTIVE_CITY.paywallCopy || null);
   } catch (error) {
     lookupStatus.textContent = error.message || "The App Store could not be reached. Try again in a moment.";
   }

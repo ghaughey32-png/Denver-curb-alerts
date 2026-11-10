@@ -10,6 +10,14 @@ struct PaywallView: View {
     /// A line about the city being between seasons, written by the page (which knows the active city
     /// and its season) and shown only when there is one. Nil for the notice-driven paths.
     var note: String? = nil
+    /// The headline, promise and ticket-cost line for the driver's city, written by the page from the
+    /// city record (paywallCopy in cities.js). Nil, or a missing key (notices that open the paywall
+    /// without the page), falls back to wording that is true in every city.
+    var copy: [String: Any]? = nil
+    private func line(_ key: String, fallback: String) -> String {
+        if let text = copy?[key] as? String, !text.isEmpty { return text }
+        return fallback
+    }
     /// Closes the sheet, after a purchase. Main-actor, because the purchase callback below resumes
     /// off the main thread after its awaits and dismissing a view controller must not happen there.
     let close: @MainActor () -> Void
@@ -37,13 +45,14 @@ struct PaywallView: View {
                     .frame(width: 84, height: 84)
                     .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
                     .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
-                Text("Never get a sweeping ticket")
+                Text(line("headline", fallback: "Never get a sweeping ticket"))
                     .font(.title2.weight(.bold))
                     .multilineTextAlignment(.center)
-                Text("Reminders ahead of every sweep on your curb, and they keep coming until you've moved your car.")
+                Text(line("promise", fallback: "Reminders ahead of every sweep on your curb, and they keep coming until you've moved your car."))
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let note, !note.isEmpty {
                     Text(note)
                         .font(.subheadline.weight(.semibold))
@@ -53,10 +62,9 @@ struct PaywallView: View {
                         .background(Self.logoOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 VStack(spacing: 2) {
-                    // Placeholder range, to revisit soon: each city's fine differs (Denver's was $50), and
-                    // this line should say what a ticket costs where the driver parks. See IDEAS.md,
-                    // "Paywall ticket-cost line".
-                    Text("A street sweeping ticket can cost $50 to $200.")
+                    // The page sends the line for the driver's city (paywallCopy on the city record in
+                    // cities.js). The range is the fallback for notices that open the paywall without the page.
+                    Text(line("costLine", fallback: "A street sweeping ticket can cost $50 to $200."))
                     if let dailyCost {
                         Text("Curb Alerts costs about \(dailyCost) a day.")
                             .foregroundStyle(Self.logoOrange)
@@ -64,6 +72,7 @@ struct PaywallView: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal)
             .task {
@@ -113,7 +122,7 @@ enum SubscriptionActions {
 
     /// Shows the paywall and returns once it is gone, bought from or not. The caller asks
     /// `ReminderAccess` what happened rather than trusting how the sheet was closed.
-    static func showPaywall(note: String? = nil) async {
+    static func showPaywall(note: String? = nil, copy: [String: Any]? = nil) async {
         if let presented, presented.presentingViewController != nil { return }
         guard let presenter = topViewController() else { return }
 
@@ -128,7 +137,7 @@ enum SubscriptionActions {
 
             // Weak: the view holds this closure, and the controller holds the view.
             weak var host: UIHostingController<PaywallView>?
-            let view = PaywallView(note: note, close: { host?.dismiss(animated: true) }, gone: finish)
+            let view = PaywallView(note: note, copy: copy, close: { host?.dismiss(animated: true) }, gone: finish)
             let controller = UIHostingController(rootView: view)
             host = controller
             presented = controller

@@ -85,7 +85,14 @@ Minneapolis. **Look at it again soon:** confirm each city's current sweeping fin
 line beneath it (the daily cost) is unchanged. The paywall subtitle ("the evening before and the morning
 of every sweep") was also Denver-shaped (an SF overnight curb has no morning reminder); fixed 2026-11-10
 to the city-neutral "Reminders ahead of every sweep on your curb, and they keep coming until you've moved
-your car." SF's fine is confirmed: $105 (Transportation Code §7.2.22, SFMTA "Fees and Fines (Effective July 1, 2026)",
+your car." Built 2026-11-10: each city record carries `paywallCopy` (headline, promise, costLine), passed through
+`showPaywall(note, copy)` (Denver $50 from its fee schedule 54-482(c); Minneapolis's standard tow $222, no
+ticket amount found, headline and promise rewritten for snow; SF $105). **Still sweeping-shaped for
+Minneapolis:** the two plan descriptions ("Street sweeping reminders, billed annually/monthly"), which are
+the App Store Connect product descriptions (and `CurbAlerts.storekit`) and cannot vary by city, so they need
+a neutral rewrite there (for example "Curb Alerts reminders and alerts") with App Review in mind; and the
+alerts page line "This device is ready to turn on street sweeping reminders."
+SF's fine is confirmed: $105 (Transportation Code §7.2.22, SFMTA "Fees and Fines (Effective July 1, 2026)",
 $105 for both July 2026 and July 2027), inside the line's $50 to $200 range. Still open: Minneapolis's fine,
 and whether to name the city.
 

@@ -65,6 +65,14 @@
     // Apple approves the app, because the listing does not exist before then; set it on launch day to
     // "https://apps.apple.com/app/id6812789158" (Apple ID 6812789158).
     appStoreUrl: "https://apps.apple.com/app/id6812789158",
+    // The paywall's headline, promise and the line that says what a ticket costs here. Fines checked 2026-11-10: Denver's own
+    // fee schedule (54-482(c), $50), SFMTA's Fees and Fines effective July 1 2026 (7.2.22, $105) and the
+    // City of Minneapolis impound page and snow emergency notice (standard tow $222). Re-check yearly.
+    paywallCopy: {
+      headline: "Never get a sweeping ticket",
+      promise: "Reminders ahead of every sweep on your curb, and they keep coming until you've moved your car.",
+      costLine: "A Denver street sweeping ticket costs $50."
+    },
     // The published inventory, about 12 MB. Its "?v=" is rewritten by
     // scripts/lib/asset-versions.js on every pipeline bump and has to keep agreeing with the copy
     // in public/index.html and public/sw.js; test/static-cache-version.test.js reads this literal.
@@ -193,6 +201,11 @@
     // Same split as Denver: the website is the map, the iPhone app sells the alerts.
     webReminders: false,
     appStoreUrl: "https://apps.apple.com/app/id6812789158",
+    paywallCopy: {
+      headline: "Don't get towed in a snow emergency",
+      promise: "Alerts when a snow emergency is declared and before each parking ban on your curb.",
+      costLine: "A Minneapolis snow tow costs $222 or more."
+    },
     // Wording for the page where it names the city or what is sold, in place of Denver's sweeping copy.
     pageCopy: {
       eyebrow: "Minneapolis snow emergency alerts",
@@ -247,6 +260,11 @@
     sweepSeason: null,
     webReminders: false,
     appStoreUrl: "https://apps.apple.com/app/id6812789158",
+    paywallCopy: {
+      headline: "Never get a sweeping ticket",
+      promise: "Reminders ahead of every sweep on your curb, and they keep coming until you've moved your car.",
+      costLine: "A San Francisco street sweeping ticket costs $105."
+    },
     // The page's own wording where it names the city, in place of Denver's, which stays hardcoded in
     // index.html and app.js because source-text tests guard it (see the note at the top). A record
     // without `pageCopy` leaves the page as it is.
