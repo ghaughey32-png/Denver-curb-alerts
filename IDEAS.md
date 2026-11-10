@@ -92,6 +92,7 @@ Minneapolis:** the two plan descriptions ("Street sweeping reminders, billed ann
 the App Store Connect product descriptions (and `CurbAlerts.storekit`) and cannot vary by city, so they need
 a neutral rewrite there (for example "Curb Alerts reminders and alerts") with App Review in mind; and the
 alerts page line "This device is ready to turn on street sweeping reminders."
+Boston's fine is confirmed from the city's own page (updated 2026-09-14): Street Cleaning $40, Overnight Street Cleaning (no tow) $90, Charlestown $90, so its paywall line says $40 to $90.
 SF's fine is confirmed: $105 (Transportation Code §7.2.22, SFMTA "Fees and Fines (Effective July 1, 2026)",
 $105 for both July 2026 and July 2027), inside the line's $50 to $200 range. Still open: Minneapolis's fine,
 and whether to name the city.

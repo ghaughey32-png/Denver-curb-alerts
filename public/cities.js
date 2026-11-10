@@ -315,6 +315,13 @@
     sweepSeason: null,
     webReminders: false,
     appStoreUrl: "https://apps.apple.com/app/id6812789158",
+    // Boston's own fine schedule (boston.gov, Parking Clerk, "Parking ticket fines and codes", updated 2026-09-14,
+    // checked 2026-11-10): Street Cleaning $40, Overnight Street Cleaning (no tow) $90, Charlestown $90. Re-check yearly.
+    paywallCopy: {
+      headline: "Never get a sweeping ticket",
+      promise: "Reminders ahead of every sweep on your curb, and they keep coming until you've moved your car.",
+      costLine: "A Boston street sweeping ticket costs $40 to $90."
+    },
     pageCopy: {
       eyebrow: "Boston street sweeping alerts",
       heroText: "Tap the curb where you park. We'll show you the posted street sweeping rules for that side of the street.",
