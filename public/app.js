@@ -4718,7 +4718,7 @@ async function loadCityFileInventory(buildDataset, onPayload) {
       mapKickerText: "Ready to use",
       sourceLabel: `Saved ${ACTIVE_CITY.name} street sweeping map`,
       context: [],
-      mapNoteText: "Tap a curb to see its posted street sweeping hours."
+      mapNoteText: CITY_PAGE_COPY?.mapNote || "Tap a curb to see its posted street sweeping hours."
     });
     refreshMapViewport();
     renderAll();

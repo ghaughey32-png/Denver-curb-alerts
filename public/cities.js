@@ -330,6 +330,9 @@
       outsideMap: "That spot looks outside the Boston map, so there is no Boston sweeping schedule for us to follow there.",
       noCurb: "No sweeping schedule found in the city's data for this street. Check the sign.",
       addressHint: 'Try a Boston street name, like "Commonwealth Ave".',
+      // Under the map. Large parts of West Roxbury, Roslindale and Hyde Park have no row in the city's schedule
+      // (checked in Street View on 2026-11-10: no sweeping signs), so a quiet map there is expected, not missing.
+      mapNote: "Tap a curb to see its posted street sweeping hours. Large areas, like West Roxbury, Roslindale and Hyde Park, have little or no posted sweeping in the city's data; zoom in to see each block.",
       // Denver's four side colours, and Boston's one extra state, in place of Denver's pink, plum and gray.
       legend: [
         { colorKey: "north", text: "North curb of east-west streets" },
