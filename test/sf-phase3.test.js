@@ -60,15 +60,16 @@ test("the city line holds San Francisco and not Daly City, and the wash leaves t
   assert.ok(under <= 60, `${under} curb points sit under the red wash`);
 });
 
-test("SF is found by location, and the three cities' bounds never overlap", () => {
+test("SF is found by location, and the four cities' bounds never overlap", () => {
   const sf = registry.getCity("san-francisco");
   try {
     assert.equal(registry.getCityForPoint(37.7749, -122.4194).id, "san-francisco");
     assert.equal(registry.getCityForPoint(44.9778, -93.265).id, "minneapolis");
     assert.equal(registry.getCityForPoint(39.74, -104.99).id, "denver");
+    assert.equal(registry.getCityForPoint(42.3601, -71.0589).id, "boston");
     assert.equal(registry.getCityForPoint(37.4, -122.0), null);
     const cities = registry.listCities();
-    assert.equal(cities.length, 3);
+    assert.equal(cities.length, 4);
     cities.forEach((a) => cities.forEach((b) => {
       if (a === b) return;
       const apart = a.bounds.north < b.bounds.south || a.bounds.south > b.bounds.north || a.bounds.east < b.bounds.west || a.bounds.west > b.bounds.east;

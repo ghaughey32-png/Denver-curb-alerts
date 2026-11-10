@@ -286,9 +286,8 @@
   };
 
 
-  // Boston's street sweeping, being built behind `enabled: false` (see San Francisco above): out of the
-  // switcher, out of the choice a phone can store and out of location matching. It is switched on only in
-  // the commit that puts Boston into the Terms, Privacy and Disclaimer. Seasons are per curb (the North
+  // Boston's street sweeping. Built behind `enabled: false` (see San Francisco above) and switched on in the
+  // same commit that put Boston into the Terms, Privacy and Disclaimer, 2026-11-10. Seasons are per curb (the North
   // End, South End and Beacon Hill start in March and end in December; elsewhere April to November), so
   // the record carries none: each schedule in the file names its own.
   const BOSTON = {
@@ -297,7 +296,7 @@
     kind: "sweeping",
     inventoryFormat: "boston-sweeping",
     idPrefix: "bos:",
-    enabled: false,
+    enabled: true,
     geocodeSuffix: "Boston, MA",
     // The bounding box of the published curbs, padded a little like the others.
     bounds: {
