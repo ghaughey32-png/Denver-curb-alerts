@@ -337,7 +337,7 @@
         { colorKey: "east", text: "East curb of north-south streets" },
         { colorKey: "west", text: "West curb of north-south streets" },
         { colorKey: "noSignSeen", text: "Gold, dashed: the city's schedule lists sweeping here, but no street cleaning sign was found on the block" },
-        { colorKey: "unavailable", text: "Pink: no sweeping schedule found in the city's data for this block, or we could not place it on the map. Check the sign, and use caution" }
+        { colorKey: "unavailable", text: "Pink, shown when you zoom in: no sweeping schedule found in the city's data for this block, or we could not place it on the map. Check the sign, and use caution" }
       ]
     }
   };

@@ -4485,6 +4485,9 @@ function buildBostonDataset(payload) {
       addresses: Array.isArray(curb.addresses) ? curb.addresses : null,
       color: getCurbColor(schedule, colors[curb.sideKey] || colors.north),
       dashed: schedule.noSignSeen,
+      // Pink blocks with no rule are the majority in some neighbourhoods (West Roxbury, Roslindale, Hyde Park), so
+      // they are held back until the map is zoomed in to street level and drawn fainter than a real rule.
+      quiet: Boolean(curb.unavailable),
       geometry: curb.geometry,
       highway: "residential",
       schedule
@@ -6722,6 +6725,8 @@ const RENDER_VIEWPORT_PAD_METRES = 400;
 // accumulate across thousands of overlapping curbs is gone and the colours read washed out; at
 // these zooms they are drawn opaque instead, which lands back where the per-segment renderer did.
 const CURB_OVERVIEW_MAX_ZOOM = 14;
+// Curbs flagged `quiet` (Boston's pink blocks with no rule) are drawn and tappable only from this zoom in.
+const QUIET_CURB_MIN_ZOOM = 15;
 
 function isOverviewZoom() {
   return (state.map?.getZoom?.() ?? 15) < CURB_OVERVIEW_MAX_ZOOM;
@@ -6934,8 +6939,9 @@ function renderSegments() {
   // The selection is drawn wherever it is, in view or not, so a saved curb never silently vanishes
   // from the map while the user pans away from it. It is at most a handful of segments.
   const selectedSegments = state.curbSegments.filter((segment) => isCurbReminded(segment.id));
+  const showQuietCurbs = state.map.getZoom() >= QUIET_CURB_MIN_ZOOM;
   const unselectedSegments = getVisibleRecords(state.curbSegments, viewport).filter(
-    (segment) => !isCurbReminded(segment.id)
+    (segment) => !isCurbReminded(segment.id) && (showQuietCurbs || !segment.quiet)
   );
   // What the pointer can hit. Selected curbs are included so their own tooltip still answers.
   state.visibleSegments = [...unselectedSegments, ...selectedSegments];
@@ -6959,7 +6965,7 @@ function renderSegments() {
   // colour is never the only thing telling it apart.
   const geometriesByColor = new Map();
   unselectedSegments.forEach((segment) => {
-    const key = segment.dashed ? `${segment.color}|dashed` : segment.color;
+    const key = `${segment.color}${segment.dashed ? "|dashed" : ""}${segment.quiet ? "|quiet" : ""}`;
     const existing = geometriesByColor.get(key);
     if (existing) {
       existing.push(segment.geometry);
@@ -6969,11 +6975,12 @@ function renderSegments() {
   });
 
   geometriesByColor.forEach((geometries, key) => {
-    const dashed = key.endsWith("|dashed") && !overview;
+    const dashed = key.includes("|dashed") && !overview;
+    const quiet = key.includes("|quiet");
     L.polyline(geometries, {
       color: key.split("|")[0],
-      weight: overview ? 1 : 4,
-      opacity: overview ? 0.9 : 0.72,
+      weight: overview ? 1 : quiet ? 3 : 4,
+      opacity: overview ? 0.9 : quiet ? 0.5 : 0.72,
       lineCap: dashed ? "butt" : "round",
       ...(dashed ? { dashArray: "7 6" } : {}),
       interactive: false

@@ -2753,3 +2753,9 @@ street (CFCC A2x, A3x, A4x, A61, A62) that no rule covers: **8,984 curbs, payloa
 centreline curb where neither side is covered (17,401 curbs and 9.79 MB if drawn per side). 21 of their 97,400 curb
 points sit under the red wash on four streets (Thornton Rd, Playstead Rd, Chelsea St, Crosstown Ave) that run past
 OpenStreetMap's line, and the test budgets 30.
+
+Same day, after it went live: pink dominated the zoomed-out city view (share of city-street miles with no rule, by
+neighbourhood: Roslindale 76%, West Roxbury 70%, Hyde Park 64%, South Boston 46%, Jamaica Plain 46%, Brighton 40%,
+Dorchester 31%, Roxbury 24%, Charlestown 24%, Back Bay/Downtown 15%), so it read as an alarm rather than a gap. Pink
+curbs are now `quiet`: not drawn or tappable below zoom 15, and drawn at weight 3 and opacity 0.5 above it. A block
+the schedule never reaches is still pink at street level, where a driver is looking at one block.
