@@ -2429,6 +2429,17 @@ curbs (the same count as the published 2026-10-26 file), carried all 22,556 ids 
 Tickets were 97.1% consistent overall (daytime 97.5%, overnight 94.9%, 5th-week days 92.6%), against a gate
 of 5% contradicted. Nothing was published; the next dry run is 2026-12-01.
 
+**Where the misses are, 2026-11-10** (same 30,000 tickets and published curbs; 866 of 29,755 matched tickets
+unexplained). *Overnight:* 236 of 4,594 (5.1%), scattered across all weeks and weekdays; only Howard St (32),
+Great Hwy (18) and Van Ness Ave (17) stand out, 67 of the 236. This replaces SF-PLAN's 81% figure, so a broad
+sign check is not warranted; at most a Street View look at those three streets. *5th week:* 231 of 3,119
+(7.4%) unexplained against about 3% elsewhere, nearly all on Thu 2026-10-29 and Fri 2026-10-30. On curbs
+flagged `week5Unconfirmed` 154 of 245 tickets (63%) were unexplained, so SF does sweep a 5th week on blocks
+the dataset omits it for. That supports the rule that the app never calls a 5th-week day clear on the data
+alone. The sample only holds 5th Thursdays to Saturdays; Monday to Wednesday 5th weeks are untested until
+they occur. Daytime misses outside the 5th week are low and scattered. (Analysis script in the scratchpad,
+not committed.)
+
 ## Boston research (2026-10-13)
 
 Feasibility check for Boston as the next city, after Denver, Minneapolis (snow) and SF. The plan is
