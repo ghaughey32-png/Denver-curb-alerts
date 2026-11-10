@@ -2423,6 +2423,12 @@ Phase 1 of SF-PLAN.md: `scripts/build-sf-sweeping.js` and `scripts/lib/sf-sweepi
   derived sides and the ranges all agree with what the city enforces. (Exploratory script in the
   scratchpad, not committed; the build's gate is unchanged.)
 
+**First monthly refresh dry run, 2026-11-10.** `--refresh --dry-run` fetched all three datasets complete
+(37,878 schedule rows, 17,176 centrelines, 30,000 tickets from 2026-10-15 to 2026-11-06), built 22,556
+curbs (the same count as the published 2026-10-26 file), carried all 22,556 ids forward and retired none.
+Tickets were 97.1% consistent overall (daytime 97.5%, overnight 94.9%, 5th-week days 92.6%), against a gate
+of 5% contradicted. Nothing was published; the next dry run is 2026-12-01.
+
 ## Boston research (2026-10-13)
 
 Feasibility check for Boston as the next city, after Denver, Minneapolis (snow) and SF. The plan is
