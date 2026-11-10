@@ -2759,3 +2759,11 @@ neighbourhood: Roslindale 76%, West Roxbury 70%, Hyde Park 64%, South Boston 46%
 Dorchester 31%, Roxbury 24%, Charlestown 24%, Back Bay/Downtown 15%), so it read as an alarm rather than a gap. Pink
 curbs are now `quiet`: not drawn or tappable below zoom 15, and drawn at weight 3 and opacity 0.5 above it. A block
 the schedule never reaches is still pink at street level, where a driver is looking at one block.
+
+### Boston: first check of a blank area in Street View (2026-11-10)
+
+Hawthorne St, Roslindale (a pink block with no row in the city's schedule): **no street cleaning sign**, and none on
+Sycamore St nearby. One result, read by the author. It fits the reading that the outer neighbourhoods (Roslindale 76%,
+West Roxbury 70%, Hyde Park 64% of city-street miles with no row) are mostly not in the posted sweeping program.
+A random sample of about 10 pink blocks would settle it; a sign found on a pink block would mean the schedule has
+gaps and would need a second source before anything else.
