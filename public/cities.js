@@ -309,7 +309,7 @@
     minZoom: 11,
     // Not in the service worker's precache, like Minneapolis and San Francisco. Its "?v=" moves with
     // the file, and cities.js's own tag moves with it.
-    inventoryUrl: "./boston-sweeping.json?v=1",
+    inventoryUrl: "./boston-sweeping.json?v=2",
     // No city line yet: the map draws none until a boundary module (like public/sf-city-limits.js) exists.
     cityLimitsGlobal: null,
     sweepSeason: null,
@@ -323,7 +323,15 @@
       locating: "Finding your location in Boston now...",
       outsideMap: "That spot looks outside the Boston map, so there is no Boston sweeping schedule for us to follow there.",
       noCurb: "No sweeping schedule found in the city's data for this street. Check the sign.",
-      addressHint: 'Try a Boston street name, like "Commonwealth Ave".'
+      addressHint: 'Try a Boston street name, like "Commonwealth Ave".',
+      // Denver's four side colours, and Boston's one extra state, in place of Denver's pink, plum and gray.
+      legend: [
+        { colorKey: "north", text: "North curb of east-west streets" },
+        { colorKey: "south", text: "South curb of east-west streets" },
+        { colorKey: "east", text: "East curb of north-south streets" },
+        { colorKey: "west", text: "West curb of north-south streets" },
+        { colorKey: "noSignSeen", text: "Gold, dashed: the city's schedule lists sweeping here, but no street cleaning sign was found on the block" }
+      ]
     }
   };
 

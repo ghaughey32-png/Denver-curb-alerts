@@ -1635,7 +1635,12 @@ const colors = {
   // deuteranopia. The route is the most severe (banned first, Day 1) and so the strongest colour.
   snowRoute: "#c2255c",
   snowEven: "#2f6fed",
-  snowOdd: "#f2c200"
+  snowOdd: "#f2c200",
+  // Boston: the schedule lists a rule but nobody found a street cleaning sign on the block. Gold, picked by
+  // CIELAB distance like plum: at least 24 from every other curb colour under simulated deuteranopia (41
+  // normal, 29 protanopia, 35 tritanopia), the nearest being Denver's orange. Its nearest neighbour is
+  // close enough that the curb is also drawn dashed.
+  noSignSeen: "#f2c200"
 };
 
 // Every curb colour is decided here so the live and embedded datasets cannot drift apart. Order
@@ -1648,6 +1653,9 @@ function getSnowCurbColor(schedule) {
 function getCurbColor(schedule, sideColor) {
   if (schedule?.sweepType === "Snow") {
     return getSnowCurbColor(schedule);
+  }
+  if (schedule?.noSignSeen) {
+    return colors.noSignSeen;
   }
   if (schedule?.sweepType === "NotMaintained") {
     return colors.notMaintained;
@@ -4425,6 +4433,7 @@ function buildBostonSchedule(curb) {
     cityId: "boston",
     boston: windows,
     median: Boolean(curb.median),
+    noSignSeen: Boolean(curb.noSignSeen),
     remindersAllowed: false,
     relocationRequired: windows.length > 0 ? true : null,
     rule: "",
@@ -4459,6 +4468,7 @@ function buildBostonDataset(payload) {
       oppositeId: curb.opposite || null,
       addresses: Array.isArray(curb.addresses) ? curb.addresses : null,
       color: getCurbColor(schedule, colors[curb.sideKey] || colors.north),
+      dashed: schedule.noSignSeen,
       geometry: curb.geometry,
       highway: "residential",
       schedule
@@ -4527,6 +4537,15 @@ function buildBostonCurbSheetCopy(segment) {
   const median = segment.schedule?.median
     ? " The city does not say what its median rows cover, so this rule may not apply to the curbs either side."
     : "";
+
+  if (segment.schedule?.noSignSeen) {
+    return {
+      headline: "Schedule lists sweeping, but no sign seen",
+      rule: windows.map(describeBostonRule).join("; "),
+      notice: `The city's schedule lists this rule, but when this block was checked on the street no street cleaning sign was found. Do not rely on either the schedule or the missing sign: check the posted signs before you leave your car.${freshness}`,
+      canRemind: false
+    };
+  }
 
   if (!windows.length) {
     return {
@@ -6894,22 +6913,27 @@ function renderSegments() {
     }).addTo(state.segmentLayerGroup);
   }
 
+  // One layer per colour, and per line style: a curb with no sign seen is dashed as well as gold, so the
+  // colour is never the only thing telling it apart.
   const geometriesByColor = new Map();
   unselectedSegments.forEach((segment) => {
-    const existing = geometriesByColor.get(segment.color);
+    const key = segment.dashed ? `${segment.color}|dashed` : segment.color;
+    const existing = geometriesByColor.get(key);
     if (existing) {
       existing.push(segment.geometry);
     } else {
-      geometriesByColor.set(segment.color, [segment.geometry]);
+      geometriesByColor.set(key, [segment.geometry]);
     }
   });
 
-  geometriesByColor.forEach((geometries, color) => {
+  geometriesByColor.forEach((geometries, key) => {
+    const dashed = key.endsWith("|dashed") && !overview;
     L.polyline(geometries, {
-      color,
+      color: key.split("|")[0],
       weight: overview ? 1 : 4,
       opacity: overview ? 0.9 : 0.72,
-      lineCap: "round",
+      lineCap: dashed ? "butt" : "round",
+      ...(dashed ? { dashArray: "7 6" } : {}),
       interactive: false
     }).addTo(state.segmentLayerGroup);
   });

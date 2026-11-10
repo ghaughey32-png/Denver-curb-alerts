@@ -139,6 +139,14 @@ const SIGN_OVERRIDES = new Map([
   [2232, { street: "Roys St", days: [2], weeks: [1, 3], start: "12:00", end: "16:00", seen: "Same sign as row 2231; this (odd) side was not seen, so its weeks are the sign's, unconfirmed." }]
 ]);
 
+// Rows where the schedule lists a rule but a person who looked at the curb in Street View found no street
+// cleaning sign (Madeline St: only a moving-permit Tow Zone notice). That is neither "sweeping Tuesday" nor
+// "all clear", so the curb is published with `noSignSeen` and drawn in its own colour. Add one only from a
+// block that was actually looked at, and name the side that was: the other side is a different row.
+const NO_SIGN_SEEN = new Map([
+  [1639, { street: "Madeline St", seen: "Madeline St, Harriet St to Faneuil St, even side, Jul 2026 Street View: a pole near 45 Madeline St with only a paper \"Tow Zone, No Standing, permitted moving vehicles only\" notice; no street cleaning sign found along the curb. The odd side (row 1640) was not looked at." }]
+]);
+
 // ---- CSV ---------------------------------------------------------------------------------------
 
 // Reads CSV with quoted fields and either line ending. The city's export ends lines with CRLF, which
@@ -349,7 +357,7 @@ function readSchedule(row) {
 }
 
 function scheduleKey(schedule) {
-  return [schedule.days.join(""), schedule.weeks.join(""), schedule.start, schedule.end, schedule.season, schedule.standing].join("|");
+  return [schedule.days.join(""), schedule.weeks.join(""), schedule.start, schedule.end, schedule.season, schedule.standing, schedule.noSignSeen === true].join("|");
 }
 
 // Two rows with the same window on the same curb are one rule; keeping both mainIds lets the curb be
@@ -797,6 +805,7 @@ function buildBostonCurbs({ rows, features }) {
     unreadableRows: 0,
     rowsEndingBeforeStart: [],
     signOverrides: [],
+    noSignSeen: [],
     statuses: {},
     ambiguousSideSegments: 0,
     curbs: 0,
@@ -834,6 +843,11 @@ function buildBostonCurbs({ rows, features }) {
     if (override && normalizeStreetName(override.street).core === normalizeStreetName(row.st_name).core) {
       report.signOverrides.push({ mainId: schedule.mainId, street: row.st_name, was: { days: schedule.days, weeks: schedule.weeks, start: schedule.start, end: schedule.end }, seen: override.seen });
       Object.assign(schedule, { days: override.days, weeks: override.weeks, start: override.start, end: override.end, nightBefore: readHour(override.start) < NIGHT_BEFORE_START_HOUR, source: "sign" });
+    }
+    const noSign = NO_SIGN_SEEN.get(schedule.mainId);
+    if (noSign && normalizeStreetName(noSign.street).core === normalizeStreetName(row.st_name).core) {
+      schedule.noSignSeen = true;
+      report.noSignSeen.push({ mainId: schedule.mainId, street: row.st_name, seen: noSign.seen });
     }
     if (endsBeforeStart) report.rowsEndingBeforeStart.push({ mainId: schedule.mainId, street: row.st_name, start: schedule.start, end: schedule.end });
     const miles = Number(row.miles);
@@ -897,7 +911,10 @@ function buildBostonCurbs({ rows, features }) {
     });
   });
 
-  const built = [...bySide.values()].map((curb) => ({ ...curb, schedules: mergeSchedules(curb.schedules) }));
+  const built = [...bySide.values()].map((curb) => {
+    const schedules = mergeSchedules(curb.schedules);
+    return { ...curb, schedules, ...(schedules.some((item) => item.noSignSeen) ? { noSignSeen: true } : {}) };
+  });
   built.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const idsBySegment = new Map();
   built.forEach((curb) => {
@@ -938,6 +955,7 @@ module.exports = {
   findStreet,
   matchRow,
   SIGN_OVERRIDES,
+  NO_SIGN_SEEN,
   checkStations,
   readSideLabel,
   pickSide,

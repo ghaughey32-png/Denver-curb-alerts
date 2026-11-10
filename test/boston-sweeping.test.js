@@ -354,3 +354,13 @@ test("an override does not apply when the row id now belongs to another street",
   assert.deepEqual(curbs[0].schedules[0].days, [1]);
   assert.equal(curbs[0].schedules[0].source, undefined);
 });
+
+test("a rule flagged no-sign-seen is never merged into an identical rule that was not", () => {
+  const { mergeSchedules: merge, NO_SIGN_SEEN } = require("../scripts/lib/boston-sweeping.js");
+  const base = { days: [2], weeks: [2, 4], start: "12:00", end: "16:00", season: "apr-nov", standing: false, nightBefore: false };
+  const merged = merge([{ ...base, mainId: 1639, noSignSeen: true }, { ...base, mainId: 2000 }]);
+  assert.equal(merged.length, 2);
+  assert.equal(merged.filter((item) => item.noSignSeen).length, 1);
+  assert.ok(NO_SIGN_SEEN.has(1639), "Madeline St's even row is flagged");
+  assert.equal(NO_SIGN_SEEN.get(1639).street, "Madeline St");
+});
