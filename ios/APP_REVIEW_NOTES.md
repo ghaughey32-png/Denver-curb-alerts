@@ -9,48 +9,37 @@ steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCO
 Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver and San Francisco, and snow-emergency tickets in Minneapolis.
 
 THREE CITIES, ONE APP (Guideline 4.3)
-This is one app with one codebase and one subscription, not the same app repeated per city. The previous version (1.0, build 13) already included all three cities. Each city has its own data and its own rules, built from that city's own public records:
-- Denver: the city's street sweeping routes, with left and right sides of each street separated, sweeping dates, and a schedule that only runs April to November.
-- San Francisco: the city's posted street cleaning windows per block side, including overnight sweeping (remind the evening before) and 5th-week days the schedule does not confirm. San Francisco sweeps all year.
-- Minneapolis: snow-emergency parking bans, which are not sweeping at all. They are day 1, 2 and 3 rules that apply only when the city declares an emergency.
-The app picks the city from the driver's location, and a switcher in the header changes it by hand. We did not publish a separate app per city, because the map, reminders and subscription are shared and a driver who travels between cities should not need three apps.
+One app, one codebase, one subscription. Version 1.0 (build 13) already included all three cities. Each has its own data and rules from its own public records:
+- Denver: street sweeping routes with left and right sides separated, April to November.
+- San Francisco: posted street cleaning windows per block side, including overnight sweeping. It sweeps all year.
+- Minneapolis: snow-emergency parking bans (day 1, 2, 3), which apply only when the city declares an emergency. Not sweeping.
+The app picks the city from the driver's location, and a header switcher changes it by hand. A driver who travels should not need three apps.
 
 ACCOUNTS AND ACCOUNT DELETION
-Accounts are optional (they back up saved curbs across devices). Every screen works signed out, so no demo account is needed.
-To create an account: tap the "Sign in" button at the top right of the header, choose "Create account", enter any email and a password of 10+ characters.
-To delete it: tap the account button at the top right (it now shows the email), then tap "Delete account", enter the password, and tap "Delete my account". Deletion is immediate and permanent: it removes the account, saved curb sets, sessions and push registrations from our server. No website or email is needed. The screen recording is attached to the reply to App Review.
+Accounts are optional (they back up saved curbs). Every screen works signed out, so no demo account is needed.
+Create: tap "Sign in" at the top right, choose "Create account", enter any email and a password of 10+ characters.
+Delete: tap the account button at the top right (it shows the email), tap "Delete account", enter the password, tap "Delete my account". Deletion is immediate and permanent and removes the account, saved curbs, sessions and push registrations from our server. No website or email is needed.
 
 WHAT IS NEW IN THIS VERSION (1.2)
 Small changes to existing screens, no new features or cities:
-- The alerts page now starts with "Reminders on this device", and the "Turn on reminders" button is larger.
-- The plans screen names the driver's city and what a ticket or tow costs there (Denver, San Francisco, Minneapolis), and Minneapolis wording says snow emergencies instead of sweeping.
-- The alerts-page status line in Minneapolis describes snow-emergency alerts.
-- When Denver is the active city and it is December to March, the plans screen shows one line saying Denver's sweeping season is on break and reminders resume in April. San Francisco never shows it. That line is expected, not a fault.
+- The alerts page starts with "Reminders on this device", and the "Turn on reminders" button is larger.
+- The plans screen names the driver's city and what a ticket or tow costs there; Minneapolis wording says snow emergencies, not sweeping. The Minneapolis alerts status line likewise.
+- When Denver is active and it is December to March, the plans screen shows one line saying Denver's sweeping season is on break and reminders resume in April. San Francisco never shows it. That line is expected.
 
 WHAT IS FREE AND WHAT IS SOLD
-The map is free. Reminders are sold by auto-renewable subscription: yearly (14-day free trial) and monthly. The paywall appears when you tap "Remind me about this curb". Prices are shown by StoreKit.
+The map is free. Reminders are an auto-renewable subscription: yearly (14-day free trial) and monthly. The paywall appears when you tap "Remind me about this curb". Prices come from StoreKit.
 
 HOW TO TEST
-1. Open the map and tap any colored curb to see its sweeping rules.
-2. Tap "Remind me about this curb" to reach the paywall, then subscribe in the sandbox. Tap "Turn on reminders" when prompted and allow notifications.
-3. Reminders are scheduled on the device as local notifications. "Send test now" sends a test notification immediately.
+1. Tap any colored curb on the map to see its rules.
+2. Tap "Remind me about this curb", subscribe in the sandbox, tap "Turn on reminders" and allow notifications.
+3. Reminders are local notifications. "Send test now" sends one immediately.
+To review San Francisco or Minneapolis, choose it in the header switcher; their maps and rules work at any time. San Francisco uses the same paywall.
 
-SAN FRANCISCO
-Use the city switcher in the header to choose San Francisco. The curb map and posted sweeping windows work at any time and can be reviewed now. Tapping a curb shows its sweeping schedule; "Remind me about this curb" uses the same paywall and subscription as Denver. San Francisco sweeps all year, so reminders there have no off-season.
+MINNEAPOLIS SNOW ALERTS
+Snow alerts are push notifications sent only when the City of Minneapolis declares a snow emergency, and a person on our team confirms and sends each one. None is declared outside winter storms, so you will not see one during review; that is normal operation. They are included in the same subscription.
 
-MINNEAPOLIS SNOW EMERGENCIES
-The city switcher in the header changes the map to Minneapolis. The curb map and rules there work at any time and can be reviewed now.
-Snow alerts are push notifications sent only when the City of Minneapolis declares a snow emergency, and a person on our team confirms and sends each declaration. No emergency is declared outside winter storms, so you will not see a snow alert during review, and none is expected. This is normal operation, not a missing feature. Snow alerts are included with the same subscription as reminders.
+NOTIFICATIONS AND LOCATION
+Notification permission is asked only after you tap "Turn on reminders" or "Send test now". Location is optional and never requested at launch: "Find my curb" and "Mark my spot" are the driver's own action and show the standard iOS prompt directly. If declined, the map still works. The parking pin's coordinates stay on the device.
 
-NOTIFICATIONS
-We use notifications for reminders the device schedules locally, and for snow-emergency alerts sent through Apple Push Notification service. The app asks for notification permission only after you tap "Turn on reminders" or "Send test now".
-
-LOCATION
-Location is optional and is never requested at launch. The "Find my curb" and "Mark my spot" buttons on the map are the driver's own action; tapping one shows the standard iOS location prompt directly, with no custom screen in front of it. If the driver declines, the map still works and they can search an address or tap a curb. The parking pin's coordinates stay on the device.
-
-DEVICES
-Runs natively on iPhone and iPad, in all iPad orientations.
-
-CONTACT
-support@curbalerts.co
+Runs natively on iPhone and iPad. Contact: support@curbalerts.co
 ```
