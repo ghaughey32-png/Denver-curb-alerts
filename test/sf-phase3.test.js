@@ -91,7 +91,7 @@ const TUESDAY_DAY = { days: [2], startHour: 8, endHour: 10, weeks: [2, 4], holid
 
 function loadSheet(today = new Date(2099, 2, 25)) {
   return load(
-    ["formatSfHour", "joinWithAnd", "describeSfWindow", "describeSfWindows", "formatSfDataDate", "buildSfCurbSheetCopy", "getSfReminderEntries", "formatLocalDateKey", "formatDateObject"],
+    ["formatSfHour", "joinWithAnd", "describeSfWindow", "describeSfWindows", "formatSfDataDate", "buildSfCurbSheetCopy", "getSfReminderEntries", "usesPostedWindows", "getScheduleLibrary", "getRemindableWindows", "formatLocalDateKey", "formatDateObject"],
     { window: { SfSchedule }, getStartOfToday: () => today },
     'const SF_WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];\nconst SF_ORDINALS = ["1st", "2nd", "3rd", "4th", "5th"];\nlet sfDataGeneratedAt = "2026-10-26T14:51:12.508Z";'
   );
@@ -195,7 +195,7 @@ test("5th St and 5th Ave are different streets, and a name shared by two is not 
 });
 
 test("reminder models follow the curbs: overnight only, daytime only, or both", () => {
-  const { getReminderModels } = load(["getReminderModels"], {});
+  const { getReminderModels } = load(["getReminderModels", "usesPostedWindows", "getRemindableWindows"], {});
   const sf = (...sf) => ({ schedule: { sf } });
   assert.deepEqual(plain(getReminderModels([sf(MONDAY_NIGHT)])), { day: false, overnight: true });
   assert.deepEqual(plain(getReminderModels([sf(TUESDAY_DAY)])), { day: true, overnight: false });
@@ -222,7 +222,7 @@ function loadSweepChecks(now, segments, movedSweepKeys = []) {
   const constantsEnd = APP_LINES.findIndex((line) => line.startsWith("const JOB_KIND_URGENCY = "));
   const set = { id: "set-my-curbs", name: "My curbs", reminders: {}, segments };
   const names = [
-    "getPendingSweepChecks", "getSweepCheckCandidates", "getFirstOvernightTime", "getSfReminderEntries", "buildDefaultReminders",
+    "getPendingSweepChecks", "getSweepCheckCandidates", "getFirstOvernightTime", "getSfReminderEntries", "usesPostedWindows", "getScheduleLibrary", "getRemindableWindows", "buildDefaultReminders",
     "isValidTimeValue", "buildDayOfReminderSlots", "buildOvernightReminderSlots", "applyTimeToDate", "addDays",
     "formatLocalDateKey", "buildSweepKey", "buildMovedCurbKey"
   ];
@@ -264,7 +264,7 @@ test("a daytime SF curb is asked about until its window ends, and Denver's banne
   const denver = { id: "way:north", street: "W 32ND AVE", sideLabel: "North curb", schedule: { sweepType: "Scheduled" } };
   const constantsStart = APP_LINES.findIndex((line) => line.startsWith("const DEFAULT_DAY_OF_REMINDERS = ["));
   const constantsEnd = APP_LINES.findIndex((line) => line.startsWith("const JOB_KIND_URGENCY = "));
-  const names = ["getPendingSweepChecks", "getSweepCheckCandidates", "getFirstOvernightTime", "buildDefaultReminders", "isValidTimeValue", "buildDayOfReminderSlots", "buildOvernightReminderSlots", "applyTimeToDate", "addDays", "formatLocalDateKey", "buildSweepKey", "buildMovedCurbKey"];
+  const names = ["getPendingSweepChecks", "getSweepCheckCandidates", "usesPostedWindows", "getFirstOvernightTime", "buildDefaultReminders", "isValidTimeValue", "buildDayOfReminderSlots", "buildOvernightReminderSlots", "applyTimeToDate", "addDays", "formatLocalDateKey", "buildSweepKey", "buildMovedCurbKey"];
   const sandbox = {
     state: { movedSweepKeys: [] },
     getReminderSets: () => [{ id: "s", name: "S", reminders: {}, segments: [denver] }],

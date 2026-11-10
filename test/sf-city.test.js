@@ -33,7 +33,7 @@ function loadSfClient(today = new Date(2026, 9, 26)) {
     getSnowCurbColor: () => "snow",
     colors: { north: "#2f9e44", south: "#e07a1f", east: "#d64545", west: "#2f6fed", unavailable: "#ff2d8d", notMaintained: "#7b8790", noRelocation: "#8e44ad" }
   };
-  const names = ["buildSfSchedule", "buildSfDataset", "getSfSweepDates", "getCurbColor"];
+  const names = ["buildSfSchedule", "buildSfDataset", "getSfSweepDates", "getCurbColor", "usesPostedWindows", "getScheduleLibrary", "getRemindableWindows"];
   vm.createContext(sandbox);
   vm.runInContext([...names.map(extractFunctionBlock), `this.__exports = { ${names.join(", ")} };`].join("\n"), sandbox);
   return sandbox.__exports;

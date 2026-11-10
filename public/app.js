@@ -4424,8 +4424,7 @@ function buildSfDataset(payload) {
 }
 
 // Boston's curbs. A curb carries every posted rule that covers it (see scripts/lib/boston-sweeping.js),
-// riding along as `schedule.boston`. No reminders yet, so `remindersAllowed` is false and the curb sheet
-// offers none; the map and the rules are what this city has so far.
+// riding along as `schedule.boston` and projected into dates at planning time (public/boston-schedule.js).
 function buildBostonSchedule(curb) {
   const windows = Array.isArray(curb.schedules) ? curb.schedules : [];
   return {
@@ -4434,7 +4433,9 @@ function buildBostonSchedule(curb) {
     boston: windows,
     median: Boolean(curb.median),
     noSignSeen: Boolean(curb.noSignSeen),
-    remindersAllowed: false,
+    // A sweep to remind about: not a median row, not a block where no sign was seen, and not only a
+    // standing night rule.
+    remindersAllowed: !curb.median && !curb.noSignSeen && windows.some((item) => !item.standing),
     relocationRequired: windows.length > 0 ? true : null,
     rule: "",
     allDates: []
@@ -4556,11 +4557,27 @@ function buildBostonCurbSheetCopy(segment) {
     };
   }
 
+  const rule = windows.map(describeBostonRule).join("; ");
+  if (!segment.schedule.remindersAllowed) {
+    return {
+      headline: windows.length > 1 ? "Posted rules for this curb" : "Posted rule for this curb",
+      rule,
+      notice: `${posted}${median}${freshness} Reminders are not offered for this curb.`,
+      canRemind: false
+    };
+  }
+
+  const entry = getSfReminderEntries(segment, 1)[0] || null;
+  if (!entry) {
+    return { headline: "No upcoming sweep found", rule, notice: `${posted}${freshness}`, canRemind: true };
+  }
+
+  const date = formatDateObject(entry.sweepDate);
   return {
-    headline: windows.length > 1 ? "Posted rules for this curb" : "Posted rule for this curb",
-    rule: windows.map(describeBostonRule).join("; "),
-    notice: `${posted}${median}${freshness}`,
-    canRemind: false
+    headline: entry.nightBefore ? `Next sweep: ${date}, move the night before` : `Next sweep: ${date}`,
+    rule,
+    notice: `${posted}${freshness}`,
+    canRemind: true
   };
 }
 
@@ -7814,21 +7831,47 @@ function getNextSweepDate(segment) {
   return getUpcomingSweepDates(segment)[0] || null;
 }
 
+// San Francisco and Boston curbs both carry posted windows rather than dates, and the reminder planner
+// treats them the same way (an evening-only plan for an overnight window). These three say which library
+// reads a curb's windows and which of them can be reminded about.
+function usesPostedWindows(segment) {
+  return Array.isArray(segment?.schedule?.sf) || Array.isArray(segment?.schedule?.boston);
+}
+
+function getScheduleLibrary(segment) {
+  return Array.isArray(segment?.schedule?.boston) ? window.BostonSchedule : window.SfSchedule;
+}
+
+// The windows a reminder can come from. Boston's standing night rules are not sweeps, and a median row,
+// or a block where no sign was seen, is not one to plan a reminder around.
+function getRemindableWindows(segment) {
+  if (Array.isArray(segment?.schedule?.sf)) {
+    return segment.schedule.sf;
+  }
+  if (Array.isArray(segment?.schedule?.boston) && segment.schedule.remindersAllowed) {
+    return segment.schedule.boston.filter((item) => !item.standing);
+  }
+  return [];
+}
+
 // San Francisco curbs carry their posted windows rather than dates, so each saved curb projects its own
 // upcoming sweeps here, at the moment reminders are planned. That keeps a saved set honest without the
 // SF page being open: the rules do not expire, so nothing in the set goes stale. This is the posted
 // weekday; an overnight window's reminder falls the evening before (SfSchedule.getReminderDate), which
 // the reminder planner reads from `schedule.sf` itself.
 function getSfSweepDates(segment, count = 8) {
-  const windows = segment.schedule?.sf;
-  if (!Array.isArray(windows) || !window.SfSchedule) {
+  if (!usesPostedWindows(segment)) {
+    return [];
+  }
+  const library = getScheduleLibrary(segment);
+  if (!library) {
     return [];
   }
 
   const today = getStartOfToday();
   const fromDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  return window.SfSchedule.getUpcomingSweeps({ schedules: windows }, fromDate, count).map((entry) => {
-    const { year, month, day } = window.SfSchedule.parseDate(entry.date);
+  return library.getUpcomingSweeps({ schedules: getRemindableWindows(segment) }, fromDate, count).map((entry) => {
+    const { year, month, day } = library.parseDate(entry.date);
     return new Date(year, month - 1, day);
   });
 }
@@ -8260,7 +8303,7 @@ function renderSavedSets() {
 // evening before (an overnight window), and which hedge applies when the data cannot confirm the day.
 // Other cities' curbs keep the dates they always had.
 function getReminderEntriesForSegment(segment) {
-  if (Array.isArray(segment.schedule?.sf)) {
+  if (usesPostedWindows(segment)) {
     return getSfReminderEntries(segment);
   }
 
@@ -8273,7 +8316,8 @@ function getReminderEntriesForSegment(segment) {
 function getSfReminderEntries(segment, count = 8) {
   const today = getStartOfToday();
   const fromDate = formatLocalDateKey(today);
-  const sweeps = window.SfSchedule.getUpcomingSweeps({ schedules: segment.schedule.sf }, fromDate, count * 2);
+  const library = getScheduleLibrary(segment);
+  const sweeps = library ? library.getUpcomingSweeps({ schedules: getRemindableWindows(segment) }, fromDate, count * 2) : [];
   const byKey = new Map();
 
   sweeps.forEach((sweep) => {
@@ -8288,7 +8332,7 @@ function getSfReminderEntries(segment, count = 8) {
       return;
     }
 
-    const { year, month, day } = window.SfSchedule.parseDate(sweep.date);
+    const { year, month, day } = library.parseDate(sweep.date);
     byKey.set(key, { sweepDate: new Date(year, month - 1, day), nightBefore: Boolean(sweep.nightBefore), hedge, endHour: sweep.endHour });
   });
 
@@ -8525,7 +8569,7 @@ function loadMovedSweepKeys() {
 // The sweeps to ask about for one curb: Denver's next date, or San Francisco's next few, which carry the
 // window's end so a sweep that is over is not asked about, and whether the car moves the night before.
 function getSweepCheckCandidates(segment) {
-  if (Array.isArray(segment.schedule?.sf)) {
+  if (usesPostedWindows(segment)) {
     return getSfReminderEntries(segment, 4);
   }
 
@@ -9865,12 +9909,11 @@ function summarizeSetSchedule(set, segments) {
 function getReminderModels(segments) {
   const models = { day: false, overnight: false };
   segments.filter(Boolean).forEach((segment) => {
-    const windows = segment.schedule?.sf;
-    if (!Array.isArray(windows)) {
+    if (!usesPostedWindows(segment)) {
       models.day = true;
       return;
     }
-    windows.forEach((item) => {
+    getRemindableWindows(segment).forEach((item) => {
       models[item.nightBefore ? "overnight" : "day"] = true;
     });
   });

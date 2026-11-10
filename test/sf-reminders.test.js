@@ -45,6 +45,9 @@ const FUNCTIONS = [
   "isDayBeforeJob",
   "getReminderEntriesForSegment",
   "getSfReminderEntries",
+  "usesPostedWindows",
+  "getScheduleLibrary",
+  "getRemindableWindows",
   "buildSweepCandidates",
   "buildOvernightCandidates"
 ];
