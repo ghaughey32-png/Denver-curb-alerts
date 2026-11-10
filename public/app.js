@@ -1559,6 +1559,7 @@ const PUSH_SUBSCRIPTION_KEY = "sloans-lake-push-subscription";
 // rather than a search through this file for the word "Denver".
 const ACTIVE_CITY = window.CityRegistry.getActiveCity();
 const CITY_MAP_BOUNDS = ACTIVE_CITY.bounds;
+const PAN_PADDING_DEGREES = ACTIVE_CITY.inventoryFormat === "denver-routes" ? 0 : 0.4;
 const CITY_NAME_PATTERN = new RegExp(`\\b${ACTIVE_CITY.name}\\b`, "i");
 const STATIC_ROUTE_INVENTORY_URL = ACTIVE_CITY.inventoryUrl;
 // The monthly-rule projection only ever runs on rule text, and only Denver's curbs carry any. On a
@@ -6477,9 +6478,14 @@ function initializeMap() {
     zoomControl: false,
     preferCanvas: true,
     minZoom: 11,
+    // A map frame wider than the clamp cannot be panned at all (Leaflet centres the clamp), and at the lowest
+    // zoom a desktop frame is about a degree wide, so a compact city like Boston, San Francisco or Minneapolis
+    // locked the map in place: you could not drag toward the neighbourhood next door, and zooming out did not
+    // help. Those cities get room to move; the red wash outside the city line covers it. Denver's own clamp
+    // is wide enough and is left as it was.
     maxBounds: L.latLngBounds(
-      [CITY_MAP_BOUNDS.south, CITY_MAP_BOUNDS.west],
-      [CITY_MAP_BOUNDS.north, CITY_MAP_BOUNDS.east]
+      [CITY_MAP_BOUNDS.south - PAN_PADDING_DEGREES, CITY_MAP_BOUNDS.west - PAN_PADDING_DEGREES],
+      [CITY_MAP_BOUNDS.north + PAN_PADDING_DEGREES, CITY_MAP_BOUNDS.east + PAN_PADDING_DEGREES]
     ),
     maxBoundsViscosity: 1
   });
