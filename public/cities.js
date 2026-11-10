@@ -209,6 +209,11 @@
     // Wording for the page where it names the city or what is sold, in place of Denver's sweeping copy.
     pageCopy: {
       eyebrow: "Minneapolis snow emergency alerts",
+      // The alerts page's status line in the iPhone app, where Denver's says street sweeping reminders and
+      // that sweep times are scheduled on the device. Snow alerts are sent when the city declares an
+      // emergency, so they are not scheduled ahead on the phone.
+      notificationReady: "This device is ready to turn on snow emergency alerts.",
+      notificationOn: "Alerts are on for this device. We'll send one when the city declares a snow emergency, and before each parking ban on your curbs.",
       heroTitle: "Know where you can park in a snow emergency.",
       heroText: "Tap the curb where you park. We'll show which days the city bans parking there during a snow emergency, and alert you when one is declared.",
       mapLabel: "Clickable Minneapolis curb-side map",

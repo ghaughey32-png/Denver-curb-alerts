@@ -24,7 +24,7 @@
       "id" : "C0A1E7B6",
       "localizations" : [
         {
-          "description" : "Street sweeping reminders for your curbs",
+          "description" : "Parking alerts for your curbs",
           "displayName" : "Curb Alerts Reminders",
           "locale" : "en_US"
         }
@@ -49,7 +49,7 @@
           },
           "localizations" : [
             {
-              "description" : "Sweeping reminders for a year, with a 14-day free trial",
+              "description" : "Parking alerts for a year, with a 14-day free trial",
               "displayName" : "Reminders, yearly",
               "locale" : "en_US"
             }
@@ -76,7 +76,7 @@
           "internalID" : "C0A1E7B8",
           "localizations" : [
             {
-              "description" : "Sweeping reminders, month to month",
+              "description" : "Parking alerts, month to month",
               "displayName" : "Reminders, monthly",
               "locale" : "en_US"
             }

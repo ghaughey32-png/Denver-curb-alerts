@@ -8978,11 +8978,11 @@ function renderNotificationStatus() {
     } else if (nativePermission === "granted") {
       notificationStatus.textContent = state.nativeReminderError
         ? `Reminders are on for this device, but the schedule was not accepted: ${state.nativeReminderError}`
-        : "Reminders are on for this device. Upcoming sweep times are scheduled on the device itself, so they arrive with no connection.";
+        : CITY_PAGE_COPY?.notificationOn || "Reminders are on for this device. Upcoming sweep times are scheduled on the device itself, so they arrive with no connection.";
     } else if (nativePermission === "denied") {
       notificationStatus.textContent = "Notifications are turned off for Curb Alerts in your device settings.";
     } else {
-      notificationStatus.textContent = "This device is ready to turn on street sweeping reminders.";
+      notificationStatus.textContent = CITY_PAGE_COPY?.notificationReady || "This device is ready to turn on street sweeping reminders.";
     }
 
     enableNotificationsButton.textContent = nativePermission === "granted" ? "Reminders On" : "Turn on reminders";
