@@ -2765,6 +2765,10 @@ the schedule never reaches is still pink at street level, where a driver is look
 Hawthorne St, Roslindale (a pink block with no row in the city's schedule): **no street cleaning sign**, and none on
 Sycamore St nearby. One result, read by the author. It fits the reading that the outer neighbourhoods (Roslindale 76%,
 West Roxbury 70%, Hyde Park 64% of city-street miles with no row) are mostly not in the posted sweeping program.
-**Cotton St, West Roxbury (pink): also no sign.** Three blocks, two neighbourhoods, no signs. Hyde Park is unchecked.
+**Cotton St, West Roxbury (pink): also no sign.** **Hale St, Hyde Park (pink), and the blocks around it: no sign either.** Four blocks, three neighbourhoods, no signs.
+The city's own page (boston.gov, "All about street sweeping") says daytime cleaning runs April 1 to November 30 "in most
+neighborhoods", that the night program cleans "main roads, arterials, and commercial roads", and to obey the posted sign;
+it does not say whether streets without signs are swept. These are neighbourhoods of the City of Boston, not separate
+municipalities, so there is no second set of rules to look up.
 A random sample of about 10 pink blocks would settle it; a sign found on a pink block would mean the schedule has
 gaps and would need a second source before anything else.
