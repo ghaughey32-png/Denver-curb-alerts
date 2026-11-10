@@ -360,8 +360,11 @@ user asks, and the App Store listing and a TestFlight build stay the user's go-a
   `NO_SIGN_SEEN` marks a row where the schedule lists a rule but no sign was found (Madeline St), drawn gold and dashed
   (`colors.noSignSeen`) with no reminder. Name the side that was looked at; the other side is a different row.
 - **Reminders** come from `public/boston-schedule.js`: the city's weeks as given (5th week never inferred), each rule's own
-  season, overnight windows the evening before, standing night rules and median rows never. Holidays and weather
-  cancellations are not modelled on purpose (an extra reminder costs less than a ticket); the legal copy says so.
+  season, overnight windows the evening before, standing night rules and median rows never. **Holidays follow the city's
+  own list** (boston.gov/holidays, checked 2026-11-10 against 2026 and 2027): daytime sweeping is canceled on every city
+  holiday except Evacuation Day and Bunker Hill Day, overnight is normal, and a daytime rule on such a day is a
+  `holiday-skip` that still reminds with the double-check wording (a missed reminder costs more than an extra one).
+  Weather cancellations are announced on the day and are not modelled; the legal copy says so.
 - **The city line is `public/boston-city-limits.js`** (OpenStreetMap relation 2315704, fetched 2026-11-10; outer ring only, the harbor islands are dropped). Like San Francisco's it has no pipeline half. `test/boston-city-limits.test.js` allows no curb point under the wash.
 - **Changing the file means bumping its `?v=`** (`inventoryUrl` on the Boston record) as for every other city.
 

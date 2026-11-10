@@ -2725,3 +2725,17 @@ land borders with Cambridge, Brookline, Newton, Dedham, Milton, Quincy, Chelsea,
 San Francisco. **0 of 56,725 curb points sit under the wash.** One oddity: the line leaves a point at Logan
 Airport's terminals (42.3656, -71.0096) outside the city, in the source relation too (a long straight edge
 near lat 42.364); no curb is there, so it is left as OSM has it.
+
+### Boston holidays (2026-11-10)
+
+The city's holiday page (boston.gov/holidays) lists each holiday with a street cleaning status: "Daytime street
+cleaning is canceled, but overnight street cleaning is on a normal schedule" on every city holiday except
+Evacuation Day (March 17) and Bunker Hill Day (June 17), which are "on a normal schedule". Its 2027 listing
+shows weekend holidays observed on the nearest weekday (Saturday to Friday, Sunday to Monday: Juneteenth Fri June
+18, Independence Day Mon July 5, Christmas Fri December 24). `getDaytimeCancelledHolidays` in
+`public/boston-schedule.js` reproduces the city's 2026 (Nov 11, Nov 26, Dec 25) and 2027 dates exactly
+(`test/boston-schedule.test.js`). A daytime rule on such a day is a `holiday-skip`, which the planner already
+turns into the "Holiday: probably no sweeping, double-check the sign" reminder SF uses; overnight rules are
+unaffected. **Assumed, not confirmed:** Veterans Day on a weekend is moved like the others (the city's listing
+only shows it on a weekday), and Patriots Day is the third Monday of April. Weather cancellations are not
+modelled (announced on the day).

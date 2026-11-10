@@ -1,4 +1,4 @@
-const CACHE_NAME = "curb-alerts-shell-v280";
+const CACHE_NAME = "curb-alerts-shell-v281";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -12,8 +12,8 @@ const APP_SHELL = [
   "/boston-city-limits.js?v=20261110-boston-limits",
   "/cities.js?v=20261110-boston-limits-inv98",
   "/sf-schedule.js?v=20261026-sf-schedule",
-  "/boston-schedule.js?v=20261110-boston-schedule",
-  "/app.js?v=20261110-boston-remind3",
+  "/boston-schedule.js?v=20261110-boston-holidays",
+  "/app.js?v=20261110-boston-holiday",
   "/denver-west-routes.json?v=98",
   "/manifest.webmanifest?v=20260808d",
   "/icon.svg?v=20260916-two-sides",

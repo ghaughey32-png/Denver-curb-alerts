@@ -21,8 +21,12 @@
   //     Hill. "year-round" (night sweeping) ignores it. Outside the season the next sweep is next
   //     spring's.
   //   - A `standing` rule is a nightly restriction, not a sweep, and never produces a date.
-  //   - Holidays are not modelled. Boston skips daytime sweeping on city holidays, but a reminder for a
-  //     street that turns out clear only annoys while a missing one costs a ticket, so they are left in.
+  //   - Holidays. The city's holiday page (boston.gov/holidays) says "Daytime street cleaning is canceled,
+  //     but overnight street cleaning is on a normal schedule" on every city holiday except Evacuation Day
+  //     (March 17) and Bunker Hill Day (June 17), which run normally. A daytime rule on such a day is
+  //     "holiday-skip": still listed, so the planner can remind with the double-check wording, because the
+  //     list can change and a missed reminder costs more than an extra one. Overnight rules are unaffected.
+  //     Weather cancellations are announced on the day and cannot be known ahead.
   //
   // Dates travel as "YYYY-MM-DD" strings: sweeping is a local-calendar fact, and Date's time zones would
   // move the day under a phone that is not in Boston.
@@ -51,6 +55,49 @@
     return Math.ceil(parseDate(text).day / 7);
   }
 
+  function getNthWeekdayOfMonth(year, month, weekday, nth) {
+    const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+    return formatDate(year, month, 1 + ((weekday - first + 7) % 7) + (nth - 1) * 7);
+  }
+
+  function getLastWeekdayOfMonth(year, month, weekday) {
+    const last = new Date(Date.UTC(year, month, 0));
+    return formatDate(year, month, last.getUTCDate() - ((last.getUTCDay() - weekday + 7) % 7));
+  }
+
+  // The days daytime sweeping is canceled for a city holiday. Dates and ordinals were checked against the
+  // city's own 2026 and 2027 holiday listing (every one matched). A holiday that falls on a weekend is
+  // observed on the nearest weekday, the Saturday ones on the Friday and the Sunday ones on the Monday,
+  // as the city's 2027 listing shows (Juneteenth Fri June 18, Independence Day Mon July 5, Christmas Fri
+  // December 24). Evacuation Day and Bunker Hill Day are not here: the city runs them normally.
+  function getDaytimeCancelledHolidays(year) {
+    const fixed = (month, day) => {
+      const weekday = parseDate(formatDate(year, month, day)).weekday;
+      return weekday === 6 ? formatDate(year, month, day - 1) : weekday === 0 ? formatDate(year, month, day + 1) : formatDate(year, month, day);
+    };
+    return [
+      fixed(1, 1),
+      getNthWeekdayOfMonth(year, 1, 1, 3),
+      getNthWeekdayOfMonth(year, 2, 1, 3),
+      getNthWeekdayOfMonth(year, 4, 1, 3),
+      getLastWeekdayOfMonth(year, 5, 1),
+      fixed(6, 19),
+      fixed(7, 4),
+      getNthWeekdayOfMonth(year, 9, 1, 1),
+      getNthWeekdayOfMonth(year, 10, 1, 2),
+      fixed(11, 11),
+      getNthWeekdayOfMonth(year, 11, 4, 4),
+      fixed(12, 25)
+    ];
+  }
+
+  // What a rule says about a date: "sweeps", "holiday-skip" (a daytime rule on a day the city cancels
+  // daytime sweeping), or "none".
+  function getScheduleStatus(schedule, text, holidays = getDaytimeCancelledHolidays(parseDate(text).year)) {
+    if (!sweepsOn(schedule, text)) return "none";
+    return !schedule.nightBefore && holidays.includes(text) ? "holiday-skip" : "sweeps";
+  }
+
   function readHour(value) {
     const match = /^(\d{1,2}):(\d{2})$/.exec(String(value || ""));
     return match ? Number(match[1]) + Number(match[2]) / 60 : 0;
@@ -73,16 +120,17 @@
     return schedule.nightBefore ? addDays(sweepDate, -1) : sweepDate;
   }
 
-  function getSweepDatesInMonth(curb, year, month) {
+  function getSweepDatesInMonth(curb, year, month, holidays = getDaytimeCancelledHolidays(year)) {
     const results = [];
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = formatDate(year, month, day);
       curb.schedules.forEach((schedule) => {
-        if (!sweepsOn(schedule, date)) return;
+        const status = getScheduleStatus(schedule, date, holidays);
+        if (status === "none") return;
         results.push({
           date,
-          status: "sweeps",
+          status,
           startHour: readHour(schedule.start),
           endHour: readHour(schedule.end),
           nightBefore: Boolean(schedule.nightBefore),
@@ -122,6 +170,8 @@
     getWeekOfMonth,
     isInSeason,
     sweepsOn,
+    getDaytimeCancelledHolidays,
+    getScheduleStatus,
     getReminderDate,
     getSweepDatesInMonth
   };

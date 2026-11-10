@@ -55,7 +55,7 @@ the next city. **Look at these only after Boston street sweeping and Minneapolis
 alerts are done.** Boston's launch scope is the sweep schedule, per-district seasons and the
 fifth-week flag; none of this is in it.
 
-- **City holidays.** Boston cancels daytime sweeping on City-recognized holidays (nighttime
+- **City holidays. Built 2026-11-10** (the app follows the city's own holiday list; see AGENTS.md, Boston). Original note: Boston cancels daytime sweeping on City-recognized holidays (nighttime
   continues). Reminders are scheduled ahead on the phone, so this is a dated list in the app, kept
   yearly from the city's own list. When unsure, remind: a missed reminder costs a ticket, one on a
   cancelled day only annoys. Probably cheap enough to pull into the launch if the list is easy.

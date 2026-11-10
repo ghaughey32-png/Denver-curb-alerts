@@ -4573,6 +4573,16 @@ function buildBostonCurbSheetCopy(segment) {
   }
 
   const date = formatDateObject(entry.sweepDate);
+  if (entry.hedge === "holiday") {
+    return {
+      headline: `Holiday ${date}: probably no daytime sweeping`,
+      hedgeWord: "probably",
+      rule,
+      notice: `The City of Boston cancels daytime street cleaning on this holiday. The list can change, so check the sign before you leave your car.${freshness}`,
+      canRemind: true
+    };
+  }
+
   return {
     headline: entry.nightBefore ? `Next sweep: ${date}, move the night before` : `Next sweep: ${date}`,
     rule,

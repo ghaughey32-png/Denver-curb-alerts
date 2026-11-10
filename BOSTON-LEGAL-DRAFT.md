@@ -1,6 +1,6 @@
 # Boston legal and page copy: draft for approval
 
-Status: **draft, not applied.** Per AGENTS.md the Terms, Privacy and Disclaimer must name a city in the same
+Status: **approved as written and applied 2026-11-10; holiday sentences revised the same day (see the last section).** Per AGENTS.md the Terms, Privacy and Disclaimer must name a city in the same
 commit that switches it on (`enabled: true` on its record in `public/cities.js`). Once you approve or edit
 this, I apply it and flip `enabled` in one commit, as was done for San Francisco ([SF-LEGAL-DRAFT.md](SF-LEGAL-DRAFT.md)).
 Boston stays off until then.
@@ -88,3 +88,17 @@ The current wording is in `public/index.html` (`data-view="terms"`, `"privacy"`,
   holidays before launch, that changes the third bullet above and the wording in 3.
 - Still to do before switching Boston on (not legal copy): a city boundary line for the map, the App Store
   listing and review notes (Guideline 4.3 already covers multiple cities), and a TestFlight build.
+
+## Revision, 2026-11-10: holidays are now modelled
+
+After approval the app learned Boston's holidays from the city's own list (boston.gov/holidays). The two sentences
+that said the app does not know about holidays were changed to match what it now does, in the same commit:
+
+- **Terms**, Boston paragraph: "Boston skips daytime sweeping on city holidays and may cancel sweeping for weather,
+  and the app does not know when, so a reminder may arrive for a sweep that does not happen." → "Boston cancels
+  daytime sweeping on most city holidays, and the app follows the city's published holiday list, but the list can
+  change and the city may also cancel sweeping for weather, which the app cannot know ahead of time, so a reminder
+  may arrive for a sweep that does not happen."
+- **Disclaimer**, Boston paragraph: "…and Boston skips daytime sweeping on city holidays and may cancel it for
+  weather, which the app does not know." → "Boston cancels daytime sweeping on most city holidays, which the app follows
+  from the city's published list, and may cancel it for weather, which the app cannot know ahead of time."
