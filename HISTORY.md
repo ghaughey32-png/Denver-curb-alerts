@@ -2739,3 +2739,17 @@ turns into the "Holiday: probably no sweeping, double-check the sign" reminder S
 unaffected. **Assumed, not confirmed:** Veterans Day on a weekend is moved like the others (the city's listing
 only shows it on a weekday), and Patriots Day is the third Monday of April. Weather cancellations are not
 modelled (announced on the day).
+
+### Boston: pink for blocks the schedule never reaches (2026-11-10)
+
+After Boston went live a driver pointed out that many streets were blank (Hampden St, Gerard St, Kemble St, Island
+St, Clarence St, Langdon St, Proctor St and others in the South End and Newmarket). Measured against the city's
+street layer (19,440 segments, 1,120 miles): 577 miles (52%) are on streets with published curbs, 49 miles are on
+streets with schedule rows we could not place, and **493 miles (44%) are on streets with no row in the schedule at
+all**: 321 miles Boston Public Works, 72 private, 45 DCR, 36 MassDOT, 10 Massport, 6 Parks. We do not know why the
+city lists no row for its own streets (it may post sweeping signs only on some), so a blank would read as "all clear"
+when we only know we found nothing. `buildBostonCurbs` now adds an `unavailable` curb for every side of a Public Works
+street (CFCC A2x, A3x, A4x, A61, A62) that no rule covers: **8,984 curbs, payload 5.09 MB to 7.15 MB**, which is one
+centreline curb where neither side is covered (17,401 curbs and 9.79 MB if drawn per side). 21 of their 97,400 curb
+points sit under the red wash on four streets (Thornton Rd, Playstead Rd, Chelsea St, Crosstown Ave) that run past
+OpenStreetMap's line, and the test budgets 30.

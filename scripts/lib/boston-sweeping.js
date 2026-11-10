@@ -409,6 +409,8 @@ function readSegments(features) {
     const right = readSideParity(properties.R_F_ADD, properties.R_T_ADD);
     segments.push({
       id: Number(properties.SEGMENT_ID),
+      ownership: String(properties.ownership || "").trim(),
+      cfcc: String(properties.CFCC || ""),
       displayName: formatStreetName([properties.PRE_DIR, properties.ST_NAME, properties.ST_TYPE, properties.SUF_DIR].filter(Boolean).join(" ")),
       names,
       line,
@@ -705,8 +707,17 @@ function pickSide(segment, parity) {
   return { side: parity === "odd" ? -1 : 1, guessed: true };
 }
 
-function buildCurbId(segmentId, side, median) {
-  return `bos:${crypto.createHash("sha1").update(`${segmentId}|${side}${median ? "|m" : ""}`).digest("hex").slice(0, 10)}`;
+function buildCurbId(segmentId, side, median, unavailable) {
+  return `bos:${crypto.createHash("sha1").update(`${segmentId}|${side}${median ? "|m" : ""}${unavailable ? "|u" : ""}`).digest("hex").slice(0, 10)}`;
+}
+
+// Streets the City of Boston's Public Works department owns and drives on. A segment of one of these that
+// the schedule never reaches is drawn as `unavailable` (pink) rather than left blank, because a blank street
+// reads as "all clear" and we only know that we found nothing. Private ways, state roads and highways
+// (Interstate 93, Soldiers Field Rd, the parkways), ramps and walkways are not the city's to sweep and stay off.
+const CITY_OWNER = "Boston Public Works Department";
+function isCityStreetSegment(segment) {
+  return segment.ownership === CITY_OWNER && (/^A[234]/.test(segment.cfcc) || segment.cfcc === "A61" || segment.cfcc === "A62");
 }
 
 // ---- The station check -------------------------------------------------------------------------
@@ -902,6 +913,7 @@ function buildBostonCurbs({ rows, features }) {
             schedules: [],
             geometry: roundPath(median ? segment.line : offsetPath(segment.line, placement.side * CURB_OFFSET_METRES)),
             segmentId: segment.id,
+            placementSide: placement.side,
             ...(range[0] && range[1] ? { addresses: [Math.min(range[0], range[1]), Math.max(range[0], range[1])] } : {})
           };
           bySide.set(key, curb);
@@ -915,6 +927,33 @@ function buildBostonCurbs({ rows, features }) {
     const schedules = mergeSchedules(curb.schedules);
     return { ...curb, schedules, ...(schedules.some((item) => item.noSignSeen) ? { noSignSeen: true } : {}) };
   });
+
+  // Every side of a city street that no rule reached becomes an `unavailable` curb. A side covered only by a
+  // median row is still uncovered: the median is not the curb.
+  const coveredSides = new Set(built.filter((curb) => !curb.median).map((curb) => `${curb.segmentId}|${curb.placementSide}`));
+  report.unavailableCurbs = 0;
+  // When neither side is covered the street is one pink line on its centreline (`sideKey` "center"), which
+  // halves the file; when one side is covered the other side is drawn on its own curb, like the rule beside it.
+  segments.filter((segment) => !segment.virtual && isCityStreetSegment(segment)).forEach((segment) => {
+    const open = [1, -1].filter((side) => !coveredSides.has(`${segment.id}|${side}`));
+    const push = (side, geometry, sideKey) => {
+      const range = side === 1 ? segment.addresses.left : side === -1 ? segment.addresses.right : [null, null];
+      built.push({
+        id: buildCurbId(segment.id, side, false, true),
+        street: segment.displayName,
+        sideKey,
+        unavailable: true,
+        schedules: [],
+        geometry: roundPath(geometry),
+        segmentId: segment.id,
+        placementSide: side,
+        ...(range[0] && range[1] ? { addresses: [Math.min(range[0], range[1]), Math.max(range[0], range[1])] } : {})
+      });
+      report.unavailableCurbs += 1;
+    };
+    if (open.length === 2) push(0, segment.line, "center");
+    else if (open.length === 1) push(open[0], offsetPath(segment.line, open[0] * CURB_OFFSET_METRES), getSideKey(segment.line, open[0]));
+  });
   built.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const idsBySegment = new Map();
   built.forEach((curb) => {
@@ -922,7 +961,7 @@ function buildBostonCurbs({ rows, features }) {
     if (!idsBySegment.has(curb.segmentId)) idsBySegment.set(curb.segmentId, []);
     idsBySegment.get(curb.segmentId).push(curb);
   });
-  const curbs = built.map(({ segmentId, ...curb }) => {
+  const curbs = built.map(({ segmentId, placementSide, ...curb }) => {
     const partner = curb.median ? null : idsBySegment.get(segmentId).find((other) => other.id !== curb.id);
     return partner ? { ...curb, opposite: partner.id } : curb;
   });

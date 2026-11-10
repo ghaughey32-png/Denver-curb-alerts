@@ -359,6 +359,11 @@ user asks, and the App Store listing and a TestFlight build stay the user's go-a
 - **A rule is overridden or flagged only from a sign someone read.** `SIGN_OVERRIDES` replaces day, weeks and hours (Roys St);
   `NO_SIGN_SEEN` marks a row where the schedule lists a rule but no sign was found (Madeline St), drawn gold and dashed
   (`colors.noSignSeen`) with no reminder. Name the side that was looked at; the other side is a different row.
+- **No city street renders blank.** A side of a street owned by Boston Public Works (and a local, collector or cul-de-sac
+  road, not a highway, ramp or walkway) that no rule reaches is an `unavailable` curb, drawn pink exactly as Denver's
+  pink: *no schedule found in the city's data, or not placed; check the sign*. Neither side covered is one centreline
+  curb (`sideKey` "center"); one side covered puts pink on the other. Private ways and state roads stay blank. 8,984 pink
+  curbs, 321 miles of city streets had no row in the schedule (HISTORY.md).
 - **Reminders** come from `public/boston-schedule.js`: the city's weeks as given (5th week never inferred), each rule's own
   season, overnight windows the evening before, standing night rules and median rows never. **Holidays follow the city's
   own list** (boston.gov/holidays, checked 2026-11-10 against 2026 and 2027): daytime sweeping is canceled on every city

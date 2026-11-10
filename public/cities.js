@@ -308,7 +308,7 @@
     minZoom: 11,
     // Not in the service worker's precache, like Minneapolis and San Francisco. Its "?v=" moves with
     // the file, and cities.js's own tag moves with it.
-    inventoryUrl: "./boston-sweeping.json?v=2",
+    inventoryUrl: "./boston-sweeping.json?v=3",
     // public/boston-city-limits.js: the OpenStreetMap boundary, with the same 20 m wash as the others.
     cityLimitsGlobal: "BostonCityLimits",
     sweepSeason: null,
@@ -336,7 +336,8 @@
         { colorKey: "south", text: "South curb of east-west streets" },
         { colorKey: "east", text: "East curb of north-south streets" },
         { colorKey: "west", text: "West curb of north-south streets" },
-        { colorKey: "noSignSeen", text: "Gold, dashed: the city's schedule lists sweeping here, but no street cleaning sign was found on the block" }
+        { colorKey: "noSignSeen", text: "Gold, dashed: the city's schedule lists sweeping here, but no street cleaning sign was found on the block" },
+        { colorKey: "unavailable", text: "Pink: no sweeping schedule found in the city's data for this block, or we could not place it on the map. Check the sign, and use caution" }
       ]
     }
   };

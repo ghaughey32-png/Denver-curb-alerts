@@ -102,3 +102,14 @@ that said the app does not know about holidays were changed to match what it now
 - **Disclaimer**, Boston paragraph: "…and Boston skips daytime sweeping on city holidays and may cancel it for
   weather, which the app does not know." → "Boston cancels daytime sweeping on most city holidays, which the app follows
   from the city's published list, and may cancel it for weather, which the app cannot know ahead of time."
+
+## Revision, 2026-11-10 (later): pink for blocks with no schedule
+
+The map now draws a block of a City of Boston street with no schedule in the city's data in pink, as Denver does,
+instead of leaving it blank. One clause was added to the Boston paragraphs, in the same commit:
+
+- **Terms:** "…and may place it wrongly or leave a block out." → "…and may place it wrongly or miss it. A block with
+  no schedule in the city's data is shown in pink, which means we found nothing there, not that it is safe."
+- **Disclaimer:** "…may be placed on the wrong block or side, or left off the map." → "…may be placed on the wrong
+  block or side, or missed, and a block with no schedule in the city's data is shown in pink, which means we found
+  nothing there, not that it is safe."

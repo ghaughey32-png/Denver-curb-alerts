@@ -4427,6 +4427,21 @@ function buildSfDataset(payload) {
 // riding along as `schedule.boston` and projected into dates at planning time (public/boston-schedule.js).
 function buildBostonSchedule(curb) {
   const windows = Array.isArray(curb.schedules) ? curb.schedules : [];
+  // A block of a city street with no rule in the city's data, drawn pink like Denver's: the same caution,
+  // never an all-clear.
+  if (curb.unavailable) {
+    return {
+      sweepType: "Unavailable",
+      cityId: "boston",
+      boston: [],
+      median: false,
+      noSignSeen: false,
+      remindersAllowed: false,
+      relocationRequired: null,
+      rule: "",
+      allDates: []
+    };
+  }
   return {
     sweepType: "Scheduled",
     cityId: "boston",
@@ -4465,7 +4480,7 @@ function buildBostonDataset(payload) {
       id: curb.id,
       street: name,
       sideKey: curb.sideKey,
-      sideLabel: curb.median ? "Median" : `${capitalize(curb.sideKey)} curb`,
+      sideLabel: curb.median ? "Median" : curb.sideKey === "center" ? "Street" : `${capitalize(curb.sideKey)} curb`,
       oppositeId: curb.opposite || null,
       addresses: Array.isArray(curb.addresses) ? curb.addresses : null,
       color: getCurbColor(schedule, colors[curb.sideKey] || colors.north),
@@ -4552,7 +4567,7 @@ function buildBostonCurbSheetCopy(segment) {
     return {
       headline: "No sweeping schedule found",
       rule: "",
-      notice: `We did not find street sweeping information for this curb in the City of Boston's data. That is not the same as no sweeping. ${posted}`,
+      notice: `We did not find street sweeping information for this block in the City of Boston's data, or could not place what the city lists on the map. That is not the same as no sweeping. Check the sign before you leave your car, and use caution.${freshness}`,
       canRemind: false
     };
   }

@@ -364,3 +364,20 @@ test("a rule flagged no-sign-seen is never merged into an identical rule that wa
   assert.ok(NO_SIGN_SEEN.has(1639), "Madeline St's even row is flagged");
   assert.equal(NO_SIGN_SEEN.get(1639).street, "Madeline St");
 });
+
+test("a city street the schedule never reaches is drawn pink, once on its centreline, and other owners stay off", () => {
+  const owned = { ownership: "Boston Public Works Department", CFCC: "A41" };
+  const features = [
+    segment(901, "Quiet", "St", [[LONS[0], 42.37], [LONS[1], 42.37]], owned),
+    segment(902, "Private", "Way", [[LONS[0], 42.38], [LONS[1], 42.38]], { ownership: "Private", CFCC: "A41" }),
+    segment(903, "State", "Rd", [[LONS[0], 42.39], [LONS[1], 42.39]], { ownership: "Massachusetts Department of Conservation and Recreation", CFCC: "A31" }),
+    segment(904, "Highway", "Rd", [[LONS[0], 42.4], [LONS[1], 42.4]], { ownership: "Boston Public Works Department", CFCC: "A15" })
+  ];
+  const { curbs, report } = buildBostonCurbs({ rows: [], features });
+  assert.equal(curbs.length, 1, "only the city street is drawn");
+  assert.equal(curbs[0].unavailable, true);
+  assert.equal(curbs[0].sideKey, "center");
+  assert.equal(curbs[0].street, "Quiet St");
+  assert.deepEqual(curbs[0].schedules, []);
+  assert.equal(report.unavailableCurbs, 1);
+});

@@ -128,6 +128,7 @@ async function main() {
   console.log(`Length fit of confident rows: ${JSON.stringify(report.confidentRatios)}`);
   console.log(`Why rows are not published: ${JSON.stringify(report.statuses)}`);
   console.log(`Sign overrides applied: ${report.signOverrides.length} (${report.signOverrides.map((o) => `${o.street} #${o.mainId}`).join(", ") || "none"})`);
+  console.log(`Pink (no schedule found) curbs on city streets: ${report.unavailableCurbs}`);
   console.log(`Curbs flagged no sign seen: ${report.noSignSeen.length} (${report.noSignSeen.map((o) => `${o.street} #${o.mainId}`).join(", ") || "none"})`);
   console.log(`Sides guessed from convention on ${report.ambiguousSideSegments} segment sides; ${report.rowsEndingBeforeStart.length} rows end before they start`);
   console.log(`Overnight curbs ${report.overnightCurbs}; standing (every-night) curbs ${report.standingCurbs}`);
