@@ -938,7 +938,7 @@ function getPushConfig() {
 function normalizeReminderJob(job) {
   return {
     id: String(job.id || ""),
-    title: String(job.title || "Denver Curb Alerts"),
+    title: String(job.title || "Curb Alerts"),
     body: String(job.body || "Street sweeping reminder"),
     scheduledAt: String(job.scheduledAt || ""),
     setName: String(job.setName || ""),
@@ -2061,7 +2061,7 @@ async function handleScheduledPushTest(request, response) {
     const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000);
     const testJob = normalizeReminderJob({
       id: `job-scheduled-test-${Date.now()}`,
-      title: "Denver Curb Alerts scheduled test",
+      title: "Curb Alerts scheduled test",
       body: `This is a live ${delayMinutes}-minute test of your automatic reminder delivery.`,
       scheduledAt: scheduledAt.toISOString(),
       setName: "Scheduled test",
@@ -2126,7 +2126,7 @@ async function handlePushTest(request, response) {
     }
 
     const payload = JSON.stringify({
-      title: body.title || "Denver Curb Alerts",
+      title: body.title || "Curb Alerts",
       body: body.body || "Test alert from your Sloan's Lake pilot.",
       url: body.url || "/",
       tag: body.tag || `test-${Date.now()}`
@@ -3279,7 +3279,7 @@ server.listen(PORT, HOST, async () => {
   // After storage is up, so the counters come back from whichever backend initStorage settled on.
   // This is what stops a redeploy handing an attacker a fresh budget of guesses.
   await loadSignInAttempts();
-  console.log(`Denver Curb Alerts running at http://${HOST}:${PORT} using ${storageBackend} storage`);
+  console.log(`Curb Alerts running at http://${HOST}:${PORT} using ${storageBackend} storage`);
   dispatchDueReminderPlans().catch((error) => {
     console.error(`Reminder dispatch failed during startup: ${error.message}`);
   });

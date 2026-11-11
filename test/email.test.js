@@ -336,7 +336,7 @@ test("the branding survives a client that blocks images", () => {
   const link = email.buildActionLink("https://www.curbalerts.co", "verify", "token-abc");
   const { html } = email.buildVerificationEmail({ to: "driver@example.com", link });
 
-  assert.ok(html.includes("Denver Curb Alerts"), "no wordmark to fall back to");
+  assert.ok(html.includes("Curb Alerts"), "no wordmark to fall back to");
   assert.ok(html.includes("Curb Alerts LLC"), "no operating entity in the footer");
 
   const images = [...html.matchAll(/<img\b[^>]*>/gi)];

@@ -531,7 +531,7 @@ test("a restored session merges the account library before anything is uploaded"
 // unlike sign-in it does no scrypt work, so eight of them cost milliseconds instead of a second.
 const OUTBOX_EMAIL_ENV = {
   EMAIL_TRANSPORT: "outbox",
-  EMAIL_FROM: "Denver Curb Alerts <alerts@example.com>",
+  EMAIL_FROM: "Curb Alerts <alerts@example.com>",
   RESEND_API_KEY: ""
 };
 

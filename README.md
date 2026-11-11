@@ -1,4 +1,4 @@
-# Denver Curb Alerts
+# Curb Alerts
 
 This is a working Denver pilot for a parking-protection app that helps people avoid tickets by checking live street sweeping data, showing the relevant curb segments on a map, and saving side-of-street reminder plans.
 
