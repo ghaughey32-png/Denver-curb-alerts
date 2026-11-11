@@ -5,13 +5,9 @@ Connect. I could not see the current listing text, so each field below is a prop
 is live; keep whatever the live text does better. Check every claim against the 1.3 build before pasting.
 Character limits: subtitle 30, promotional text 170, keywords 100, What's New 4000, description 4000.
 
-## Decision for you: the app's name
+## App name
 
-The store name is "Denver Curb Alerts" and the app now covers four places. A name that says only Denver
-sits badly with Apple's metadata-accuracy rule (2.3.7 and 4.3 look at exactly this) and will confuse a
-Boston driver searching the store. "Curb Alerts" alone would be accurate (the domain is curbalerts.co, the bundle
-id is `co.curbalerts.app`). Changing the name is a store-listing edit, not a code change, and can ride with 1.3.
-Decide before submitting; the rest of this file works with either name.
+The store name is "Curb Alerts", matching the site title, the app's display name and the LLC. No change needed. (An earlier draft of this file wrongly assumed "Denver Curb Alerts" from AGENTS.md.)
 
 ## Subtitle (30)
 

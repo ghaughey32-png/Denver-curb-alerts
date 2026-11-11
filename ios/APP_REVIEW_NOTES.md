@@ -6,7 +6,7 @@ were checked against public/app.js on 2026-10-09 (and the Swift side: no prompt 
 steps were written from AGENTS.md and should be confirmed. The ACCOUNTS AND ACCOUNT DELETION section was added 2026-10-31 after build 13 was rejected under 5.1.1(v); confirm the button labels against the build. The THREE CITIES (Guideline 4.3) and SAN FRANCISCO sections were added 2026-11-09. San Francisco and Minneapolis were already in build 13, which Apple approved, so these sections explain existing behaviour rather than announcing new cities. FOUR CITIES and WHAT IS NEW were rewritten 2026-11-11 for 1.3 (Boston); the 1.2 text is in git history (build 14 was never submitted, so 1.2 carried its winter line). Boston, unlike SF and Minneapolis, is genuinely new in 1.3. Confirm the switcher wording and the changes listed against the build. The LOCATION section was added 2026-10-30 for build 13, after build 12 was rejected under 5.1.1(iv). Keep it in step with the Terms, Privacy and paywall copy.
 
 ```
-Denver Curb Alerts helps drivers avoid street-sweeping tickets in Denver, San Francisco and Boston, and snow-emergency tickets in Minneapolis.
+Curb Alerts helps drivers avoid street-sweeping tickets in Denver, San Francisco and Boston, and snow-emergency tickets in Minneapolis.
 
 FOUR CITIES, ONE APP (Guideline 4.3)
 One app, one codebase, one subscription. Version 1.0 already included Denver, San Francisco and Minneapolis; Boston is new in 1.3. Each city has its own data and rules from its own public records:
