@@ -1,10 +1,10 @@
 {
   "note": "Written by scripts/lib/asset-versions.js. Run npm run lock:assets after bumping a ?v= tag by hand.",
   "shell": {
-    "cacheName": "curb-alerts-shell-v287",
+    "cacheName": "curb-alerts-shell-v288",
     "files": {
-      "index.html": "60b1f4c7fa092929cbcf86c852d3f68560c792e72dba0c676a0ef53e5fdecaf6",
-      "sw.js": "d9653c1adcb51a583684d24d768ba944bc66f1c9f87d1eddfde300c53c6c5465"
+      "index.html": "9b14f74e8acef5d5a4f5e371c48275a8214ec7e8451d65a663af831043688210",
+      "sw.js": "9e1d109cd5f6a7cf4169fb6c6d87c2c0049c62a404c44eeb33f8ab55f1a09175"
     }
   },
   "assets": {
@@ -45,8 +45,8 @@
       "sha256": "327becbf9e27b72f97b55f462689991820a83f39545f6df93becb0bc5abcd0b5"
     },
     "manifest.webmanifest": {
-      "version": "20260808d",
-      "sha256": "f979575e125dd860c9f2cfedb50385f016952784688392ea853cda70e8ad4e12"
+      "version": "20261111a",
+      "sha256": "cbcbb858d254c175531163bf80289c7ab5806f8dda7bce996e604309162117d3"
     },
     "minneapolis-city-limits.js": {
       "version": "20261001-mpls-limits",

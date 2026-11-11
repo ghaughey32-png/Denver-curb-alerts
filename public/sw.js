@@ -1,4 +1,4 @@
-const CACHE_NAME = "curb-alerts-shell-v287";
+const CACHE_NAME = "curb-alerts-shell-v288";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -15,7 +15,7 @@ const APP_SHELL = [
   "/boston-schedule.js?v=20261110-boston-holidays",
   "/app.js?v=20261111-open-on-city",
   "/denver-west-routes.json?v=98",
-  "/manifest.webmanifest?v=20260808d",
+  "/manifest.webmanifest?v=20261111a",
   "/icon.svg?v=20260916-two-sides",
   "/apple-touch-icon.png?v=20260916-two-sides"
 ];
@@ -108,7 +108,7 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "Denver Curb Alerts",
+    title: "Curb Alerts",
     body: "Street sweeping reminder",
     url: "/",
     tag: `curb-alert-${Date.now()}`

@@ -12,7 +12,7 @@ one or two sentences; the investigation that produced them goes in `HISTORY.md`,
 
 ## What this is
 
-**Denver Curb Alerts** — a street-sweeping / parking-ticket-avoidance app for Denver: a website
+**Curb Alerts** — a street-sweeping / parking-ticket-avoidance app for Denver: a website
 (map only) and an iPhone app (map plus reminders, sold by subscription). It proxies the city's
 public sweeping API, draws curb segments on a Leaflet map, separates left-side from right-side
 sweeping rules, and schedules reminders.

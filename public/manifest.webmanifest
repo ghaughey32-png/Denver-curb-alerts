@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Denver Curb Alerts",
+  "name": "Curb Alerts",
   "short_name": "Curb Alerts",
   "description": "Street sweeping reminders with curb-side selections, saved alert sets, and push-ready notification jobs.",
   "start_url": "/",
