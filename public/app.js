@@ -4961,6 +4961,14 @@ function refreshMapViewport() {
     return;
   }
 
+  // The extensions below are Denver's pilot areas. Another city opens on its own curbs: fitting them in as
+  // well stretched the view across the country, and only a tight pan clamp used to pull it back (it lands
+  // in a corner of the padded clamp now that those cities have room to move).
+  if (!IS_DENVER_FORMAT) {
+    state.map.fitBounds(bounds, { padding: [28, 28] });
+    return;
+  }
+
   bounds.extend([39.7506, -105.0435]);
   bounds.extend([39.7399, -105.0272]);
   bounds.extend([W5_TO_ALAMEDA_EAST_BOUNDS.north, W5_TO_ALAMEDA_EAST_BOUNDS.west]);
